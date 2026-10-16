@@ -288,6 +288,27 @@ add another end-to-end story or change their stable numbered walk checkpoints.
 - Browser automation and nonproduction events are marked synthetic, so they
   can be excluded from human-usage aggregates. Anonymous browsers are not
   guaranteed to represent unique people across devices or cleared storage.
+- Admission attempts and failures use bounded reason codes, never the entered
+  invitation or an error message. The funnel distinguishes an attempt from a
+  successful join. Starts include the number of participating writers; a first
+  accepted line records elapsed time since that game started, including reloads.
+  Existing stage/round outcomes permit measuring where players stop progressing.
+- Browser and Worker ingress exceptions carry the serving source release and
+  environment to Sentry with private content removed. An unavailable error sink
+  does not stall a healthy request. Native uptime monitoring covers the health
+  endpoint; each new issue, handled or unhandled, reaches the existing owned
+  alert intake once on first sight rather than notifying for every occurrence.
+
+#### Party-scale recovery
+
+As friends on phones, we can keep our seats and drafts while a browser reloads,
+disconnects, or sleeps. Waking restores current state before accepting more work.
+Ten concurrent eight-person rooms obey the same admission, assignment, immutable
+line, host-succession and privacy rules as a single room. A late eighth arrival
+watches the current seven-writer game and participates in the next game. An
+absent host can return as a writer without taking authority back from the
+successor. A ninth person is refused, not given an invisible seat. Browser
+freeze/offline emulation is recovery evidence, not physical-phone qualification.
 
 ## Capability: Release administration
 
@@ -352,3 +373,9 @@ Detailed acceptance:
 
 No fabricated notes, automatic review bypass, credential rotation or spending
 increase as an error-handling strategy.
+
+Maintainers can run one portable fast/full check command against a clean local
+checkout without cloud credentials. Full mode exercises the built Worker and
+ephemeral backend, including guest play, party recovery and telemetry failure
+and recovery; it does not deploy. Source archives without Git retain the caller's
+snapshot identity, never a fabricated commit or a skipped browser journey.

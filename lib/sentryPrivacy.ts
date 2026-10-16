@@ -9,7 +9,7 @@ type SentryFrame = NonNullable<
 >[number];
 
 const SAFE_TAG_VALUES = {
-  runtime: { browser: true, node: true, edge: true },
+  runtime: { browser: true, node: true, edge: true, worker: true },
   environment: {
     development: true,
     preview: true,
@@ -148,6 +148,7 @@ const SAFE_TRACE_OPERATIONS = {
 // Unknown types are dropped, which also drops `handled: false`.
 const SAFE_MECHANISMS = {
   generic: true,
+  'auto.http.cloudflare': true,
   'auto.browser.browserapierrors.addEventListener': true,
   'auto.browser.browserapierrors.handleEvent': true,
   'auto.browser.browserapierrors.requestAnimationFrame': true,
@@ -738,7 +739,9 @@ function failureSurface(
   runtime: string | undefined
 ): 'browser' | 'server' | 'unknown' {
   if (runtime === 'browser') return 'browser';
-  return runtime === 'node' || runtime === 'edge' ? 'server' : 'unknown';
+  return runtime === 'node' || runtime === 'edge' || runtime === 'worker'
+    ? 'server'
+    : 'unknown';
 }
 
 /**

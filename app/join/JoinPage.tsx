@@ -9,7 +9,12 @@ import { api } from '../../convex/_generated/api';
 import { useUser } from '../../lib/auth';
 import { captureError } from '../../lib/error';
 import { E2E_TEST_IDS } from '../../lib/e2eTestIds';
-import { hashRoomId, trackGameJoined } from '../../lib/analytics';
+import {
+  hashRoomId,
+  trackGameJoined,
+  trackJoinAttempted,
+  trackJoinFailed,
+} from '../../lib/analytics';
 import { errorToFeedback } from '../../lib/errorFeedback';
 import { toErrorReportable } from '../../lib/errorCore';
 import { playSound } from '@/lib/audio';
@@ -153,6 +158,7 @@ function JoinForm({ dependencies }: { dependencies: JoinPageDependencies }) {
     setIsSubmitting(true);
     setError('');
 
+    trackJoinAttempted();
     try {
       const room = await joinRoomMutation({
         code: normalizedCode,
@@ -161,11 +167,12 @@ function JoinForm({ dependencies }: { dependencies: JoinPageDependencies }) {
         guestToken: guestToken || undefined,
       });
       if (room.ok === false) {
+        trackJoinFailed(room.code);
         playSound('error');
         const error = toErrorReportable(new ConvexError(room.message));
         const feedback = errorToFeedback(error);
         setError(feedback.message);
-        captureError(error, { roomCode: normalizedCode });
+        // Expected admission rejection is a funnel outcome, not an incident.
         setIsSubmitting(false);
         return;
       }
@@ -176,6 +183,7 @@ function JoinForm({ dependencies }: { dependencies: JoinPageDependencies }) {
       playSound('sparkle');
       router.push(`/room/${normalizedCode}`);
     } catch (cause) {
+      trackJoinFailed('REQUEST_FAILED');
       playSound('error');
       const error = toErrorReportable(cause);
       const feedback = errorToFeedback(error);

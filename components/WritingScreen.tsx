@@ -227,6 +227,7 @@ function WritingComposer({
             roomIdHash: hashRoomId(assignment.roomId),
             cycle: assignment.cycle,
             round: assignment.lineIndex,
+            timeToFirstLineMs: result?.timeToFirstLineMs,
           });
         }
       } catch {

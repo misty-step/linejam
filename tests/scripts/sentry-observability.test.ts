@@ -216,10 +216,26 @@ describe('Sentry observability contract', () => {
     });
   });
 
+  it('rejects filtering handled errors out of the first-seen issue route', () => {
+    const snapshot = passingSnapshot();
+    const rule = snapshot.issueAlerts.find(
+      (rule) => rule.name === 'Linejam: new issue'
+    )!;
+    rule.filters = [
+      {
+        type: 'event_attribute',
+        comparison: { attribute: 'error.unhandled', value: 'true' },
+      },
+    ];
+    expect(auditSentryObservability(manifest, snapshot).failures).toContain(
+      'alert:Linejam: new issue:unexpected-filter'
+    );
+  });
+
   it('fails on disabled alerts, obsolete signals, absent deploys, and empty dashboards', () => {
     const snapshot = passingSnapshot();
     snapshot.issueAlerts.find(
-      (rule) => rule.name === 'New Unhandled Exception'
+      (rule) => rule.name === 'Linejam: new issue'
     )!.enabled = false;
     snapshot.cronMonitors.push({
       slug: 'linejam-production-health',
@@ -242,7 +258,7 @@ describe('Sentry observability contract', () => {
     expect(result.ok).toBe(false);
     expect(result.failures).toEqual(
       expect.arrayContaining([
-        'alert:New Unhandled Exception:enabled-drift',
+        'alert:Linejam: new issue:enabled-drift',
         'cron-monitor:linejam-production-health:forbidden',
         'release:production:deploy-marker-missing',
         'dashboard:widget-missing:Unresolved Errors',

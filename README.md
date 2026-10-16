@@ -19,6 +19,13 @@ The real Next.js/Convex stack needs Node and local Docker, not cloud credentials
 or a host dotenv file. Ctrl-C stops the owned stack and preserves its data.
 See [local development](docs/local-development.md) for prerequisites, QA and reset.
 
+With dependencies installed from the frozen lockfile, `pnpm check --mode fast`
+runs the portable affected gate; `pnpm check` runs the isolated full battery,
+including the built Worker/DO, real guest journey, party recovery and native
+telemetry fault/recovery. Run heavy checks on Mirrodin, not the chief. The
+command refuses live credentials and dotenv discovery. A Git-free source
+archive retains its caller's snapshot identity rather than inventing a revision.
+
 ## Project guide
 
 - [Product brief and current direction](project.md)
