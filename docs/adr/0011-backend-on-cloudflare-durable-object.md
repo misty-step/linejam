@@ -91,6 +91,7 @@ use `convex/react` and `convex/browser`.
    every check above passes. Pending scheduled functions are not part of a
    snapshot. Linejam's only one, the abandonment sweep's continuation, is
    re-derived by that sweep's one-minute cron.
+
 8. **Backups and restore.** The object's backup is Cloudflare's point-in-time
    history of its storage: 30 days, recorded whether or not anyone asks
    (Parlor ADR 0003, Backups). To recover from a bad write or deploy, freeze
@@ -98,11 +99,10 @@ use `convex/react` and `convex/browser`.
    `--bookmark`). The object restarts exactly as it was then, including
    whether writes were frozen, so a restore to a time of normal service
    resumes serving at once. The command logs an undo bookmark that reverses
-   the restore. A restore discards every write after its
-   target, so it repairs damage; it does not hand writes to another backend
-   (decision 7). The history is deleted with the class, so the cutover's
-   custody export, and any later frozen `export`, are the copies that
-   survive that.
+   the restore. A restore discards every write after its target, so it
+   repairs damage; it does not hand writes to another backend (decision 7).
+   The history is deleted with the class, so the cutover's custody export,
+   and any later frozen `export`, are the copies that survive that.
 
 ## Consequences
 
