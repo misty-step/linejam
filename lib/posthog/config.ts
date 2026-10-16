@@ -39,7 +39,9 @@ export const sanitizeAnalyticsEvent: BeforeSendFn = (event) => {
     distinct_id: input.distinct_id,
     $process_person_profile: false,
     $geoip_disable: true,
-    $ip: null,
+    // Ingestion replaces null with the request IP; an explicit sentinel does
+    // not. Verified against stored events, not only the outgoing payload.
+    $ip: '0.0.0.0',
     route,
     $host: 'linejam.mistystep.io',
     $pathname: route,

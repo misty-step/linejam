@@ -58,7 +58,7 @@ describe('Linejam PostHog transport privacy', () => {
       route: '/room/[code]',
       $current_url: 'https://linejam.mistystep.io/room/[code]',
       $geoip_disable: true,
-      $ip: null,
+      $ip: '0.0.0.0',
       roomIdHash: '0123456789abcdef',
       cycle: 1,
       round: 3,
