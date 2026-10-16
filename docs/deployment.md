@@ -403,11 +403,14 @@ The post-deploy parity probe also reads the selected production function spec's
 public deployment URL and refuses a `NEXT_PUBLIC_CONVEX_URL` that points at a
 sibling deployment.
 
-The same manifest also drives Convex runtime health. The five-minute Production
-Health Monitor reaches the exact web/Convex pair through `/api/health`, which
-checks required-name presence and repeats the zero-write signed parity probe.
-That catches drift introduced after a successful deployment without giving the
-scheduled workflow a production control-plane credential.
+The same manifest also drives Convex runtime health. Sentry Uptime's active
+`Linejam production health` monitor polls the exact web/Convex pair through
+`/api/health` every 60 seconds. The endpoint checks required-name presence and
+repeats the zero-write signed parity probe. The old five-minute GitHub
+`Production Health Monitor` workflow is disabled; the hourly `Production Smoke`
+workflow separately covers player behavior. These checks do not need a
+production control-plane credential. See the
+[observability contract](ops/observability-ci.md#observability-facts).
 
 `LINEJAM_DEPLOY_ENVIRONMENT` is a non-secret deployment-type marker maintained
 by the hosted bootstrap in the target Convex environment. Runtime health uses
@@ -422,18 +425,75 @@ The retired `LINEJAM_ALLOW_PROD_CONVEX_SYNC` flag cannot grant that authority.
 
 ## Backups and restore
 
-The `Convex Backup` workflow runs daily at 09:17 UTC and can also be started
-with `workflow_dispatch`. It authenticates only with the GitHub Actions
-secret `CONVEX_DEPLOY_KEY_PROD`, exports the production Convex deployment,
-and encrypts the export before it leaves the runner. The uploaded GitHub
-Actions artifact is named `linejam-convex-backup`; its encrypted file is
-`linejam-convex-<UTC date>-<short SHA>.zip.age` and its retention is 30 days.
-No plaintext export is uploaded.
+The daily workflow was re-enabled on 2026-10-15 after an encrypted export,
+private R2 hash readback, and isolated restore passed. The first restored
+[Actions backup](https://github.com/misty-step/linejam/actions/runs/38798868394)
+retains encrypted artifact `12002563957` for 30 days. A fresh loopback-only
+anonymous restore verified exact equality of all 22 application tables and
+118,964 documents, including IDs and creation times; import took 13.639 seconds
+and the full drill took 26.608 seconds. Production was never an import target.
+The [recovery receipt](https://github.com/misty-step/linejam/issues/564) owns
+the ciphertext/R2 hashes, cleanup proof, and current alarm-delivery status.
+The [forced-failure run](https://github.com/misty-step/linejam/actions/runs/38799093465)
+reached the existing intake and the current standalone production-triage
+consumer created and verified its [owned incident receipt](https://powder.mistystep.io/items/prod-triage-58e76f85530a4aed02f61dd408ab099046b42e023e5c861a5119d3e2a7ec7411).
+Exact intake readback confirmed the canonical ticket, not merely HTTP success.
+A [normal recovery backup](https://github.com/misty-step/linejam/actions/runs/38799277651)
+succeeded after the forced failure and retained another encrypted artifact.
 
-The workflow encrypts for the committed age recipient
-`age1pyuqjlecesessdwrqvk4hvav7ncrvuy0etus7aqrl6lq30r6g4asrskltu`. The
-matching private identity is an operator credential-plane secret named
-**linejam backup age identity**. Keep that identity out of GitHub artifacts,
+The 2026-10-15 UTC audit had found `Convex Backup` manually disabled since
+2026-08-16, with no `CONVEX_DEPLOY_KEY_PROD` Actions secret. Its
+[last successful run](https://github.com/misty-step/linejam/actions/runs/31939041782)
+was on 2026-08-16; the Actions API lists no retained artifacts for that run.
+Read-only provider inspection of the production `amiable-bulldog-848`
+deployment found an empty cloud-backup list and no periodic-backup configuration.
+The initially provisioned deploy key was denied `deployment:backups:create`.
+Kaylee approved using the existing team access token from mirrodin pass
+`workstation/CONVEX_API_KEY` in the same backup Actions secret instead; no new
+credential is minted. The [recovery and drill receipt](https://github.com/misty-step/linejam/issues/564)
+owns activation status, real backup/restore results, and failure-delivery proof.
+Do not treat this workflow's configured schedule, a synthetic preflight, or a
+successful webhook transport as evidence of a recoverable daily backup.
+
+The [`Convex Backup` workflow](../.github/workflows/convex-backup.yml) is configured for
+09:17 UTC daily and `workflow_dispatch`. It authenticates only with the GitHub
+Actions secret `CONVEX_DEPLOY_KEY_PROD` and retains its fail-closed missing-secret
+guard. Despite that legacy name, the secret must contain the approved
+export-capable **team access token**, not the production deploy key. The export
+passes it only through `CONVEX_OVERRIDE_ACCESS_TOKEN`, clears ambient deployment
+keys and target selectors, refuses ambient `.env`/`.env.local` files, and
+explicitly selects `--deployment amiable-bulldog-848`. The team token is broader
+than a deploy key; moving or replacing it requires credential-owner authority.
+The workflow encrypts the export before it leaves the runner. The uploaded
+GitHub Actions artifact is named
+`linejam-convex-backup`; its encrypted file is
+`linejam-convex-<UTC date>-<short SHA>.zip.age` and its retention is 30 days.
+No plaintext export is uploaded. A failed default-branch run uses the existing
+GitHub `workflow_run` incident path described in the
+[observability contract](ops/observability-ci.md#observability-facts).
+The native Sentry Cron Monitor `linejam-convex-backup` independently detects
+absence: it expects the same 09:17 UTC daily slot, allows 60 minutes for Actions
+scheduling and completion, and opens an incident on the first missed or failed
+check-in. The workflow reports `ok` only after the encrypted artifact upload
+succeeds; earlier failures report `error` when the reporter can run, otherwise
+the missing check-in is the backstop. A cancelled run cannot report success.
+Sentry continues watching when the GitHub workflow is disabled or never starts.
+One normal successful backup recovers the monitor. Its schedule and thresholds
+come from `config/sentry-observability.json`, shared with the existing reporter.
+
+The backup detector uses the existing Sentry scheduled-jobs alert
+(`6074705`), alongside production smoke, with its existing Kaylee intake action.
+It does not add a backup scheduler or a parallel notifier. The Sentry monitor
+is owned by the Misty Step team; verify the downstream canonical incident and
+owner, not just an accepted check-in or webhook HTTP 200. The 60-minute margin
+is a detection tolerance, not an extension or proof of the 24-hour RPO.
+
+The workflow owns the public age recipient. Its matching private identity is
+held in mirrodin pass as `workstation/LINEJAM_BACKUP_AGE_IDENTITY`. The old
+identity could not be located in the live or archived credential inventory or
+repository docs; the replacement was generated directly into pass with Kaylee's
+approval. Backups encrypted to the old recipient may not be restorable. Keep
+the identity out of GitHub artifacts,
 repository files, shell history, and chat. The public repository's artifact
 surface is treated as readable by an attacker; age encryption is the boundary
 that protects the export if an artifact is downloaded without authorization.
@@ -447,11 +507,15 @@ the durable receipt still needs that public, sanitized record.
 1. Download one `linejam-convex-backup` artifact from a successful backup run
    into a protected temporary directory. Keep the downloaded `.zip.age` file
    and the identity file mode `0600`.
-2. Resolve the private **linejam backup age identity** from the operator
+2. Resolve `workstation/LINEJAM_BACKUP_AGE_IDENTITY` from the operator
    credential plane into a local identity-file path. Do not paste its value into
    a command, log, issue, or pull request.
-3. Restore into the local anonymous deployment (the script's safe default), or
-   name a non-production target explicitly:
+3. Use a fresh, protected local drill project with the repository-pinned Convex
+   CLI available, no production credentials, and no application functions or
+   crons. Initialize it with `CONVEX_AGENT_MODE=anonymous pnpm exec convex init`.
+   Start its backend bound to loopback only, with telemetry disabled. Run the
+   restore script from that project directory, using its absolute path when
+   outside the checkout:
 
    ```bash
    scripts/ops/restore-convex-backup.sh \
@@ -460,7 +524,12 @@ the durable receipt still needs that public, sanitized record.
      local
    ```
 
-   For a non-production cloud deployment, replace `local` with `dev` or
+   The local target requires `.convex/local/default/config.json` containing an
+   `anonymous-*` deployment name. The script supplies that explicit anonymous
+   selection in a controlled environment; it does not use `--deployment local`,
+   which resolves through cloud authentication with the pinned CLI.
+
+   For a separately authorized non-production cloud deployment, replace `local` with `dev` or
    `preview:<name>`. The script decrypts to a
    temporary file, runs `pnpm exec convex import --replace-all`, and removes
    the decrypted file on exit. It refuses a target that resolves to production
@@ -472,15 +541,46 @@ the durable receipt still needs that public, sanitized record.
    Production-shaped keys remain blocked unless `--allow-production` is passed.
 
 4. Run the local or non-production health and representative data checks.
-   Record the redacted restore-drill conclusion on the Kanban work item that
-   owns the drill. The receipt must link the backup workflow run and retained
+   A fresh local re-export can be compared with the decrypted backup in memory
+   to verify every restored document without logging private contents. Stop the
+   backend and securely remove the local database, plaintext, and ephemeral
+   identity after verification. Record the redacted conclusion on the Kanban
+   work item that owns the drill. The receipt must link the backup workflow run and retained
    proof artifact, and name the non-secret target class, backup filename, source
    SHA, observed completion time, and check outcome.
 
-The declared recovery objectives are **RPO 24 hours** (the export is daily) and
-**RTO 30 minutes** (the drill's work record links the durable restore receipt
-and proof). Existing GitHub drill records remain historical evidence. These objectives assume the operator credential plane and a
-working Convex CLI are available; they do not authorize a production import.
+The declared recovery objectives are **RPO 24 hours** (requiring daily exports)
+and **RTO 30 minutes** (requiring a timed, successful restore drill). Their
+current evidence belongs in the recovery receipt, not an assertion inferred
+from the cron expression. The successful backup and timed non-production
+restore and failure receipt above establish a recovery checkpoint, not a
+sustained daily-run history. Missing-run detection is a separate Sentry
+failure-and-recovery acceptance surface below.
+Historical drill records do not prove current recovery readiness.
+These objectives assume the operator credential plane and a working Convex CLI
+are available; they do not authorize a production import.
+
+To test the existing incident route without exporting or mutating production,
+dispatch `Convex Backup` on `master` with `failure_drill=true`. This deliberately
+fails before export. Verify the completed failed run reaches the existing
+`workflow_run` intake and produces a real operator/incident receipt; an HTTP 200
+or a still-pending alert is not that receipt. Run a normal backup afterward.
+
+To rehearse absence without interrupting daily backups, temporarily shorten
+only the backup Sentry monitor's schedule and margin in an authorized drill,
+seed one explicitly diagnostic check-in, then send nothing for a complete
+expected slot plus its margin. Read back Sentry's generated `missed` check-in,
+the native cron incident, and the existing intake's canonical owned ticket.
+Restore the declared daily schedule and margin even if delivery fails. Dispatch
+a normal `Convex Backup` on `master` with `failure_drill=false`; verify the new
+retained encrypted artifact, its workflow-emitted `ok` check-in, and the same
+monitor's recovered state. Never substitute a manual `ok` for recovery proof.
+Diagnostic check-ins are not backups. Keep exact run/check-in/incident receipts
+with the owning repair work; configuration alone is not acceptance evidence.
+
+Retire this monitor together with the Convex backup only after the migration
+owner confirms Convex is retired. A disabled workflow alone is an incident,
+not authority to mute monitoring or resurrect an already-retired target.
 
 ## Deploy the web application (Cloudflare)
 

@@ -135,6 +135,35 @@ jobs:
       - name: Build check
         run: ./scripts/ci/dagger-call.sh build-check
 
+  worker-images:
+    name: Worker Routes & Images
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    env:
+      LINEJAM_LOCAL: '1'
+      NEXT_PUBLIC_LINEJAM_LOCAL: '1'
+      LINEJAM_DEPLOY_ENVIRONMENT: development
+      NEXT_PUBLIC_CONVEX_URL: http://127.0.0.1:1
+      NEXT_PUBLIC_SENTRY_ENABLED: '0'
+      NEXT_TELEMETRY_DISABLED: '1'
+      GUEST_TOKEN_SECRET: isolated-worker-image-build-only-0000000000
+      CIRCLE_NODE_TOTAL: '2'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build:cf
+      - run: pnpm test:worker-routes
+      - run: pnpm test:worker-images
+
   # Additive, secret-free acceptance. The CLI owns a fresh isolated app/backend,
   # guest browser loop, and runtime evidence; it does not replace Clerk E2E.
   local-guest-qa:
@@ -404,11 +433,22 @@ jobs:
     name: merge-gate
     runs-on: ubuntu-latest
     needs:
-      [quality-gates, test-build, local-guest-qa, e2e, qa-evidence]
+      [
+        quality-gates,
+        test-build,
+        worker-images,
+        local-guest-qa,
+        e2e,
+        qa-evidence,
+      ]
     if: always()
     steps:
       - name: Check all jobs passed
         run: |
+          if [[ "${{ needs.worker-images.result }}" != "success" ]]; then
+            echo "Built Worker images must succeed; skipped is not acceptance."
+            exit 1
+          fi
           if [[ "${{ needs.local-guest-qa.result }}" != "success" ]]; then
             echo "Isolated guest QA must succeed; skipped is not acceptance."
             exit 1

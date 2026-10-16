@@ -1,4 +1,8 @@
-/** Satori needs bundled font bytes; it cannot resolve the app's CSS variables. */
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { getCloudflareContext } from '@opennextjs/cloudflare';
+
+/** Satori needs font bytes; it cannot resolve the app's CSS variables. */
 export interface CardFontPairing {
   displayFamily: string;
   sansFamily: string;
@@ -22,21 +26,29 @@ export interface LoadedCardFonts {
   }>;
 }
 
-async function readFont(response: Response): Promise<ArrayBuffer> {
+async function readFont(filename: string): Promise<ArrayBuffer> {
+  let assets;
+  try {
+    assets = getCloudflareContext().env.ASSETS;
+  } catch {
+    // next dev/build/start run outside the Worker's request context.
+  }
+  if (!assets) {
+    const bytes = await readFile(join(process.cwd(), 'public/fonts', filename));
+    return new Uint8Array(bytes).buffer;
+  }
+
+  const response = await assets.fetch(`https://assets.local/fonts/${filename}`);
   if (!response.ok)
     throw new Error(`Could not load image font (${response.status})`);
   return response.arrayBuffer();
 }
 
-/** Literal asset URLs let Next bundle these fonts into every edge image route. */
+/** Workers use the static asset binding, never an origin request or file: fetch. */
 export async function loadCardFonts(): Promise<LoadedCardFonts> {
   const [display, sans] = await Promise.all([
-    fetch(new URL('../../public/fonts/dynapuff-500.ttf', import.meta.url)).then(
-      readFont
-    ),
-    fetch(
-      new URL('../../public/fonts/nunitosans-400.ttf', import.meta.url)
-    ).then(readFont),
+    readFont('dynapuff-500.ttf'),
+    readFont('nunitosans-400.ttf'),
   ]);
 
   return {

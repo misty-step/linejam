@@ -1,5 +1,7 @@
 # Linejam
 
+Shared standard: [Constitution](https://foundations.mistystep.io/) and [Way of working](https://foundations.mistystep.io/way-of-working).
+
 Run `project-context linejam` before starting work on this project.
 Use `SPEC.md` for observable behavior, `project.md` for the product brief, and
 `DESIGN.md` for identity and interaction. Powder owns priorities, open questions

@@ -1,0 +1,22 @@
+{
+  "name": "@parlor/cloudflare",
+  "version": "0.1.0",
+  "private": true,
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "exports": {
+    ".": "./dist/src/index.js",
+    "./testing": "./dist/src/testing.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "vitest": "4.1.11"
+  },
+  "peerDependencies": {
+    "convex": "^1.42.3"
+  }
+}

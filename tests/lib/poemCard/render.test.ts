@@ -1,14 +1,14 @@
-import { readFileSync } from 'node:fs';
 import { expect, it } from 'vitest';
 import { ImageResponse } from 'next/og';
 import {
   poemFullCardElement,
   computeFullCardSize,
 } from '@/lib/poemCard/PoemCard';
-import { getCardFontPairing } from '@/lib/poemCard/fonts';
+import { getCardFontPairing, loadCardFonts } from '@/lib/poemCard/fonts';
 import { resolveCardColors } from '@/lib/poemCard/colors';
 
 it('renders the attributed full-poem composition as an actual PNG stream', async () => {
+  const { fonts } = await loadCardFonts();
   const lines = [
     'poetry',
     'two words',
@@ -29,20 +29,7 @@ it('renders the attributed full-poem composition as an actual PNG stream', async
     }),
     {
       ...computeFullCardSize(lines),
-      fonts: [
-        {
-          name: 'DynaPuff',
-          data: new Uint8Array(readFileSync('public/fonts/dynapuff-500.ttf'))
-            .buffer,
-          weight: 500,
-        },
-        {
-          name: 'Nunito Sans',
-          data: new Uint8Array(readFileSync('public/fonts/nunitosans-400.ttf'))
-            .buffer,
-          weight: 400,
-        },
-      ],
+      fonts,
     }
   );
   const bytes = new Uint8Array(await image.arrayBuffer());

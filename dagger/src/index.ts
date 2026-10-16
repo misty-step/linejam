@@ -278,6 +278,8 @@ export class Ci {
       nextPublicSentryEnabled
     )
       .withExec(['pnpm', 'test:ci'])
+      .withExec(['pnpm', 'backend:modules:check'])
+      .withExec(['pnpm', 'test:backend:cloudflare'])
       .stdout();
   }
 

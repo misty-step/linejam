@@ -136,6 +136,15 @@ completion independently routes failures to Kaylee's alert intake:
   consecutive failed-or-missed check-in threshold. The monitor incident
   therefore pages only when the smoke stops running or keeps failing for
   roughly three consecutive hourly slots.
+- `linejam-convex-backup` covers the daily 09:17 UTC encrypted backup, with a
+  60-minute check-in margin, a one-miss failure threshold and one-success
+  recovery. Its completion check-in follows retained encrypted artifact upload,
+  not merely export start. The backup and production-smoke detectors share
+  Sentry's existing `Linejam scheduled jobs: missed or failed check-in` alert
+  (`6074705`) and its existing Kaylee intake action. Because Sentry owns the
+  expected slot, disabling the GitHub workflow does not silence absence
+  detection. See [backup operations](../deployment.md#backups-and-restore) for
+  the distinct missing-check-in and normal-backup recovery drill.
 - `Production Smoke` owns the player-health job (guest entry and game start,
   US-001/US-002, plus authenticated join). Its downstream
   `Sentry player-health reporting` job owns the monitor check-in. Reporting
@@ -196,6 +205,15 @@ For symbolication, the transport retains only origin-free
 `app:///_next/static/**/*.js` bundle locations, line/column coordinates, and
 validated source-map debug IDs. It drops source origins, query strings,
 fragments, non-static paths, function/module names, and frame-local data.
+Redaction can leave unrelated failures with the same type, message label and
+frame-free stack, so every error event carries a hybrid fingerprint: Sentry's
+default grouping plus surface (browser or server), error class, mechanism,
+operation, failure code and route template. The route is one template per
+`app/` route, or `unknown` when the event's transaction names none; error
+events keep the transaction only when it names a template. Each value is closed
+vocabulary, and Sentry merges hybrid fingerprints only when they are equal, so
+a new failure class opens a new issue instead of joining an ongoing one
+([2026-10-12 postmortem](../postmortems/2026-10-12-release-routes-evalerror.md)).
 `/api/health` reports application health separately from observability ingest,
 so degraded ingest is not proof gameplay is down.
 
@@ -294,7 +312,9 @@ details:
    scheduler or work ledger.
 3. Apply a transport allowlist before enabling ingest. Prove with a forbidden
    sentinel that payloads omit product content, identity, network identifiers,
-   request data, secrets, arbitrary context, and frame locals.
+   request data, secrets, arbitrary context, and frame locals. Redaction removes
+   what Sentry groups on, so fingerprint each error from closed fields and prove
+   in preview that two redacted classes open two issues.
 4. Track each actionable Sentry issue to exactly one owner artifact: a pull
    request or an explicit no-fix postmortem. Retries must be bounded and
    deduplicated durably by Sentry issue ID.
