@@ -173,6 +173,25 @@ No generated player lines, extra modes, competitive player rankings or fabricate
 replacement lines for an absent writer. A completed browser journey and a
 reconnected seat are separate observations, not implied by a lobby screenshot.
 
+#### Abandonment sweep health
+
+As the operator, I want unattended-game cleanup failures and absent runs to
+reach the existing owned alert intake, without stopping people from playing.
+
+- The existing minute-by-minute sweep closes unattended games atomically per
+  bounded page, preserving partial-line privacy and active participants.
+- One native Sentry check-in covers an entire sweep: it starts before the first
+  page, succeeds only after every continuation page commits, and fails if any
+  page fails. An interrupted run must never report success.
+- Sentry detects a failed, timed-out, or missed production sweep and routes the
+  incident through the existing scheduled-job alert and canonical owned intake.
+  A normal successful sweep recovers the monitor.
+- Reporting contains only the monitor identity, environment, source release,
+  generated check-in identity, status and elapsed time; no player or game data.
+- Disabled or unavailable telemetry must not prevent cleanup or gameplay.
+  Nonproduction runs must not seed a production monitor environment.
+- Retention remains unchanged; this story does not authorize enabling deletion.
+
 ## Capability: Keep and share
 
 ### US-003 [live] Save privately and publish on purpose
@@ -243,6 +262,33 @@ Detailed acceptance:
 No hidden unpublished text in spectator responses, metadata, images or previews.
 Knowing a room code, poem identifier or inactive share URL is not permission.
 
+#### Privacy-safe measurement across US-001–003
+
+As the product owner, I want anonymous pageviews, sessions and story outcomes
+so I can steer the product without reading players' private work.
+
+These supporting criteria apply across the three player journeys; they do not
+add another end-to-end story or change their stable numbered walk checkpoints.
+
+- A configured production browser records pageviews and sessions, including
+  guest play without a signed-in account. Events carry `app=linejam`, the
+  environment and source release. Unconfigured browsers send nothing.
+- The existing `game_created` and `game_joined` outcomes measure US-001;
+  `line_submitted` and `game_completed` measure US-002; `artifact_action`
+  measures US-003. Existing supporting funnel/share signals remain available.
+  A retried room/cycle/round/action is counted once per browser runtime.
+- Analytics contains no names, emails, account IDs, guest tokens, room codes,
+  poem text, query strings, fragments, raw private paths or IP/geolocation
+  enrichment. Routes are templates. Browser identifiers are random,
+  host-scoped pseudonyms, not signed-in identities. Autocapture, replay,
+  surveys and automatic exception/performance capture are disabled.
+- SDK exceptions and an unavailable analytics sink never prevent admission,
+  writing, reveal, saving or sharing. A later user action can be captured
+  after the sink recovers; failed actions are not invented or backfilled.
+- Browser automation and nonproduction events are marked synthetic, so they
+  can be excluded from human-usage aggregates. Anonymous browsers are not
+  guaranteed to represent unique people across devices or cleared storage.
+
 ## Capability: Release administration
 
 ### US-004 [live] Prepare a reviewed release when generated notes fail
@@ -306,50 +352,3 @@ Detailed acceptance:
 
 No fabricated notes, automatic review bypass, credential rotation or spending
 increase as an error-handling strategy.
-
-## Abandonment sweep health
-
-As the operator, I want unattended-game cleanup failures and absent runs to
-reach the existing owned alert intake, without stopping people from playing.
-
-- The existing minute-by-minute sweep closes unattended games atomically per
-  bounded page, preserving partial-line privacy and active participants.
-- One native Sentry check-in covers an entire sweep: it starts before the first
-  page, succeeds only after every continuation page commits, and fails if any
-  page fails. An interrupted run must never report success.
-- Sentry detects a failed, timed-out, or missed production sweep and routes the
-  incident through the existing scheduled-job alert and canonical owned intake.
-  A normal successful sweep recovers the monitor.
-- Reporting contains only the monitor identity, environment, source release,
-  generated check-in identity, status and elapsed time; no player or game data.
-- Disabled or unavailable telemetry must not prevent cleanup or gameplay.
-  Nonproduction runs must not seed a production monitor environment.
-- Retention remains unchanged; this story does not authorize enabling deletion.
-
-## Capability: Measured usage
-
-### Understand which player stories are used without collecting content
-
-As the product owner, I want anonymous pageviews, sessions and story outcomes
-so I can steer the product without reading players' private work.
-
-Criteria:
-
-1. A configured production browser records pageviews and sessions, including
-   guest play without a signed-in account. Events carry `app=linejam`, the
-   environment and source release. Unconfigured browsers send nothing.
-2. The existing `game_created` and `game_joined` outcomes measure US-001;
-   `line_submitted` and `game_completed` measure US-002; `artifact_action`
-   measures US-003. Existing supporting funnel/share signals remain available.
-   A retried room/cycle/round/action is counted once per browser runtime.
-3. Analytics contains no names, emails, account IDs, guest tokens, room codes,
-   poem text, query strings, fragments, raw private paths or IP/geolocation
-   enrichment. Routes are templates. Browser identifiers are random,
-   host-scoped pseudonyms, not signed-in identities. Autocapture, replay,
-   surveys and automatic exception/performance capture are disabled.
-4. SDK exceptions and an unavailable analytics sink never prevent admission,
-   writing, reveal, saving or sharing. A later user action can be captured
-   after the sink recovers; failed actions are not invented or backfilled.
-5. Browser automation and nonproduction events are marked synthetic, so they
-   can be excluded from human-usage aggregates. Anonymous browsers are not
-   guaranteed to represent unique people across devices or cleared storage.
