@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
+import { isSentryEnabled } from '../../lib/errorCore';
 
 async function openHelp(page: Page) {
   await page.getByRole('button', { name: 'More options' }).click();
@@ -118,10 +119,25 @@ for (const [kind, asset] of [
   }) => {
     const home = page.locator('linejam-entry[view="home"]');
     const reported: string[] = [];
-    page.on('console', (message) => {
-      if (message.text().includes('Rust entry view failed to load'))
-        reported.push(message.text());
-    });
+    if (isSentryEnabled()) {
+      // Production reporting is silent. Observe the real browser SDK's
+      // transport without sending deliberate test failures to the hosted sink.
+      await page.route('**/api/*/envelope/**', async (route) => {
+        for (const line of (route.request().postData() || '').split('\n')) {
+          try {
+            if (JSON.parse(line)?.exception) reported.push('sdk-exception');
+          } catch {
+            // Envelope headers and payload lines are independently framed.
+          }
+        }
+        await route.fulfill({ status: 200, body: '{}' });
+      });
+    } else {
+      page.on('console', (message) => {
+        if (message.text().includes('Rust entry view failed to load'))
+          reported.push('disabled-sink-console');
+      });
+    }
     await page.route(`**/entry-wasm/${asset}`, (route) =>
       route.abort('failed')
     );
@@ -129,7 +145,7 @@ for (const [kind, asset] of [
     await expect(home.getByRole('alert')).toContainText(
       'Could not load this view.'
     );
-    expect(reported).toHaveLength(1);
+    await expect.poll(() => reported.length).toBe(1);
     await expect(page.getByRole('heading', { level: 1 })).toHaveCount(0);
     await page.unroute(`**/entry-wasm/${asset}`);
     await page.getByRole('button', { name: 'Retry', exact: true }).click();
