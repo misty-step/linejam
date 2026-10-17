@@ -1,8 +1,15 @@
 // Exercise the deploy input, not the source entrypoint; no network or accepted data.
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
 import { chromium, expect } from '@playwright/test';
 import { ConvexHttpClient } from 'convex/browser';
 import { unstable_startWorker } from 'wrangler';
@@ -23,6 +30,22 @@ async function main() {
     'https://linejam.mistystep.io/backend'
   );
   assert(!config.vars.LINEJAM_LOCAL && !config.vars.NEXT_PUBLIC_LINEJAM_LOCAL);
+  // Like the existing route gate, keep Wrangler scratch/config discovery out
+  // of the deploy input. Only relative file roots are resolved for workerd;
+  // every deployed setting and the actual packaged modules/assets stay intact.
+  const directory = mkdtempSync(join(tmpdir(), 'linejam-release-proof-'));
+  const runtimeConfig = join(directory, 'wrangler.json');
+  writeFileSync(
+    runtimeConfig,
+    JSON.stringify({
+      ...config,
+      main: resolve(dirname(artifact), config.main),
+      assets: {
+        ...config.assets,
+        directory: resolve(dirname(artifact), config.assets.directory),
+      },
+    })
+  );
   const backend = new URL(config.vars.NEXT_PUBLIC_CONVEX_URL);
   const guestSecret = randomBytes(32).toString('hex');
   const actionKey = randomBytes(32).toString('base64');
@@ -43,7 +66,7 @@ async function main() {
   let worker: Awaited<ReturnType<typeof unstable_startWorker>> | undefined;
   async function start(values: Record<string, string>) {
     return unstable_startWorker({
-      config: artifact,
+      config: runtimeConfig,
       bindings: Object.fromEntries(
         Object.entries(values).map(([name, value]) => [
           name,
@@ -255,6 +278,7 @@ async function main() {
     );
   } finally {
     await worker?.dispose();
+    rmSync(directory, { recursive: true, force: true });
   }
 }
 

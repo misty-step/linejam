@@ -348,7 +348,7 @@ def main():
             except Exception as error:
                 if journal.state.phase in (Phase.BUILD, Phase.FORWARD):
                     journal.record(Event.FAILED)
-                print('Failure: ' + type(error).__name__, file=log, flush=True)
+                print(f'Failure: {type(error).__name__}; {error}', file=log, flush=True)
                 print(f'Linejam native release failed; candidate={sha}; state={journal.state.phase}; evidence=mirrodin-hq:{log_path}; owner=Kaylee', file=sys.stderr)
                 return 1
 
