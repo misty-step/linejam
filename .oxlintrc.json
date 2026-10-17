@@ -13,6 +13,7 @@
     ".opencode/**",
     ".pi/**",
     ".qa/**",
+    ".release/**",
     ".roo/**",
     ".spellbook/**",
     ".windsurf/**",

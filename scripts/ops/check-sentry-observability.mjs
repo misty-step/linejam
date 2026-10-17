@@ -106,6 +106,7 @@ function normalizeRule(rule) {
     triggerLogic: rule.actionMatch ?? rule.triggers?.logicType,
     conditionTypes,
     malformedConditionCount: rawConditions.length - conditionTypes.length,
+    filterCount: rawFilters.length,
     filterLogic:
       new Set(filterLogicValues).size === 1 ? filterLogicValues[0] : null,
     malformedFilterLogic: new Set(filterLogicValues).size > 1,
@@ -172,6 +173,9 @@ export function auditSentryObservability(manifest, snapshot) {
     }
     if (!actionMatches(actual.actions, expected.action)) {
       failures.push(`alert:${expected.name}:action-drift`);
+    }
+    if (expected.unfiltered === true && actual.filterCount !== 0) {
+      failures.push(`alert:${expected.name}:unexpected-filter`);
     }
     if (expected.trigger) {
       if (actual.triggerLogic !== expected.trigger.logic) {

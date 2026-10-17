@@ -10,6 +10,7 @@ const output = path.join(
 export default defineConfig(base, {
   testDir: '../../tests/e2e',
   testMatch: [
+    'entry-ui.spec.ts',
     'early-smoke.spec.ts',
     'game-flow.spec.ts',
     'guest-flow.evidence.spec.ts',

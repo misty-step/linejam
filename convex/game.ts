@@ -161,6 +161,7 @@ export const startGame = mutation({
       retentionState: 'active',
       retentionEligibleAt: undefined,
     });
+    return { cycle: match.cycle, playerCount: participants.length };
   },
 });
 
@@ -401,10 +402,18 @@ export const submitLine = mutation({
         q.eq('poemId', poemId).eq('indexInPoem', lineIndex)
       )
       .first();
+    const firstLineTiming = (createdAt: number) =>
+      lineIndex === 0
+        ? { timeToFirstLineMs: Math.max(0, createdAt - game.createdAt) }
+        : {};
     if (existing) {
       // A reconnect retry may discover that the first request committed. Return
       // the stored text so the client never labels an unsaved draft as settled.
-      return { status: 'already_submitted' as const, text: existing.text };
+      return {
+        status: 'already_submitted' as const,
+        text: existing.text,
+        ...firstLineTiming(existing.createdAt),
+      };
     }
 
     const roomPlayer = (await getRoomPlayers(ctx, room)).find(
@@ -459,6 +468,7 @@ export const submitLine = mutation({
       );
     }
 
+    const createdAt = Date.now();
     await ctx.db.insert('lines', {
       poemId,
       indexInPoem: lineIndex,
@@ -466,7 +476,7 @@ export const submitLine = mutation({
       wordCount,
       authorUserId: user._id,
       authorDisplayName: roomPlayer.displayName,
-      createdAt: Date.now(),
+      createdAt,
     });
 
     await applyLineLifecycleTransition(ctx, {
@@ -475,7 +485,11 @@ export const submitLine = mutation({
       lineIndex,
     });
 
-    return { status: 'committed' as const, text: text.trim() };
+    return {
+      status: 'committed' as const,
+      text: text.trim(),
+      ...firstLineTiming(createdAt),
+    };
   },
 });
 

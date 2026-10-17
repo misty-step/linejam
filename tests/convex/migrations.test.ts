@@ -660,7 +660,11 @@ describe('migrateGuestToUser', () => {
         lineIndex: 0,
         text: 'linked',
       })
-    ).toEqual({ status: 'committed', text: 'linked' });
+    ).toEqual({
+      status: 'committed',
+      text: 'linked',
+      timeToFirstLineMs: expect.any(Number),
+    });
     expect(
       await t.run((ctx) => ctx.db.get(retained.unrelatedGame!._id))
     ).toEqual(retained.unrelatedGame);

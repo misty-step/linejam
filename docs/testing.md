@@ -30,8 +30,8 @@ pnpm ci:dagger:all-no-e2e                  # Dagger checks without browser E2E
 pnpm ci:dagger:all                         # Dagger checks + full provider-backed E2E
 ```
 
-`pnpm ci:prepush` remains the common fast check; its composition has one owner,
-`package.json`. The local container check consumes that command and adds its
+`pnpm check --mode fast` is the common fast check; `ci:prepush` and `ci:fast`
+remain aliases. `scripts/check.mjs` owns the fast/full plans. The local container check consumes that command and adds its
 format, coverage, and non-deploying build checks. It does not copy the fast
 check's constituent commands.
 
@@ -62,6 +62,31 @@ an isolated worktree nested under `.codex`, `.worktrees`, or another harness
 directory measures the same repository source surface as a normal checkout.
 The machine-readable receipt is `coverage/coverage-summary.json`; the explicit
 post-test guard rejects Vitest's otherwise threshold-safe `0/0 Unknown%` state.
+
+## Isolated party recovery and Worker telemetry
+
+After `pnpm build:cf`, run `pnpm test:worker-routes --telemetry` and
+`pnpm test:worker-routes --party` in the capped Mirrodin slice. Party mode
+requires the same local flags and loopback backend as `--game`. Both modes use
+the built entry with ephemeral storage and blocked external egress, not a new
+server or a production debug endpoint.
+
+Party mode uses ten phone-view browsers plus seventy real authenticated SDK
+WebSocket clients (three live subscriptions per agent), then completes ten
+seven-writer games with late spectators and ten full eight-writer rematches.
+It checks draft-preserving reload, disconnect/rejoin, actual presence-driven
+host succession, frozen/offline wake, exact nine-line reveals, capacity/closed
+admission rejection and client cleanup. `.qa/party/receipt.json` is the bounded
+result; `.qa/party/private` holds run-local diagnostic output and a screenshot.
+No physical-phone or production-throughput qualification is implied.
+
+Telemetry mode omits the disposable Worker's DO binding to exercise its real
+unhandled error path. The SDK sends two errors through a native workerd collector
+with sink failure/recovery and a private-content canary; identity requests must
+stay healthy. `.qa/telemetry/receipt.json` records those checks, not production
+Sentry ingest. A later production readback and provider UI evidence remain
+separate release observations. These modes extend the existing Worker verifier;
+`pnpm check` includes both alongside `--game` in the native full plan.
 
 ## Source-bound story-walk cadence
 

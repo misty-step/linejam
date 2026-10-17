@@ -1,10 +1,13 @@
 import type { BeforeSendFn, PostHogConfig } from 'posthog-js';
 import { safeTransactionName } from '@/lib/sentryPrivacy';
+import { JOIN_FAILURE_CODES } from '@/lib/analytics/joinFailure';
 
 const allowedEvents = new Set([
   '$pageview',
   'game_created',
   'game_joined',
+  'join_attempted',
+  'join_failed',
   'lobby_ready',
   'game_started',
   'line_submitted',
@@ -57,6 +60,23 @@ export const sanitizeAnalyticsEvent: BeforeSendFn = (event) => {
     if (Number.isSafeInteger(input[key]) && input[key] >= 0) {
       properties[key] = input[key];
     }
+  }
+  if (
+    Number.isInteger(input.playerCount) &&
+    input.playerCount >= 2 &&
+    input.playerCount <= 8
+  ) {
+    properties.playerCount = input.playerCount;
+  }
+  if (
+    Number.isSafeInteger(input.timeToFirstLineMs) &&
+    input.timeToFirstLineMs >= 0 &&
+    input.timeToFirstLineMs <= 7 * 86400_000
+  ) {
+    properties.timeToFirstLineMs = input.timeToFirstLineMs;
+  }
+  if (JOIN_FAILURE_CODES.some((value) => value === input.failureCode)) {
+    properties.failureCode = input.failureCode;
   }
   if (input.action === 'save' || input.action === 'share') {
     properties.action = input.action;

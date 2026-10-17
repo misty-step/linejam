@@ -92,7 +92,7 @@ describe('pen names across guest sessions', () => {
     });
     if (!opening || !bobOpening)
       throw new Error('Expected opening assignments');
-    await t.mutation(api.game.submitLine, {
+    const firstReceipt = await t.mutation(api.game.submitLine, {
       poemId: opening.poemId,
       lineIndex: opening.lineIndex,
       text: 'opening',
@@ -128,7 +128,11 @@ describe('pen names across guest sessions', () => {
         text: 'different draft',
         guestToken: hostToken,
       })
-    ).resolves.toEqual({ status: 'already_submitted', text: 'opening' });
+    ).resolves.toEqual({
+      status: 'already_submitted',
+      text: 'opening',
+      timeToFirstLineMs: firstReceipt.timeToFirstLineMs,
+    });
 
     const next = await t.query(api.game.getCurrentAssignment, {
       roomCode: code,

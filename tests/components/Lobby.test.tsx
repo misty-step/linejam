@@ -107,7 +107,7 @@ describe('Lobby component', () => {
 
   it('emits lobby-ready and started only after a successful start with the next cycle', async () => {
     const rematchRoom = { ...mockRoom, currentCycle: 3 };
-    mockMutations.startGame.mockResolvedValue(undefined);
+    mockMutations.startGame.mockResolvedValue({ cycle: 4, playerCount: 2 });
     const user = userEvent.setup();
 
     renderLobby(
@@ -121,10 +121,12 @@ describe('Lobby component', () => {
       expect(mockTrackLobbyReady).toHaveBeenCalledWith({
         roomIdHash: '0123456789abcdef',
         cycle: 4,
+        playerCount: 2,
       });
       expect(mockTrackGameStarted).toHaveBeenCalledWith({
         roomIdHash: '0123456789abcdef',
         cycle: 4,
+        playerCount: 2,
       });
     });
   });

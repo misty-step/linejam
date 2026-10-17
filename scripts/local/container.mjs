@@ -266,24 +266,12 @@ async function main() {
         'Local Next server requests must use the Compose Convex endpoint.'
       );
     }
-    await run(
-      [
-        'exec',
-        'next',
-        'dev',
-        '--turbopack',
-        '--hostname',
-        '0.0.0.0',
-        '--port',
-        '3000',
-      ],
-      {
-        env: {
-          ...process.env,
-          GUEST_TOKEN_SECRET: await secret('guest_token'),
-        },
-      }
-    );
+    await run(['dev:next', '--hostname', '0.0.0.0', '--port', '3000'], {
+      env: {
+        ...process.env,
+        GUEST_TOKEN_SECRET: await secret('guest_token'),
+      },
+    });
     return;
   }
   if (command === 'sync' || command === 'watch') {
@@ -388,9 +376,16 @@ async function main() {
           redirect: 'error',
           signal: AbortSignal.timeout(15_000),
         });
-        if (!response.ok || (await response.json()).status !== 'ok') {
+        const health = await response.json();
+        if (!response.ok || health.status !== 'ok') {
           throw new Error(
-            'Local QA refuses an unhealthy application. Run local up first.'
+            `Local QA refuses an unhealthy application: ${JSON.stringify({
+              http: response.status,
+              status: health.status,
+              backend: health.convex,
+              guestTokenParity: health.env?.guestTokenParity,
+              deploymentMatch: health.env?.convexDeploymentMatch,
+            })}. Run local up first.`
           );
         }
         console.log(

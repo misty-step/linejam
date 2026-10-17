@@ -13,10 +13,13 @@ const eslintConfig = defineConfig([
     'build/**',
     // Cloudflare worker build output and wrangler cache
     '.open-next/**',
+    '.release/**',
     '.wrangler/**',
     'next-env.d.ts',
     // Generated files
     'convex/_generated/**',
+    'public/entry-wasm/**',
+    'target/**',
     'dagger/**',
     'vendor/**',
     // Design-lab artifacts (static sketches, not product code)

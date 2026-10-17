@@ -57,7 +57,7 @@ describe('validateEnv', () => {
       },
       async () => {
         const { validateEnv } = await import('@/lib/env');
-        expect(() => validateEnv()).not.toThrow();
+        expect(() => validateEnv('build')).not.toThrow();
       }
     );
   });

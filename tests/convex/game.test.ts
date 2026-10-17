@@ -1174,13 +1174,27 @@ describe('submitLine', () => {
       currentRound: 0,
     });
 
-    await expect(
-      asUser(t, 'aliceSL05').mutation(api.game.submitLine, {
+    const committed = await asUser(t, 'aliceSL05').mutation(
+      api.game.submitLine,
+      {
         poemId: poemIds[0],
         lineIndex: 0,
         text: 'hello',
-      })
-    ).resolves.toEqual({ status: 'committed', text: 'hello' });
+      }
+    );
+    expect(committed).toMatchObject({ status: 'committed', text: 'hello' });
+    const elapsed = await t.run(async (ctx) => {
+      const poem = await ctx.db.get(poemIds[0]);
+      const game = await ctx.db.get(poem!.gameId);
+      const line = await ctx.db
+        .query('lines')
+        .withIndex('by_poem_index', (q) =>
+          q.eq('poemId', poemIds[0]).eq('indexInPoem', 0)
+        )
+        .unique();
+      return Math.max(0, line!.createdAt - game!.createdAt);
+    });
+    expect(committed.timeToFirstLineMs).toBe(elapsed);
     await t.run(async (ctx) => {
       const membership = await ctx.db
         .query('roomPlayers')
@@ -1197,7 +1211,11 @@ describe('submitLine', () => {
         lineIndex: 0,
         text: 'different draft',
       })
-    ).resolves.toEqual({ status: 'already_submitted', text: 'hello' });
+    ).resolves.toEqual({
+      status: 'already_submitted',
+      text: 'hello',
+      timeToFirstLineMs: elapsed,
+    });
 
     const lines = await t.run((ctx) =>
       ctx.db

@@ -10,7 +10,7 @@ it('ignores generated Worker SDK output but still rejects active source dependen
   const checker = resolve('scripts/check-provider-retirement.mjs');
   const marker = ['https://ver', 'cel.app'].join('');
   try {
-    for (const directory of ['.open-next', '.wrangler']) {
+    for (const directory of ['.open-next', '.release', '.wrangler']) {
       mkdirSync(join(root, directory));
       writeFileSync(join(root, directory, 'sdk.js'), marker);
     }

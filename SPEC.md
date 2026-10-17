@@ -1,9 +1,14 @@
 # Linejam
 
-Linejam is a phone-first, pass-the-poem party game for two to eight people
-writing together. Each person contributes one human-written line per round,
-seeing only the preceding line. Nine rounds use 1, 2, 3, 4, 5, 4, 3, 2, 1 words;
-the group then reads the complete poems aloud. A room can host repeated games.
+## What it does
+
+Linejam is a phone-first party game where two to eight people pass poems around, each writing a line while seeing only the previous one, then reveal and read the finished poems aloud.
+
+## What it enables
+
+Phaedrus's family and friends can make something funny and surprising together, with no account setup getting in the way of a party.
+
+Nine rounds use 1, 2, 3, 4, 5, 4, 3, 2, 1 words. A room can host repeated games.
 A pen name and avatar identify someone to the room, not to an account system.
 
 This is the reference specification for observable behavior. `live` means
@@ -288,6 +293,27 @@ add another end-to-end story or change their stable numbered walk checkpoints.
 - Browser automation and nonproduction events are marked synthetic, so they
   can be excluded from human-usage aggregates. Anonymous browsers are not
   guaranteed to represent unique people across devices or cleared storage.
+- Admission attempts and failures use bounded reason codes, never the entered
+  invitation or an error message. The funnel distinguishes an attempt from a
+  successful join. Starts include the number of participating writers; a first
+  accepted line records elapsed time since that game started, including reloads.
+  Existing stage/round outcomes permit measuring where players stop progressing.
+- Browser and Worker ingress exceptions carry the serving source release and
+  environment to Sentry with private content removed. An unavailable error sink
+  does not stall a healthy request. Native uptime monitoring covers the health
+  endpoint; each new issue, handled or unhandled, reaches the existing owned
+  alert intake once on first sight rather than notifying for every occurrence.
+
+#### Party-scale recovery
+
+As friends on phones, we can keep our seats and drafts while a browser reloads,
+disconnects, or sleeps. Waking restores current state before accepting more work.
+Ten concurrent eight-person rooms obey the same admission, assignment, immutable
+line, host-succession and privacy rules as a single room. A late eighth arrival
+watches the current seven-writer game and participates in the next game. An
+absent host can return as a writer without taking authority back from the
+successor. A ninth person is refused, not given an invisible seat. Browser
+freeze/offline emulation is recovery evidence, not physical-phone qualification.
 
 ## Capability: Release administration
 
@@ -352,3 +378,47 @@ Detailed acceptance:
 
 No fabricated notes, automatic review bypass, credential rotation or spending
 increase as an error-handling strategy.
+
+#### Native verification
+
+As a maintainer, I want one verification command on our own machines, so that
+checking a candidate does not require a hosted CI vendor or production access.
+
+- Fast mode checks source quality and unit behavior; full mode also checks
+  coverage, the Cloudflare backend and the built Worker, including rendered
+  guest gameplay, authorization rejection, party recovery, telemetry failure and
+  recovery, and cleanup in disposable storage.
+- Full verification uses generated local identities and refuses production
+  credentials. It never imports, resets or migrates an existing deployment.
+- A failed command stops verification and returns nonzero. Output identifies
+  the mode, commands and source revision when Git metadata is present. For
+  source archives it reports that absence; the existing caller snapshot owns
+  identity. The caller retains candidate-bound logs and browser evidence,
+  rather than relying on a vendor's job badge.
+- Local verification is not deployment, hosted account acceptance or a live
+  player-usage measurement. Release publication keeps its existing review and
+  integrity requirements.
+
+#### Native application release
+
+As a maintainer, I want checked changes to reach players without a hosted CI
+bill, while failed releases leave guest identities and accepted poems intact.
+
+- A new trunk revision receives fast checks on our native executor. Full checks
+  also run twice daily even when trunk has not changed; a full failure is owned
+  repair evidence, not permission to hide or discard accepted work.
+- The deployed Worker is the production-configured artifact exercised in
+  isolation, not the local-mode game build. Runtime credentials are not build
+  inputs. Missing or invalid required production bindings refuse service rather
+  than issuing credentials or accepting writes with a development default.
+- Promotion is serialized and cannot replace a newer serving source with an
+  older one. Its source identity, backend readiness and a player entry journey
+  are read back after activation.
+- A failed or interrupted promotion restores the previously serving compatible
+  Worker version and verifies recovery. It never imports, restores or resets
+  player data. An incompatible data migration requires a separate recovery
+  decision, not an automatic rollback across it.
+- Release failure and recovery reach the existing Sentry-owned operator intake.
+  An unavailable reporting sink cannot turn a failed release into success.
+  Skipping an unchanged failed candidate keeps the failed release verdict;
+  restoring the prior Worker is service recovery, not a successful new release.
