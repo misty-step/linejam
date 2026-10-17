@@ -192,6 +192,8 @@ async function main() {
       'PASS packaged production: missing/invalid binding rejection, recovery, source health, real guest issuance and room admission'
     );
 
+    let clerkScriptsBlocked = 0;
+    let expectedClerkLoadErrors = 0;
     const browser = await chromium.launch({ headless: true });
     try {
       const context = await browser.newContext({
@@ -199,11 +201,25 @@ async function main() {
         reducedMotion: 'reduce',
       });
       const origin = (await worker.url).origin;
+      const plannedProviderErrors = new Set<string>();
       await context.route('**/*', async (route) => {
         const url = new URL(route.request().url());
         if (url.origin === origin) return route.continue();
         // No browser request, SDK or script may contact a hosted service.
         blocked++;
+        if (
+          /^\/npm\/@clerk\/clerk-js@\d+\/dist\/clerk\.browser\.js$/.test(
+            url.pathname
+          )
+        ) {
+          clerkScriptsBlocked++;
+          // The SDK reports this exact fault for the script this test denied.
+          // Do not confuse required guest fallback with a zero-error happy path,
+          // or excuse unrelated errors merely because they mention Clerk.
+          plannedProviderErrors.add(
+            `Clerk: Failed to load Clerk JS, failed to load script: ${url.href}\n\n(code="failed_to_load_clerk_js")\n\n`
+          );
+        }
         return route.abort('blockedbyclient');
       });
       const page = await context.newPage();
@@ -292,7 +308,15 @@ async function main() {
           fullPage: true,
         });
       }
-      assert.deepEqual(browserErrors, []);
+      assert(
+        clerkScriptsBlocked > 0,
+        'Production guest fallback must exercise the unavailable provider'
+      );
+      assert.deepEqual(
+        browserErrors.filter((message) => !plannedProviderErrors.has(message)),
+        []
+      );
+      expectedClerkLoadErrors = browserErrors.length;
       await context.close();
     } finally {
       await browser.close();
@@ -312,7 +336,9 @@ async function main() {
           helpKeyboard: true,
           joinThemes: 2,
           joinInvitationAndPicker: true,
-          browserErrors: 0,
+          unexpectedBrowserErrors: 0,
+          expectedClerkLoadErrors,
+          clerkScriptsBlocked,
           externalRequestsBlocked: blocked,
         },
         null,
