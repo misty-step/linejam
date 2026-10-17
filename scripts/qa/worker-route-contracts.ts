@@ -164,6 +164,15 @@ export function assertRouteResponse(
 
 export function assertRuntimeLogs(logs: { level: string; message: string }[]) {
   for (const log of logs) {
+    // Reloads, aborted asset loads and sleeping phones can cancel an in-flight
+    // native write. This exact workerd peer-disconnect is not an app exception.
+    if (
+      log.level === 'error' &&
+      /^kj::getCaughtExceptionAsKj\(\) = rust\/cxx\/kj-rs-io\/ffi\.rs:\d+: disconnected: write\(\): (?:Connection reset by peer \(os error 104\)|Broken pipe \(os error 32\))\nstack: [^\n]*\/workerd@[^\n]+$/.test(
+        log.message
+      )
+    )
+      continue;
     let applicationLevel: unknown;
     try {
       applicationLevel = JSON.parse(log.message)?.level;

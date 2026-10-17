@@ -19,12 +19,47 @@ The real Next.js/Convex stack needs Node and local Docker, not cloud credentials
 or a host dotenv file. Ctrl-C stops the owned stack and preserves its data.
 See [local development](docs/local-development.md) for prerequisites, QA and reset.
 
-With dependencies installed from the frozen lockfile, `pnpm check --mode fast`
-runs the portable affected gate; `pnpm check` runs the isolated full battery,
-including the built Worker/DO, real guest journey, party recovery and native
-telemetry fault/recovery. Run heavy checks on Mirrodin, not the chief. The
-command refuses live credentials and dotenv discovery. A Git-free source
-archive retains its caller's snapshot identity rather than inventing a revision.
+## Verify a candidate
+
+With the Node runtime required by `package.json`, its exact pnpm pin, the Rust
+toolchain in `rust-toolchain.toml` and both frozen lockfiles installed, run this
+in a clean candidate checkout on Mirrodin:
+
+```sh
+pnpm check --mode fast
+pnpm check --mode full
+```
+
+Omitting `--mode` runs full verification. Fast mode runs source quality and unit
+checks; full adds formatting, coverage, Cloudflare backend tests, a Worker build,
+route/image checks, the existing rendered guest lifecycle, party recovery and
+native telemetry fault/recovery in workerd with a fresh SQLite Durable Object.
+Full mode needs the lockfile's Playwright Chromium
+(`pnpm exec playwright install chromium`), its system libraries and `ffmpeg`.
+The caller owns compute isolation; fleet runs stay inside `gha-runners.slice`.
+
+No production credential or dotenv file is needed. The check refuses live
+credentials and uses a loopback-only backend and generated local identities.
+Retain the command's source-bound output on the native executor. Browser
+evidence is in `.qa/worker/qa/evidence`; Rust entry screenshots are alongside it
+in `.qa/worker/qa/entry-ui`. Private raw logs stay on that executor.
+A local pass is not a deployment, hosted Clerk verification or a PostHog usage result.
+This command prepares the native release path; it does not yet replace the
+existing deployer or authorize a second promotion path.
+
+The candidate native train composes that same command with a secret-free
+production build and proof of the actual deploy input:
+
+```sh
+pnpm release:check --mode fast --public-config /path/to/production-public.json
+```
+
+The JSON contains only `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`,
+`NEXT_PUBLIC_POSTHOG_KEY` and `NEXT_PUBLIC_SENTRY_DSN`, as already published to
+browsers. No runtime or provider credential belongs in it. The command produces
+`.release/` and `.qa/release/` (production-configured phone screenshots and its
+receipt). [ADR 0013](docs/adr/0013-native-application-train.md) describes the
+native controller, trust boundary and activation work still required.
 
 ## Project guide
 

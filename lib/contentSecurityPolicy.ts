@@ -66,6 +66,7 @@ export function buildContentSecurityPolicy(
         "'self'",
         nonce ? "'nonce-" + nonce + "'" : null,
         allowUnsafeInlineScript ? "'unsafe-inline'" : null,
+        "'wasm-unsafe-eval'",
         isDevelopment ? "'unsafe-eval'" : null,
         ...STATIC_CLERK_SOURCES,
         'https://challenges.cloudflare.com',

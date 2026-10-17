@@ -149,6 +149,41 @@ describe('Worker route release gate', () => {
     ).not.toThrow();
   });
 
+  it('accepts only the native client-cancel diagnostic, not application or other socket faults', () => {
+    const disconnect =
+      'kj::getCaughtExceptionAsKj() = rust/cxx/kj-rs-io/ffi.rs:164: disconnected: write(): Connection reset by peer (os error 104)\nstack: /runtime/bin/workerd@57d56c3';
+    for (const message of [
+      disconnect,
+      disconnect.replace(
+        'Connection reset by peer (os error 104)',
+        'Broken pipe (os error 32)'
+      ),
+    ]) {
+      expect(() =>
+        assertRuntimeLogs([{ level: 'error', message }])
+      ).not.toThrow();
+    }
+    for (const log of [
+      { level: 'fatal', message: disconnect },
+      { level: 'error', message: 'Connection reset by peer (os error 104)' },
+      { level: 'error', message: disconnect.replace('write()', 'read()') },
+      {
+        level: 'error',
+        message: disconnect.replace(
+          'Connection reset by peer (os error 104)',
+          'No space left on device (os error 28)'
+        ),
+      },
+      { level: 'error', message: disconnect + '\nuncaught TypeError' },
+      {
+        level: 'log',
+        message: JSON.stringify({ level: 'error', message: disconnect }),
+      },
+    ]) {
+      expect(() => assertRuntimeLogs([log])).toThrow('Worker runtime error');
+    }
+  });
+
   it('runs before deployment and is an unskippable dependency of PR merge-gate', () => {
     const release = parse(
       readFileSync('.github/workflows/cloudflare-production.yml', 'utf8')

@@ -1,0 +1,11 @@
+[workspace]
+members = ["crates/entry-ui"]
+resolver = "2"
+
+[profile.ui]
+inherits = "release"
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

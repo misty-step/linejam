@@ -11,7 +11,13 @@ export function checkPlan(mode) {
   if (mode !== 'fast' && mode !== 'full') {
     throw new Error('Expected --mode fast or full.');
   }
-  const quality = ['provider-retirement:check', 'typecheck', 'lint'];
+  const quality = [
+    'test:train',
+    'test:rust',
+    'provider-retirement:check',
+    'typecheck',
+    'lint',
+  ];
   return mode === 'fast'
     ? [...quality, 'test']
     : [

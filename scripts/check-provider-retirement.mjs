@@ -18,6 +18,7 @@ const ignoredRoots = [
   '.git',
   '.next',
   '.open-next',
+  '.release',
   '.pnpm-store',
   '.qa',
   '.vercel',

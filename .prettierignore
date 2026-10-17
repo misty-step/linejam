@@ -33,6 +33,9 @@ coverage/
 *.pem
 *.log
 .open-next/
+.release/
+public/entry-wasm/
+target/
 server/
 .evidence/
 .qa/

@@ -1,4 +1,9 @@
 @import 'tailwindcss';
+@source '../crates/entry-ui/src';
+
+linejam-entry {
+  display: contents;
+}
 
 @font-face {
   font-family: 'DynaPuff';
