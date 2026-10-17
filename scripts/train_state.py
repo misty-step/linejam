@@ -63,7 +63,7 @@ class State:
 def finish(state, phase):
     last = dict(state.last)
     if state.mode != 'diagnostic':
-        last[state.mode] = state.candidate
+        last[state.mode] = (state.candidate, phase)
     return replace(state, phase=phase, last=tuple(sorted(last.items())))
 
 
@@ -74,8 +74,8 @@ def step(state, event, value: Any = None):
             raise ValueError('Invalid native candidate event')
         if state.phase not in TERMINAL:
             raise ValueError('Unfinished native attempt must recover before selection')
-        if mode != 'diagnostic' and dict(state.last).get(mode) == sha:
-            return replace(state, phase=Phase.SKIPPED), ()
+        if mode != 'diagnostic' and dict(state.last).get(mode, (None, None))[0] == sha:
+            return replace(state, phase=Phase.SKIPPED, candidate=sha, mode=mode), ()
         return State(Phase.BUILD, sha, mode, state.last), ((Effect.BUILD, None),)
     if event == Event.BUILT and state.phase == Phase.BUILD:
         state = replace(state, hashes=tuple(sorted(value.items())))

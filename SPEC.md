@@ -393,3 +393,5 @@ bill, while failed releases leave guest identities and accepted poems intact.
   decision, not an automatic rollback across it.
 - Release failure and recovery reach the existing Sentry-owned operator intake.
   An unavailable reporting sink cannot turn a failed release into success.
+  Skipping an unchanged failed candidate keeps the failed release verdict;
+  restoring the prior Worker is service recovery, not a successful new release.

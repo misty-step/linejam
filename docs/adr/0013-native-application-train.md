@@ -45,7 +45,10 @@ operator decision. Automatic recovery changes only the Worker pointer, never
 player data. A changed DO migration contract requires an explicit compatible
 recovery decision. Existing SQLite classes, migration tag and data are retained.
 
-Fast ticks coalesce unchanged attempted trunk. Twice-daily full invocations run
+Fast ticks coalesce unchanged attempted trunk and retain its per-mode verdict.
+An unchanged failed candidate remains nonzero, including after successful rollback
+to the old Worker; only a successful new release recovers the release monitor.
+Twice-daily full invocations run
 unchanged trunk as diagnostics and cannot promote. The existing native lock
 serializes promotion; full invocations wait rather than disappear on collision.
 The no-agent engineer-profile adapters run over SSH and use the native Sentry

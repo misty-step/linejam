@@ -321,6 +321,10 @@ def main():
                 mode = 'promote' if args.promote else 'diagnostic' if args.candidate or args.mode == 'full' else 'verify'
                 journal.record(Event.SELECT, (sha, mode))
                 if journal.state.phase == Phase.SKIPPED:
+                    verdict = dict(journal.state.last)[mode][1]
+                    print(f'Unchanged candidate={sha}; mode={mode}; previous={verdict}', file=log, flush=True)
+                    if verdict != Phase.SUCCESS:
+                        raise RuntimeError('Unchanged candidate still has an unresolved failed release')
                     return 0
                 expected = expected_config(args.repo, sha)
                 if args.promote:

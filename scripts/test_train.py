@@ -2,6 +2,8 @@
 import json
 from pathlib import Path
 import random
+import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -43,6 +45,29 @@ class TrainStateTests(unittest.TestCase):
             failed, effects = step(state, Event.FAILED)
             self.assertEqual(failed.phase, Phase.FAILED)
             self.assertEqual(effects, ((Effect.REPORT, None),))
+
+    def test_unchanged_failed_build_and_recovered_promotion_retain_failed_verdict(self):
+        build_failed, _ = step(self.start(), Event.FAILED)
+        forward_failed, _ = step(self.ready(), Event.FAILED)
+        failed, _ = step(self.deploying(), Event.FAILED)
+        failed, _ = step(failed, Event.ROLLED_BACK, OLD)
+        recovered, _ = step(failed, Event.RECOVERED)
+        for failed in (build_failed, forward_failed, recovered):
+            for _ in range(3):
+                failed, effects = step(failed, Event.SELECT, (SHA, 'promote'))
+                self.assertEqual(failed.phase, Phase.SKIPPED)
+                self.assertEqual(dict(failed.last)['promote'], (SHA, Phase.FAILED))
+                self.assertEqual(effects, ())
+
+    def test_coalescing_selects_the_matching_mode_and_verdict_not_the_latest_attempt(self):
+        state, _ = step(self.start(), Event.FAILED)
+        state, _ = step(state, Event.SELECT, (OLD, 'verify'))
+        state, _ = step(state, Event.BUILT, {})
+        for sha, mode, verdict in ((SHA, 'promote', Phase.FAILED), (OLD, 'verify', Phase.SUCCESS)) * 3:
+            state, effects = step(state, Event.SELECT, (sha, mode))
+            self.assertEqual((state.candidate, state.mode, state.phase), (sha, mode, Phase.SKIPPED))
+            self.assertEqual(dict(state.last)[mode], (sha, verdict))
+            self.assertEqual(effects, ())
 
     def test_failure_or_interruption_restores_exact_snapshot_then_checks_recovery(self):
         for state in (self.deploying(), step(self.deploying(), Event.DEPLOYED, OLD)[0]):
@@ -107,6 +132,9 @@ class TrainStateTests(unittest.TestCase):
                 state, effects = step(state, event, value)
                 history.append({'event': event, 'value': value})
                 self.assertEqual(project(history), state)
+                if state.phase == Phase.SKIPPED:
+                    self.assertEqual(dict(state.last)[state.mode][0], state.candidate)
+                    self.assertIn(dict(state.last)[state.mode][1], (Phase.SUCCESS, Phase.FAILED, Phase.ESCALATED))
                 if previous.phase not in TERMINAL:
                     self.assertEqual(state.candidate, previous.candidate)
                 if state.phase in (Phase.DEPLOY, Phase.SMOKE, Phase.ROLLBACK, Phase.RECOVER):
@@ -128,6 +156,64 @@ class TrainStateTests(unittest.TestCase):
                 stream.write('{')
             with self.assertRaises(ValueError):
                 Journal(path)
+
+
+class TrainMainTests(unittest.TestCase):
+    def test_real_main_preserves_failed_verdicts_and_successful_noops(self):
+        source = Path(__file__).resolve().parents[1]
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo = root / 'repo'
+            repo.mkdir()
+            (repo / 'wrangler.jsonc').write_text((source / 'wrangler.jsonc').read_text())
+            workflow = repo / '.github/workflows/cloudflare-production.yml'
+            workflow.parent.mkdir(parents=True)
+            workflow.write_text('name: existing deployment authority\n')
+            subprocess.run(['git', 'init', '--quiet', '-b', 'master', str(repo)], check=True)
+            subprocess.run(['git', 'add', '.'], cwd=repo, check=True)
+            subprocess.run(['git', '-c', 'user.name=Native test', '-c', 'user.email=native@example.invalid',
+                            '-c', 'commit.gpgsign=false', '-c', 'core.hooksPath=/dev/null',
+                            'commit', '--quiet', '-m', 'contract'], cwd=repo, check=True)
+            subprocess.run(['git', 'remote', 'add', 'origin', '.'], cwd=repo, check=True)
+            sha = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=repo, text=True).strip()
+            for scenario in ('initial-failure', 'build-failed', 'old-version-recovered', 'success'):
+                with self.subTest(scenario=scenario):
+                    home = root / scenario
+                    home.mkdir()
+                    journal = Journal(home / 'events.jsonl')
+                    if scenario != 'initial-failure':
+                        journal.record(Event.SELECT, (sha, 'promote'))
+                        if scenario == 'build-failed':
+                            journal.record(Event.FAILED)
+                        else:
+                            journal.record(Event.BUILT, {})
+                            journal.record(Event.FORWARD, [(OLD, 'previous-version')])
+                            journal.record(Event.DEPLOYED, OLD)
+                            if scenario == 'success':
+                                journal.record(Event.SMOKED)
+                            else:
+                                journal.record(Event.FAILED)
+                                journal.record(Event.ROLLED_BACK, OLD)
+                                journal.record(Event.RECOVERED)
+                    # Real CLI, local Git fetch, durable journal and guard; no mocked
+                    # commands. A nonexistent tool bounds this test away from deploys.
+                    args = [sys.executable, str(source / 'scripts/train.py'), '--repo', str(repo),
+                            '--home', str(home), '--image', 'sha256:' + '0' * 64,
+                            '--wrangler', str(root / 'no-deployer/bin/wrangler.js'), '--promote']
+                    for name in ('node', 'pnpm', 'rustup', 'cargo-bin', 'public-config'):
+                        args.extend(('--' + name, str(root / name)))
+                    for _ in range(3):
+                        result = subprocess.run(args, capture_output=True, text=True)
+                        self.assertEqual(result.returncode, 0 if scenario == 'success' else 1, result.stderr)
+                    state = Journal(home / 'events.jsonl').state
+                    self.assertEqual(state.phase, Phase.SKIPPED)
+                    self.assertEqual(dict(state.last)['promote'],
+                                     (sha, Phase.SUCCESS if scenario == 'success' else Phase.FAILED))
+                    logs = '\n'.join(path.read_text() for path in (home / 'logs').glob('*.log'))
+                    if scenario == 'initial-failure':
+                        self.assertIn('Retire the old deployment authority', logs)
+                    if scenario != 'success':
+                        self.assertIn('Unchanged candidate still has an unresolved failed release', logs)
 
 
 class ArtifactTests(unittest.TestCase):
