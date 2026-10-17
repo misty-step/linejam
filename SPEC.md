@@ -1,9 +1,14 @@
 # Linejam
 
-Linejam is a phone-first, pass-the-poem party game for two to eight people
-writing together. Each person contributes one human-written line per round,
-seeing only the preceding line. Nine rounds use 1, 2, 3, 4, 5, 4, 3, 2, 1 words;
-the group then reads the complete poems aloud. A room can host repeated games.
+## What it does
+
+Linejam is a phone-first party game where two to eight people pass poems around, each writing a line while seeing only the previous one, then reveal and read the finished poems aloud.
+
+## What it enables
+
+Phaedrus's family and friends can make something funny and surprising together, with no account setup getting in the way of a party.
+
+Nine rounds use 1, 2, 3, 4, 5, 4, 3, 2, 1 words. A room can host repeated games.
 A pen name and avatar identify someone to the room, not to an account system.
 
 This is the reference specification for observable behavior. `live` means
