@@ -15,7 +15,8 @@ entered details and the once-per-mount random avatar through retry. The existing
 UserProvider, mutation client, friendly errors, sound, analytics and navigation
 remain at a narrow adapter; credentials never enter DOM attributes or WASM.
 The same Rust picker serves join and host. Native HTML dialog owns modal
-inertness, Escape and focus containment rather than a parallel keyboard trap.
+inertness and Escape. It reuses help's pure Tab-endpoint transitions because
+native dialog alone can move keyboard focus into browser chrome at either end.
 The canonical TypeScript cast/renderer generates its compile-time data and SVG;
 there is no second artwork source. Real browser checks replace the deleted
 React-form/picker fixture tests, alongside pure reducer and boundary tests.

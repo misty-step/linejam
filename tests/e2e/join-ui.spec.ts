@@ -145,12 +145,18 @@ for (const route of ['/join?code=ABCD', '/host']) {
       const last = page.getByRole('button', { name: 'Ode', exact: true });
       await close.focus();
       await page.keyboard.press('Shift+Tab');
-      await expect(last).toBeFocused();
+      await expect(
+        last,
+        JSON.stringify(
+          await page.evaluate(() => ({
+            tag: document.activeElement?.tagName,
+            label: document.activeElement?.getAttribute('aria-label'),
+            role: document.activeElement?.getAttribute('role'),
+          }))
+        )
+      ).toBeFocused();
       await page.keyboard.press('Tab');
-      // Native modal focus containment can include the dialog itself between
-      // endpoints; another Tab must stay inside and reach its first control.
-      if (!(await close.evaluate((el) => el === document.activeElement)))
-        await page.keyboard.press('Tab');
+
       await expect(close).toBeFocused();
       if (action === 'escape') await page.keyboard.press('Escape');
       else if (action === 'close') await close.click();
