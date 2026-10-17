@@ -207,6 +207,8 @@ async function main() {
         return route.abort('blockedbyclient');
       });
       const page = await context.newPage();
+      const browserErrors: string[] = [];
+      page.on('pageerror', (error) => browserErrors.push(error.message));
       mkdirSync('.qa/release', { recursive: true });
       for (const colorScheme of ['light', 'dark'] as const) {
         await page.emulateMedia({ colorScheme });
@@ -250,6 +252,47 @@ async function main() {
       await expect(
         page.getByRole('button', { name: 'More options' })
       ).toBeFocused();
+      // The production browser still uses the existing provider's guest
+      // fallback when Clerk is unavailable. Exercise the new entry view in
+      // this packaged artifact, without claiming hosted account/multiplayer QA.
+      for (const colorScheme of ['light', 'dark'] as const) {
+        await page.emulateMedia({ colorScheme });
+        await page.goto(`${origin}/join?code=a-bcd&name=MustNotPrefill`);
+        const code = page.getByRole('textbox', { name: 'Room code' });
+        const name = page.getByRole('textbox', { name: 'Your pen name' });
+        await expect(name).toBeVisible({ timeout: 15_000 });
+        await expect(code).toHaveValue('ABCD');
+        await expect(name).toHaveValue('');
+        await expect(
+          page.getByRole('button', { name: 'Join room', exact: true })
+        ).toBeDisabled();
+        const avatar = page.getByRole('button', { name: /^Change avatar,/ });
+        await avatar.click();
+        const picker = page.getByRole('dialog', { name: 'Choose your avatar' });
+        await expect(
+          picker.getByRole('button', { name: 'Doodle', exact: true })
+        ).toBeVisible();
+        await page.screenshot({
+          path: `.qa/release/picker-${colorScheme}.png`,
+          fullPage: true,
+        });
+        await picker
+          .getByRole('button', { name: 'Doodle', exact: true })
+          .click();
+        await expect(picker).toBeHidden();
+        await expect(avatar).toBeFocused();
+        await expect(avatar).toHaveAccessibleName(/Doodle selected/);
+        assert(
+          await page.evaluate(
+            () => document.documentElement.scrollWidth <= innerWidth
+          )
+        );
+        await page.screenshot({
+          path: `.qa/release/join-${colorScheme}.png`,
+          fullPage: true,
+        });
+      }
+      assert.deepEqual(browserErrors, []);
       await context.close();
     } finally {
       await browser.close();
@@ -267,6 +310,9 @@ async function main() {
           rejectedBindingVariants: 3,
           homeThemes: 2,
           helpKeyboard: true,
+          joinThemes: 2,
+          joinInvitationAndPicker: true,
+          browserErrors: 0,
           externalRequestsBlocked: blocked,
         },
         null,
@@ -274,7 +320,7 @@ async function main() {
       ) + '\n'
     );
     console.log(
-      'PASS packaged production Rust home light/dark and keyboard help; all browser and Worker egress isolated'
+      'PASS packaged production Rust home/join/picker light/dark and keyboard help; all browser and Worker egress isolated'
     );
   } finally {
     await worker?.dispose();

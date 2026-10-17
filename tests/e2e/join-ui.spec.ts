@@ -123,6 +123,9 @@ for (const route of ['/join?code=ABCD', '/host']) {
     const errors: string[] = [];
     page.on('pageerror', (error) => errors.push(error.message));
     await page.goto(route);
+    await page.evaluate(() => {
+      document.body.style.overflow = 'clip';
+    });
     const trigger = page.getByRole('button', { name: /^Change avatar,/ });
     await trigger.click();
     const dialog = page.getByRole('dialog', { name: 'Choose your avatar' });
@@ -167,8 +170,8 @@ for (const route of ['/join?code=ABCD', '/host']) {
       await expect(dialog).toBeHidden();
       await expect(trigger).toBeFocused();
       await expect(trigger).toHaveAccessibleName(/Doodle selected/);
-      expect(await page.evaluate(() => document.body.style.overflow)).not.toBe(
-        'hidden'
+      expect(await page.evaluate(() => document.body.style.overflow)).toBe(
+        'clip'
       );
     }
     await trigger.click();
@@ -185,7 +188,7 @@ for (const route of ['/join?code=ABCD', '/host']) {
     await expect(trigger).toBeDisabled();
     await expect
       .poll(() => page.evaluate(() => document.body.style.overflow))
-      .not.toBe('hidden');
+      .toBe('clip');
     await page.evaluate(() => {
       const entry = document.querySelector(
         'linejam-entry[view="avatar-picker"], linejam-entry[view="join"]'
@@ -203,8 +206,8 @@ for (const route of ['/join?code=ABCD', '/host']) {
         ?.remove()
     );
     await expect(page.getByRole('dialog')).toHaveCount(0);
-    expect(await page.evaluate(() => document.body.style.overflow)).not.toBe(
-      'hidden'
+    expect(await page.evaluate(() => document.body.style.overflow)).toBe(
+      'clip'
     );
     expect(errors).toEqual([]);
   });

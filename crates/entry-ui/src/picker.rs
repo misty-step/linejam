@@ -27,20 +27,27 @@ pub fn Picker(
     let open = RwSignal::new(false);
     let overflow = StoredValue::new(String::new());
     let close = move || {
+        if !open.get_untracked() {
+            return;
+        }
+        // Close atomically. The browser's delayed `close` notification can
+        // arrive after a reopen and must not overwrite that new lifecycle.
+        open.set(false);
+        let _ = document()
+            .body()
+            .unwrap()
+            .style()
+            .set_property("overflow", &overflow.get_value());
         if let Some(dialog) = dialog.get_untracked() {
             dialog.close();
         }
-    };
-    on_cleanup(move || {
-        if open.get_untracked() {
-            let _ = document()
-                .body()
-                .unwrap()
-                .style()
-                .set_property("overflow", &overflow.get_value());
-            close();
+        if let Some(trigger) = trigger.get_untracked()
+            && trigger.is_connected()
+        {
+            let _ = trigger.focus();
         }
-    });
+    };
+    on_cleanup(close);
     Effect::new(move |_| {
         // A session gate must not leave a top-layer dialog blocking recovery.
         if disabled.get() && open.get() {
@@ -54,7 +61,7 @@ pub fn Picker(
                 aria-haspopup="dialog" aria-expanded=move || open.get().to_string()
                 class="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] transition-colors hover:border-[var(--color-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-background)] disabled:cursor-not-allowed disabled:opacity-50"
                 on:click=move |_| {
-                    if disabled.get_untracked() { return; }
+                    if disabled.get_untracked() || open.get_untracked() { return; }
                     if let Some(dialog) = dialog.get_untracked() {
                         overflow.set_value(document().body().unwrap().style().get_property_value("overflow").unwrap_or_default());
                         if dialog.show_modal().is_ok() {
@@ -94,11 +101,9 @@ pub fn Picker(
                 on:click=move |event| {
                     if event.target() == event.current_target() { close(); }
                 }
-                on:close=move |_| {
-                    if open.try_update(|value| *value = false).is_some() {
-                        let _ = document().body().unwrap().style().set_property("overflow", &overflow.get_value());
-                        if let Some(trigger) = trigger.get_untracked() { let _ = trigger.focus(); }
-                    }
+                on:cancel=move |event| {
+                    event.prevent_default();
+                    close();
                 }>
                 <div class="lj-safe-frame flex h-full items-end justify-center [--lj-safe-frame-space:0.75rem] sm:items-center" on:click=move |event| {
                     if event.target() == event.current_target() { close(); }
