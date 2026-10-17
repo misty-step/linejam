@@ -1,0 +1,13 @@
+version = 1
+
+[cloudflare]
+zones = ["mistystep.io"]
+capabilities = ["workers", "d1", "r2"]
+environments = ["Production"]
+
+[sentry]
+project = "linejam"
+secret = "SENTRY_RELEASE_TOKEN"
+
+[openrouter]
+lane = "linejam-release-notes"
