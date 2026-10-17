@@ -77,14 +77,17 @@ export function Lobby({
     setStarting(true);
     setError(null);
     try {
-      await startGameMutation({
+      const started = await startGameMutation({
         code: room.code,
         guestToken: guestToken || undefined,
       });
       playSound('bloom');
       const analyticsProps = {
         roomIdHash: dependencies.hashRoomId(room._id),
-        cycle: (room.currentCycle ?? 0) + 1,
+        // Old cached Workers can still acknowledge a start without a receipt.
+        // Keep play nonblocking; omit writer count rather than guessing it.
+        cycle: started?.cycle ?? (room.currentCycle ?? 0) + 1,
+        playerCount: started?.playerCount,
       };
       dependencies.trackLobbyReady(analyticsProps);
       dependencies.trackGameStarted(analyticsProps);

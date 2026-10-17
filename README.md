@@ -32,8 +32,9 @@ pnpm check --mode full
 
 Omitting `--mode` runs full verification. Fast mode runs source quality and unit
 checks; full adds formatting, coverage, Cloudflare backend tests, a Worker build,
-route/image checks and the existing rendered guest lifecycle in workerd with a
-fresh SQLite Durable Object. Full mode needs the lockfile's Playwright Chromium
+route/image checks, the existing rendered guest lifecycle, party recovery and
+native telemetry fault/recovery in workerd with a fresh SQLite Durable Object.
+Full mode needs the lockfile's Playwright Chromium
 (`pnpm exec playwright install chromium`), its system libraries and `ffmpeg`.
 The caller owns compute isolation; fleet runs stay inside `gha-runners.slice`.
 

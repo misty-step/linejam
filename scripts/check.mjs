@@ -30,6 +30,8 @@ export function checkPlan(mode) {
         'test:worker-routes',
         'test:worker-images',
         'test:worker-routes --game',
+        'test:worker-routes --telemetry',
+        'test:worker-routes --party',
       ];
 }
 

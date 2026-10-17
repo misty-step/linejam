@@ -17,7 +17,11 @@ import { PoemDisplay } from './PoemDisplay';
 import { LoadingState } from './ui/LoadingState';
 import { Avatar } from './ui/Avatar';
 import { Id } from '../convex/_generated/dataModel';
-import { hashRoomId, trackGameCompleted } from '../lib/analytics';
+import {
+  hashRoomId,
+  trackGameCompleted,
+  trackGameStarted,
+} from '../lib/analytics';
 import {
   SessionRecapHub,
   type SessionRecapHubDependencies,
@@ -153,6 +157,7 @@ export function RevealPhase({
           roomIdHash: hashCompletedRoomId(state.roomId),
           cycle: state.cycle,
           round: poems.length > 0 ? 8 : 0,
+          playerCount: poems.length,
         });
       }
     }
@@ -163,10 +168,17 @@ export function RevealPhase({
     setIsStartingNow(true);
 
     try {
-      await startGameMutation({
+      const started = await startGameMutation({
         code: roomCode,
         guestToken: guestToken || undefined,
       });
+      if (state?.roomId) {
+        trackGameStarted({
+          roomIdHash: hashCompletedRoomId(state.roomId),
+          cycle: started?.cycle ?? state.cycle + 1,
+          playerCount: started?.playerCount,
+        });
+      }
       playSound('bloom');
     } catch (cause) {
       playSound('error');

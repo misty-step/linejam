@@ -7,6 +7,10 @@
  */
 import posthog from 'posthog-js';
 import { posthogIsReady } from '@/lib/posthog/posthogReady';
+import {
+  JOIN_FAILURE_CODES,
+  type JoinFailureCode,
+} from '@/lib/analytics/joinFailure';
 
 export type ArtifactAction = 'share' | 'save';
 
@@ -15,7 +19,13 @@ export type RoomCycleEventProps = {
   roomIdHash: string;
   cycle: number;
   round?: number;
+  playerCount?: number;
+  timeToFirstLineMs?: number;
 };
+
+type JoinEventProps = { failureCode?: JoinFailureCode };
+type AnalyticsProps =
+  RoomCycleEventProps | ArtifactActionProps | ShareEventProps | JoinEventProps;
 
 export type ArtifactActionProps = RoomCycleEventProps & {
   action: ArtifactAction;
@@ -29,19 +39,13 @@ type ShareEventProps = {
 const capturedEvents = new Set<string>();
 
 export type PostHogCaptureClient = {
-  capture: (
-    event: string,
-    properties?: RoomCycleEventProps | ArtifactActionProps | ShareEventProps
-  ) => void;
+  capture: (event: string, properties?: AnalyticsProps) => void;
 };
 
 let customPostHogClient: PostHogCaptureClient | null = null;
 let lastPageviewPath: string | null = null;
 
-function safeCapture(
-  event: string,
-  properties?: RoomCycleEventProps | ArtifactActionProps | ShareEventProps
-): boolean {
+function safeCapture(event: string, properties?: AnalyticsProps): boolean {
   if (!posthogIsReady()) return false;
   try {
     (customPostHogClient ?? posthog).capture(event, properties);
@@ -92,6 +96,16 @@ export function trackGameCreated(props: RoomCycleEventProps) {
 
 export function trackGameJoined(props: RoomCycleEventProps) {
   capture('game_joined', props);
+}
+
+export function trackJoinAttempted() {
+  safeCapture('join_attempted');
+}
+
+export function trackJoinFailed(code: string) {
+  const failureCode =
+    JOIN_FAILURE_CODES.find((value) => value === code) ?? 'REQUEST_FAILED';
+  safeCapture('join_failed', { failureCode });
 }
 
 export function trackLobbyReady(props: RoomCycleEventProps) {

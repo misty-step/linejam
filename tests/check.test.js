@@ -99,11 +99,13 @@ describe('portable native checks', () => {
       'test',
     ]);
     expect(checkPlan('full')).toContain('test:ci');
-    expect(checkPlan('full').slice(-4)).toEqual([
+    expect(checkPlan('full').slice(-6)).toEqual([
       'build:cf',
       'test:worker-routes',
       'test:worker-images',
       'test:worker-routes --game',
+      'test:worker-routes --telemetry',
+      'test:worker-routes --party',
     ]);
     expect(() => checkPlan('unknown')).toThrow('Expected --mode fast or full');
   });

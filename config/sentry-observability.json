@@ -6,8 +6,9 @@
   "issueAlerts": {
     "required": [
       {
-        "name": "Linejam scheduled jobs: missed or failed check-in",
+        "name": "linejam: production issues and monitor failures to #ops",
         "enabled": true,
+        "unfiltered": true,
         "action": {
           "type": "webhook",
           "status": "active",
@@ -18,43 +19,12 @@
           "conditionTypes": [
             "first_seen_event",
             "regression_event",
-            "reappeared_event"
+            "reappeared_event",
+            "event_frequency_count"
           ]
         },
         "filterLogic": "any-short",
         "frequencyMinutes": 5
-      },
-      {
-        "name": "Regression Alert",
-        "enabled": true,
-        "action": {
-          "type": "email",
-          "status": "active"
-        }
-      },
-      {
-        "name": "New Unhandled Exception",
-        "enabled": true,
-        "action": {
-          "type": "email",
-          "status": "active"
-        }
-      },
-      {
-        "name": "High frequency error spike",
-        "enabled": true,
-        "action": {
-          "type": "email",
-          "status": "active"
-        }
-      },
-      {
-        "name": "Send a notification for high priority issues",
-        "enabled": true,
-        "action": {
-          "type": "email",
-          "status": "active"
-        }
       }
     ]
   },

@@ -216,10 +216,28 @@ describe('Sentry observability contract', () => {
     });
   });
 
+  it('rejects filtering handled errors out of the first-seen issue route', () => {
+    const snapshot = passingSnapshot();
+    const rule = snapshot.issueAlerts.find(
+      (rule) =>
+        rule.name === 'linejam: production issues and monitor failures to #ops'
+    )!;
+    rule.filters = [
+      {
+        type: 'event_attribute',
+        comparison: { attribute: 'error.unhandled', value: 'true' },
+      },
+    ];
+    expect(auditSentryObservability(manifest, snapshot).failures).toContain(
+      'alert:linejam: production issues and monitor failures to #ops:unexpected-filter'
+    );
+  });
+
   it('fails on disabled alerts, obsolete signals, absent deploys, and empty dashboards', () => {
     const snapshot = passingSnapshot();
     snapshot.issueAlerts.find(
-      (rule) => rule.name === 'New Unhandled Exception'
+      (rule) =>
+        rule.name === 'linejam: production issues and monitor failures to #ops'
     )!.enabled = false;
     snapshot.cronMonitors.push({
       slug: 'linejam-production-health',
@@ -242,7 +260,7 @@ describe('Sentry observability contract', () => {
     expect(result.ok).toBe(false);
     expect(result.failures).toEqual(
       expect.arrayContaining([
-        'alert:New Unhandled Exception:enabled-drift',
+        'alert:linejam: production issues and monitor failures to #ops:enabled-drift',
         'cron-monitor:linejam-production-health:forbidden',
         'release:production:deploy-marker-missing',
         'dashboard:widget-missing:Unresolved Errors',
@@ -353,7 +371,12 @@ describe('Sentry observability contract', () => {
 
 it('reports every declared identity and field drift', () => {
   const snapshot = passingSnapshot();
-  snapshot.issueAlerts.shift();
+  expect(
+    auditSentryObservability(manifest, { ...snapshot, issueAlerts: [] })
+      .failures
+  ).toContain(
+    `alert:${manifest.issueAlerts.required[0].name}:expected-one:found-0`
+  );
   const alert = snapshot.issueAlerts[0];
   alert.actions = [{ type: 'slack', status: 'resolved', target: 'wrong' }];
   alert.filters = [{ config: { key: 'environment', value: 'staging' } }];
@@ -387,7 +410,6 @@ it('reports every declared identity and field drift', () => {
   const result = auditSentryObservability(manifest, snapshot);
   expect(result.failures).toEqual(
     expect.arrayContaining([
-      expect.stringContaining('expected-one:found-0'),
       expect.stringContaining('action-drift'),
       expect.stringContaining('tag-filter-environment-undeclared'),
       expect.stringContaining('status-drift'),
