@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
-const sourceRoots = [
+export const sourceRoots = [
   'app',
   'components',
   'hooks',
@@ -35,8 +35,11 @@ const sourceRoots = [
   'sentry.provenance.mjs',
 ];
 
-async function collect(relative, files) {
-  const absolute = path.join(root, relative);
+async function collect(relative, files, checkout) {
+  // The Rust source/toolchain above owns identity; compiled WASM is an output.
+  // A container build has this directory while a clean host checkout does not.
+  if (relative === 'public/entry-wasm') return;
+  const absolute = path.join(checkout, relative);
   const stat = await lstat(absolute);
   if (stat.isSymbolicLink()) {
     throw new Error(`Source identity refuses a symlink: ${relative}`);
@@ -44,22 +47,22 @@ async function collect(relative, files) {
   if (stat.isDirectory()) {
     for (const name of (await readdir(absolute)).sort()) {
       if (name.startsWith('.env') || name === 'node_modules') continue;
-      await collect(`${relative}/${name}`, files);
+      await collect(`${relative}/${name}`, files, checkout);
     }
   } else if (stat.isFile()) {
     files.push(relative);
   }
 }
 
-export async function sourceIdentity() {
+export async function sourceIdentity(checkout = root) {
   const files = [];
-  for (const relative of sourceRoots) await collect(relative, files);
+  for (const relative of sourceRoots) await collect(relative, files, checkout);
   files.sort();
   const frontend = createHash('sha256');
   const backend = createHash('sha256');
   let backendFiles = 0;
   for (const relative of files) {
-    const bytes = await readFile(path.join(root, relative));
+    const bytes = await readFile(path.join(checkout, relative));
     const fingerprint = createHash('sha256').update(bytes).digest('hex');
     const record = `${relative}\0${fingerprint}\n`;
     frontend.update(record);
@@ -83,7 +86,7 @@ export async function sourceIdentity() {
     }
   }
   const packageJson = JSON.parse(
-    await readFile(path.join(root, 'package.json'), 'utf8')
+    await readFile(path.join(checkout, 'package.json'), 'utf8')
   );
   return {
     algorithm: 'sha256(sorted relative-path + NUL + file-sha256 + newline)',
@@ -92,7 +95,7 @@ export async function sourceIdentity() {
     node: process.version,
     packageManager: packageJson.packageManager,
     lockfile: createHash('sha256')
-      .update(await readFile(path.join(root, 'pnpm-lock.yaml')))
+      .update(await readFile(path.join(checkout, 'pnpm-lock.yaml')))
       .digest('hex'),
   };
 }

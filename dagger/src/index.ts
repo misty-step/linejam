@@ -103,11 +103,21 @@ function baseContainer(
   cacheName: string
 ): Container {
   const pnpmCache: CacheVolume = dag.cacheVolume(cacheName);
+  // Reuse the local runtime's pinned toolchain, including for browser images.
+  const rust = source.dockerBuild({
+    dockerfile: 'scripts/local/Dockerfile',
+    target: 'rust',
+  });
 
   return withAppEnv(
     dag
       .container()
       .from(image)
+      .withDirectory('/usr/local/cargo', rust.directory('/usr/local/cargo'))
+      .withDirectory('/usr/local/rustup', rust.directory('/usr/local/rustup'))
+      .withEnvVariable('CARGO_HOME', '/usr/local/cargo')
+      .withEnvVariable('RUSTUP_HOME', '/usr/local/rustup')
+      .withEnvVariable('PATH', '/usr/local/cargo/bin:$PATH', { expand: true })
       .withEnvVariable('CI', '1')
       .withEnvVariable('COREPACK_ENABLE_DOWNLOAD_PROMPT', '0')
       .withEnvVariable('PNPM_HOME', '/pnpm')
