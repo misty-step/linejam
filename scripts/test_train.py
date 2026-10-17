@@ -5,10 +5,11 @@ import random
 import subprocess
 import sys
 import tempfile
+from types import SimpleNamespace
 import unittest
 
 from train_state import Effect, Event, Journal, Phase, State, TERMINAL, project, step
-from train import expected_config, regular_tree, stage_artifact, tree_hashes
+from train import deployment_tool, expected_config, regular_tree, stage_artifact, tree_hashes
 
 SHA = 'a' * 40
 OLD = 'b' * 40
@@ -217,6 +218,39 @@ class TrainMainTests(unittest.TestCase):
 
 
 class ArtifactTests(unittest.TestCase):
+    def test_trusted_tool_matches_the_committed_root_importer_not_other_workspaces(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo = root / 'repo'
+            repo.mkdir()
+            package = root / 'tools/node_modules/wrangler/package.json'
+            package.parent.mkdir(parents=True)
+            package.write_text('{"version":"1.2.3"}')
+            tool = package.parent / 'bin/wrangler.js'
+            args = SimpleNamespace(repo=repo, home=root / 'build', node=root / 'node', wrangler=tool)
+            subprocess.run(['git', 'init', '--quiet', str(repo)], check=True)
+            for version, admitted in (('1.2.3(peer@1.0.0)', True), ('9.9.9', False), ('1.2.30', False)):
+                (repo / 'pnpm-lock.yaml').write_text(
+                    "lockfileVersion: '9.0'\nimporters:\n  .:\n    devDependencies:\n"
+                    '      wrangler:\n        specifier: ^1.0.0\n        version: ' + version + '\n'
+                    '  sibling:\n    devDependencies:\n      wrangler:\n'
+                    '        specifier: ^1.0.0\n        version: 1.2.3\n')
+                subprocess.run(['git', 'add', '.'], cwd=repo, check=True)
+                subprocess.run(['git', '-c', 'user.name=Native test', '-c', 'user.email=native@example.invalid',
+                                '-c', 'commit.gpgsign=false', '-c', 'core.hooksPath=/dev/null',
+                                'commit', '--quiet', '-m', version], cwd=repo, check=True)
+                sha = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=repo, text=True).strip()
+                # The committed source, not a mutable checkout, owns tool admission.
+                (repo / 'pnpm-lock.yaml').write_text('uncommitted data must not be read')
+                if admitted:
+                    self.assertEqual(deployment_tool(args, sha), [str(root / 'node/bin/node'), str(tool)])
+                else:
+                    with self.assertRaisesRegex(ValueError, 'committed lockfile'):
+                        deployment_tool(args, sha)
+            args.wrangler = args.home / 'tools/wrangler.js'
+            with self.assertRaisesRegex(ValueError, 'writable build state'):
+                deployment_tool(args, sha)
+
     def test_evidence_retains_native_browser_receipts_but_cannot_follow_host_links(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

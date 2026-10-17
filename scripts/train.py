@@ -204,7 +204,10 @@ def deployment_tool(args, sha):
     if args.wrangler.is_relative_to(args.home):
         raise ValueError('Deployment tool cannot be in writable build state')
     lock = command('git', 'show', sha + ':pnpm-lock.yaml', cwd=args.repo)
-    version = re.search(r'(?m)^    wrangler:\n      specifier: [^\n]+\n      version: ([0-9.]+)', lock)
+    # pnpm v9 resolves dependencies under the root importer, not the top level.
+    # Never admit a version found only in another workspace or a package snapshot.
+    root = re.search(r'(?ms)^  \.:\n(.*?)(?=^  \S|\Z)', lock)
+    version = re.search(r'(?m)^      wrangler:\n        specifier: [^\n]+\n        version: ([0-9]+\.[0-9]+\.[0-9]+)(?=[(\n]|$)', root[1] if root else '')
     installed = json.loads((args.wrangler.parent.parent / 'package.json').read_text())['version']
     if not version or version[1] != installed:
         raise ValueError('Trusted Wrangler must match the committed lockfile')
