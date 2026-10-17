@@ -52,14 +52,19 @@ def expected_config(repo, sha):
     }
 
 
-def tree_hashes(root):
+def regular_tree(root):
     if not stat.S_ISDIR(root.lstat().st_mode):
         raise ValueError('Artifact must be an ordinary directory')
-    hashes = {}
     for path in sorted(root.rglob('*')):
         mode = path.lstat().st_mode
         if not (stat.S_ISDIR(mode) or stat.S_ISREG(mode)):
             raise ValueError('No artifact symlinks or special files')
+        yield path
+
+
+def tree_hashes(root):
+    hashes = {}
+    for path in regular_tree(root):
         relative = path.relative_to(root)
         if any(part.startswith('.') or part in ('node_modules', 'package.json') for part in relative.parts):
             raise ValueError('No executable deployment tooling/config discovery in artifact')
@@ -332,12 +337,17 @@ def main():
                         build(args, source, log)
                         hashes = stage_artifact(source / '.release', args.home / 'artifact', expected)
                     finally:
-                        if (source / '.qa/release').exists():
-                            tree_hashes(source / '.qa/release')
-                            destination = args.home / 'evidence'
+                        if (source / '.qa').exists():
+                            # Evidence may contain Playwright's .last-run.json,
+                            # but never links that could escape the sandbox at copy.
+                            list(regular_tree(source / '.qa'))
+                            # Keep one bounded proof per mode: a fast tick must
+                            # not erase the latest full browser journey/video.
+                            destination = args.home / 'evidence' / args.mode
+                            destination.parent.mkdir(parents=True, exist_ok=True)
                             if destination.exists():
                                 shutil.rmtree(destination)
-                            shutil.copytree(source / '.qa/release', destination)
+                            shutil.copytree(source / '.qa', destination)
                 journal.record(Event.BUILT, hashes)
                 if args.promote:
                     # Build process and checkout are gone before credentials are read.

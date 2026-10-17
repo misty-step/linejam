@@ -6,7 +6,7 @@ import tempfile
 import unittest
 
 from train_state import Effect, Event, Journal, Phase, State, TERMINAL, project, step
-from train import expected_config, stage_artifact, tree_hashes
+from train import expected_config, regular_tree, stage_artifact, tree_hashes
 
 SHA = 'a' * 40
 OLD = 'b' * 40
@@ -131,6 +131,15 @@ class TrainStateTests(unittest.TestCase):
 
 
 class ArtifactTests(unittest.TestCase):
+    def test_evidence_retains_native_browser_receipts_but_cannot_follow_host_links(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / '.last-run.json').write_text('{}')
+            self.assertEqual(list(regular_tree(root)), [root / '.last-run.json'])
+            (root / 'escape').symlink_to(root / '.last-run.json')
+            with self.assertRaises(ValueError):
+                list(regular_tree(root))
+
     def test_real_staging_refuses_symlinks_discovery_and_changed_config(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
