@@ -24,6 +24,7 @@
 /.ui-build/
 /target/
 /public/entry-wasm/
+__pycache__/
 
 # misc
 .DS_Store
@@ -43,6 +44,7 @@ yarn-error.log*
 
 # cloudflare workers
 /.open-next/
+/.release/
 /.wrangler/
 
 # vercel

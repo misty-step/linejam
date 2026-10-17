@@ -91,6 +91,7 @@ afterEach(() => {
 describe('portable native checks', () => {
   it('keeps fast cheap and full on the accepted Worker/DO path, without live mirrors', () => {
     expect(checkPlan('fast')).toEqual([
+      'test:train',
       'test:rust',
       'provider-retirement:check',
       'typecheck',
@@ -147,6 +148,7 @@ describe('portable native checks', () => {
       runChecks(f.root, 'fast', { ...f.env, FAIL_CHECK: 'lint' })
     ).toThrow('pnpm lint failed');
     expect(f.calls()).toEqual([
+      'test:train',
       'test:rust',
       'provider-retirement:check',
       'typecheck',

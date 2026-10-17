@@ -10,10 +10,10 @@ import { isLocalServerMode } from './lib/localMode';
 
 const localMode = isLocalServerMode();
 
-// Validate required env vars during production builds
-// This prevents deploying with missing configuration
+// Only public build inputs belong in the build sandbox. The Worker validates
+// runtime secrets from its bindings before serving production requests.
 if (process.env.NODE_ENV === 'production') {
-  validateEnv();
+  validateEnv('build');
 }
 
 export { buildContentSecurityPolicy } from './lib/contentSecurityPolicy';

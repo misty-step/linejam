@@ -46,6 +46,20 @@ A local pass is not a deployment, hosted Clerk verification or a PostHog usage r
 This command prepares the native release path; it does not yet replace the
 existing deployer or authorize a second promotion path.
 
+The candidate native train composes that same command with a secret-free
+production build and proof of the actual deploy input:
+
+```sh
+pnpm release:check --mode fast --public-config /path/to/production-public.json
+```
+
+The JSON contains only `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`,
+`NEXT_PUBLIC_POSTHOG_KEY` and `NEXT_PUBLIC_SENTRY_DSN`, as already published to
+browsers. No runtime or provider credential belongs in it. The command produces
+`.release/` and `.qa/release/` (production-configured phone screenshots and its
+receipt). [ADR 0013](docs/adr/0013-native-application-train.md) describes the
+native controller, trust boundary and activation work still required.
+
 ## Project guide
 
 - [Product brief and current direction](project.md)

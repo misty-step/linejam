@@ -13,6 +13,7 @@ const eslintConfig = defineConfig([
     'build/**',
     // Cloudflare worker build output and wrangler cache
     '.open-next/**',
+    '.release/**',
     '.wrangler/**',
     'next-env.d.ts',
     // Generated files

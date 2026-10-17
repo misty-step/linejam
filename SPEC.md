@@ -371,3 +371,25 @@ checking a candidate does not require a hosted CI vendor or production access.
 - Local verification is not deployment, hosted account acceptance or a live
   player-usage measurement. Release publication keeps its existing review and
   integrity requirements.
+
+#### Native application release
+
+As a maintainer, I want checked changes to reach players without a hosted CI
+bill, while failed releases leave guest identities and accepted poems intact.
+
+- A new trunk revision receives fast checks on our native executor. Full checks
+  also run twice daily even when trunk has not changed; a full failure is owned
+  repair evidence, not permission to hide or discard accepted work.
+- The deployed Worker is the production-configured artifact exercised in
+  isolation, not the local-mode game build. Runtime credentials are not build
+  inputs. Missing or invalid required production bindings refuse service rather
+  than issuing credentials or accepting writes with a development default.
+- Promotion is serialized and cannot replace a newer serving source with an
+  older one. Its source identity, backend readiness and a player entry journey
+  are read back after activation.
+- A failed or interrupted promotion restores the previously serving compatible
+  Worker version and verifies recovery. It never imports, restores or resets
+  player data. An incompatible data migration requires a separate recovery
+  decision, not an automatic rollback across it.
+- Release failure and recovery reach the existing Sentry-owned operator intake.
+  An unavailable reporting sink cannot turn a failed release into success.

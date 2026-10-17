@@ -8,6 +8,10 @@
   },
   "scripts": {
     "check": "node scripts/check.mjs",
+    "release:check": "node scripts/release/check.mjs",
+    "release:package": "tsx scripts/release/package.ts",
+    "release:verify": "tsx scripts/release/verify.ts",
+    "test:train": "python3 -m unittest discover -s scripts -p 'test_train*.py'",
     "doctor": "node ./scripts/doctor.mjs",
     "preinstall": "npx only-allow pnpm",
     "postinstall": "pnpm build:parlor",

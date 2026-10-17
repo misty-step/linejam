@@ -1,8 +1,8 @@
 /**
  * Environment variable validation
  *
- * Called during build to ensure all required env vars are present.
- * Prevents deploying with missing configuration.
+ * Public configuration is checked at build time. Secrets are checked at the
+ * Worker request boundary, never required in the uncredentialed build sandbox.
  */
 
 import { isValidServerActionEncryptionKey } from './serverActionEncryptionKey';
@@ -23,6 +23,17 @@ const REQUIRED_PRODUCTION_SKEW_ENV = [
 ] as const;
 const DEV_GUEST_TOKEN_SECRET = 'dev-only-insecure-secret-change-in-production';
 const COMMIT_SHA = /^[a-f0-9]{40}$/;
+
+export interface ReleaseEnvironment {
+  GUEST_TOKEN_SECRET?: string;
+  NEXT_PUBLIC_CONVEX_URL?: string;
+  NEXT_PUBLIC_SENTRY_DSN?: string;
+  NEXT_PUBLIC_SENTRY_ENABLED?: string;
+  NEXT_DEPLOYMENT_ID?: string;
+  NEXT_SERVER_ACTIONS_ENCRYPTION_KEY?: string;
+  LINEJAM_DEPLOY_ENVIRONMENT?: string;
+  GITHUB_ACTOR?: string;
+}
 
 export function isValidSentryDsn(
   value: string | null | undefined
@@ -65,54 +76,81 @@ export function getServerGuestTokenSecret(): string {
 }
 
 /**
- * Validate that all required environment variables are set.
- * Throws during build if any are missing.
+ * Runtime remains the default for existing consumers and local development.
  */
-export function validateEnv(): void {
+export function validateEnv(phase: 'build' | 'runtime' = 'runtime'): void {
   if (isLocalServerMode()) {
     getServerGuestTokenSecret();
     return;
   }
+  const environment: ReleaseEnvironment = {
+    LINEJAM_DEPLOY_ENVIRONMENT: process.env.LINEJAM_DEPLOY_ENVIRONMENT,
+    GITHUB_ACTOR: process.env.GITHUB_ACTOR,
+  };
+  for (const name of [
+    ...REQUIRED_SERVER_ENV,
+    ...REQUIRED_PUBLIC_ENV,
+    ...REQUIRED_PRODUCTION_SKEW_ENV,
+  ])
+    environment[name] = process.env[name];
+  validateConfiguration(environment, phase);
+}
+
+export function validateProductionBindings(
+  environment: ReleaseEnvironment
+): void {
+  if (environment.LINEJAM_DEPLOY_ENVIRONMENT !== 'production') return;
+  validateConfiguration(environment, 'runtime');
+}
+
+function validateConfiguration(
+  environment: ReleaseEnvironment,
+  phase: 'build' | 'runtime'
+): void {
+  const value = (name: keyof ReleaseEnvironment): string | undefined =>
+    environment[name];
   const missing: string[] = [];
   const invalid: string[] = [];
-  const isDependabot = process.env.GITHUB_ACTOR === 'dependabot[bot]';
+  const isDependabot =
+    phase === 'build' && environment.GITHUB_ACTOR === 'dependabot[bot]';
 
   for (const key of REQUIRED_SERVER_ENV) {
-    if (!isDependabot && !process.env[key]) {
+    if (phase === 'runtime' && !value(key)?.trim()) {
       missing.push(key);
     }
   }
 
   for (const key of REQUIRED_PUBLIC_ENV) {
-    if (!isDependabot && !process.env[key]) {
+    if (!isDependabot && !value(key)?.trim()) {
       missing.push(key);
     }
   }
 
-  if (process.env.LINEJAM_DEPLOY_ENVIRONMENT === 'production') {
+  if (environment.LINEJAM_DEPLOY_ENVIRONMENT === 'production') {
     for (const key of REQUIRED_PRODUCTION_SKEW_ENV) {
-      if (!process.env[key]?.trim()) missing.push(key);
+      if (key === 'NEXT_SERVER_ACTIONS_ENCRYPTION_KEY' && phase === 'build')
+        continue;
+      if (!value(key)?.trim()) missing.push(key);
     }
 
-    const deploymentId = process.env.NEXT_DEPLOYMENT_ID?.trim();
+    const deploymentId = value('NEXT_DEPLOYMENT_ID')?.trim();
     if (deploymentId && !COMMIT_SHA.test(deploymentId)) {
       invalid.push('NEXT_DEPLOYMENT_ID');
     }
 
-    const serverActionKey =
-      process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY?.trim();
+    const serverActionKey = value('NEXT_SERVER_ACTIONS_ENCRYPTION_KEY')?.trim();
     if (serverActionKey && !isValidServerActionEncryptionKey(serverActionKey)) {
       invalid.push('NEXT_SERVER_ACTIONS_ENCRYPTION_KEY');
     }
   }
 
-  if (process.env.NEXT_PUBLIC_SENTRY_ENABLED !== '1') {
+  if (environment.NEXT_PUBLIC_SENTRY_ENABLED !== '1') {
     invalid.push('NEXT_PUBLIC_SENTRY_ENABLED');
   }
 
   if (
-    process.env.NEXT_PUBLIC_SENTRY_DSN &&
-    !isValidSentryDsn(process.env.NEXT_PUBLIC_SENTRY_DSN)
+    value('NEXT_PUBLIC_SENTRY_DSN') &&
+    !isValidSentryDsn(value('NEXT_PUBLIC_SENTRY_DSN'))
   ) {
     invalid.push('NEXT_PUBLIC_SENTRY_DSN');
   }
