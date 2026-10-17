@@ -60,5 +60,42 @@
     "slack": "## New Features\n\n- The footer now links to a changelog page, so you can see what’s changed in Linejam at a glance.",
     "tag": "v0.28.1",
     "version": "0.28.1"
+  },
+  {
+    "audience": "end-user",
+    "html": "<h2>Improvements</h2>\n<ul>\n<li>Private poem downloads and social previews are working again.</li>\n<li>Guest sessions now stay separate between requests, so joining and playing as a guest is more reliable.</li>\n<li>The home page and shared help now load faster with a lighter, native feel.</li>\n<li>If a module fails to load, Linejam recovers automatically with a fresh request instead of leaving you stuck.</li>\n</ul>\n",
+    "markdown": "## Improvements\n\n- Private poem downloads and social previews are working again.\n- Guest sessions now stay separate between requests, so joining and playing as a guest is more reliable.\n- The home page and shared help now load faster with a lighter, native feel.\n- If a module fails to load, Linejam recovers automatically with a fresh request instead of leaving you stuck.",
+    "notes": "## Improvements\n\n- Private poem downloads and social previews are working again.\n- Guest sessions now stay separate between requests, so joining and playing as a guest is more reliable.\n- The home page and shared help now load faster with a lighter, native feel.\n- If a module fails to load, Linejam recovers automatically with a fresh request instead of leaving you stuck.",
+    "plaintext": "Improvements\nPrivate poem downloads and social previews are working again.\nGuest sessions now stay separate between requests, so joining and playing as a guest is more reliable.\nThe home page and shared help now load faster with a lighter, native feel.\nIf a module fails to load, Linejam recovers automatically with a fresh request instead of leaving you stuck.",
+    "published_at": "2026-10-17T05:21:26.168377598+00:00",
+    "release_url": "https://github.com/misty-step/linejam/releases/tag/v0.28.2",
+    "repository": "misty-step/linejam",
+    "schema_version": "landmark.public-release-notes.v1",
+    "sections": [
+      {
+        "bullets": [
+          {
+            "links": [],
+            "text": "Private poem downloads and social previews are working again."
+          },
+          {
+            "links": [],
+            "text": "Guest sessions now stay separate between requests, so joining and playing as a guest is more reliable."
+          },
+          {
+            "links": [],
+            "text": "The home page and shared help now load faster with a lighter, native feel."
+          },
+          {
+            "links": [],
+            "text": "If a module fails to load, Linejam recovers automatically with a fresh request instead of leaving you stuck."
+          }
+        ],
+        "title": "Improvements"
+      }
+    ],
+    "slack": "## Improvements\n\n- Private poem downloads and social previews are working again.\n- Guest sessions now stay separate between requests, so joining and playing as a guest is more reliable.\n- The home page and shared help now load faster with a lighter, native feel.\n- If a module fails to load, Linejam recovers automatically with a fresh request instead of leaving you stuck.",
+    "tag": "v0.28.2",
+    "version": "0.28.2"
   }
 ]

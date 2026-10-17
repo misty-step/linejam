@@ -1,6 +1,315 @@
 {
-  "currentVersion": "0.28.1",
+  "currentVersion": "0.28.2",
   "releases": [
+    {
+      "version": "0.28.2",
+      "date": "2026-10-17",
+      "changes": [
+        {
+          "type": "ci",
+          "scope": "deploy",
+          "description": "wait for the new Worker before verifying production (15378de)",
+          "breaking": false,
+          "pr": 563
+        },
+        {
+          "type": "fix",
+          "scope": "observability",
+          "description": "keep distinct failure classes in distinct Sentry issues (30405f1)",
+          "breaking": false,
+          "pr": 567
+        },
+        {
+          "type": "fix",
+          "scope": "images",
+          "description": "restore private poem downloads and social previews on Workers",
+          "breaking": false,
+          "commit": "2259b6e"
+        },
+        {
+          "type": "fix",
+          "scope": "ci",
+          "description": "bound the complete production health response (4537145)",
+          "breaking": false,
+          "pr": 571
+        },
+        {
+          "type": "fix",
+          "scope": "auth",
+          "description": "isolate guest-session I/O per Worker request (3b6326f)",
+          "breaking": false,
+          "pr": 570
+        },
+        {
+          "type": "chore",
+          "scope": "deps-dev",
+          "description": "bump @vitest/coverage-v8 from 4.1.10 to 5.0.1 (88d7d84)",
+          "breaking": false,
+          "pr": 509
+        },
+        {
+          "type": "chore",
+          "scope": "linejam",
+          "description": "[US-003/S2] fix(observability): require status on sanitized spans (9e68557)",
+          "breaking": false,
+          "pr": 541
+        },
+        {
+          "type": "chore",
+          "scope": "linejam",
+          "description": "[US-001/S5] docs: state that parlor is vendored (73ff177)",
+          "breaking": false,
+          "pr": 540
+        },
+        {
+          "type": "fix",
+          "scope": "ops",
+          "description": "restore recoverable encrypted Convex backups (fb07f85)",
+          "breaking": false,
+          "pr": 565
+        },
+        {
+          "type": "docs",
+          "scope": "ops",
+          "description": "record verified backup recovery and alarm receipt (43ec579)",
+          "breaking": false,
+          "pr": 578
+        },
+        {
+          "type": "fix",
+          "scope": "ops",
+          "description": "detect missing daily backup check-ins (3f906d3)",
+          "breaking": false,
+          "pr": 579
+        },
+        {
+          "type": "fix",
+          "scope": "ci",
+          "description": "fail releases on Worker route runtime errors (449f9eb)",
+          "breaking": false,
+          "pr": 577
+        },
+        {
+          "type": "feat",
+          "scope": "backend",
+          "description": "serve the Convex backend from a Cloudflare Durable Object (e1bd67e)",
+          "breaking": false,
+          "pr": 566
+        },
+        {
+          "type": "docs",
+          "description": "link contributors to Constitution and Way of working (b718ec8)",
+          "breaking": false,
+          "pr": 581
+        },
+        {
+          "type": "fix",
+          "scope": "ops",
+          "description": "monitor complete abandonment sweeps in Sentry (d3c670c)",
+          "breaking": false,
+          "pr": 583
+        },
+        {
+          "type": "docs",
+          "scope": "spec",
+          "description": "consolidate Linejam behavior and canonical story QA (edaf96b)",
+          "breaking": false,
+          "pr": 560
+        },
+        {
+          "type": "feat",
+          "scope": "backend",
+          "description": "point-in-time restore for the Durable Object backend (9771a68)",
+          "breaking": false,
+          "pr": 582
+        },
+        {
+          "type": "docs",
+          "scope": "readme",
+          "description": "remove retired GitHub Pages links (9c747a0)",
+          "breaking": false,
+          "pr": 572
+        },
+        {
+          "type": "feat",
+          "scope": "backend",
+          "description": "serve production from the Durable Object backend (ad2f936)",
+          "breaking": false,
+          "pr": 580
+        },
+        {
+          "type": "feat",
+          "scope": "analytics",
+          "description": "measure guest stories without collecting content (371b09c)",
+          "breaking": false,
+          "pr": 584
+        },
+        {
+          "type": "ci",
+          "description": "exercise guest games against the Durable Object backend (c4f551a)",
+          "breaking": false,
+          "pr": 585
+        },
+        {
+          "type": "docs",
+          "description": "point new code at the Misty Step Stack standard (77d4b3a)",
+          "breaking": false,
+          "pr": 586
+        },
+        {
+          "type": "docs",
+          "description": "keep usage and sweep acceptance within canonical player stories (be26bdb)",
+          "breaking": false,
+          "pr": 587
+        },
+        {
+          "type": "ci",
+          "description": "expose portable native fast and full checks",
+          "breaking": false,
+          "commit": "f3f1e74"
+        },
+        {
+          "type": "fix",
+          "scope": "ci",
+          "description": "preserve source archives and refuse dotenv discovery",
+          "breaking": false,
+          "commit": "61c0ed8"
+        },
+        {
+          "type": "feat",
+          "scope": "ui",
+          "description": "replace home and shared help with Rust islands",
+          "breaking": false,
+          "commit": "c789e57"
+        },
+        {
+          "type": "fix",
+          "scope": "ui",
+          "description": "retain error reporting and classify native client cancellation",
+          "breaking": false,
+          "commit": "15b814e"
+        },
+        {
+          "type": "fix",
+          "scope": "qa",
+          "description": "cover both native peer-disconnect write errors",
+          "breaking": false,
+          "commit": "c94ec98"
+        },
+        {
+          "type": "fix",
+          "scope": "ui",
+          "description": "recover rejected module fetches with a fresh import URL",
+          "breaking": false,
+          "commit": "4b4a50f"
+        },
+        {
+          "type": "feat",
+          "scope": "observability",
+          "description": "qualify party recovery and measure guest funnel",
+          "breaking": false,
+          "commit": "962a46e"
+        },
+        {
+          "type": "fix",
+          "scope": "observability",
+          "description": "follow consolidated native Sentry route",
+          "breaking": false,
+          "commit": "4abce8b"
+        },
+        {
+          "type": "docs",
+          "description": "make product purpose explicit [skip ci]",
+          "breaking": false,
+          "commit": "ba7d565"
+        },
+        {
+          "type": "feat",
+          "scope": "release",
+          "description": "verify production artifacts on the native train",
+          "breaking": false,
+          "commit": "a62e532"
+        },
+        {
+          "type": "fix",
+          "scope": "release",
+          "description": "isolate verifier scratch from deploy artifacts",
+          "breaking": false,
+          "commit": "5d4563a"
+        },
+        {
+          "type": "fix",
+          "scope": "release",
+          "description": "retain bounded full and fast browser evidence",
+          "breaking": false,
+          "commit": "4583808"
+        },
+        {
+          "type": "feat",
+          "scope": "observability",
+          "description": "integrate approved recovery proof with native release candidate",
+          "breaking": false,
+          "commit": "44ac999"
+        },
+        {
+          "type": "fix",
+          "scope": "release",
+          "description": "retain failed verdict on unchanged native ticks",
+          "breaking": false,
+          "commit": "b84c81b"
+        },
+        {
+          "type": "fix",
+          "scope": "release",
+          "description": "admit the root-importer pinned Wrangler",
+          "breaking": false,
+          "commit": "d19d604"
+        },
+        {
+          "type": "chore",
+          "description": "Merge branch 'stability/t_4ab4a7db' of /home/exedev/.hermes/kanban/workspaces/t_4ab4a7db/linejam into rust/t_79984c80-entry",
+          "breaking": false,
+          "commit": "d35edae"
+        },
+        {
+          "type": "chore",
+          "description": "Merge remote-tracking branch 'origin/master' into rust/t79984c80-approved-live",
+          "breaking": false,
+          "commit": "eccac00"
+        },
+        {
+          "type": "fix",
+          "scope": "ci",
+          "description": "carry Rust into Dagger and ignore generated WASM identity",
+          "breaking": false,
+          "commit": "982075f"
+        },
+        {
+          "type": "fix",
+          "scope": "qa",
+          "description": "observe the configured entry error reporter",
+          "breaking": false,
+          "commit": "d0cb1ed"
+        },
+        {
+          "type": "docs",
+          "scope": "qa",
+          "description": "add linejam verification entry and shared navigation (389ef70)",
+          "breaking": false,
+          "pr": 589
+        },
+        {
+          "type": "docs",
+          "scope": "qa",
+          "description": "lead with the proven native Worker lifecycle (520c4e5)",
+          "breaking": false,
+          "pr": 593
+        }
+      ],
+      "compareUrl": "https://github.com/misty-step/linejam/compare/v0.28.1...v0.28.2",
+      "productNotes": "Improvements\nPrivate poem downloads and social previews are working again.\nGuest sessions now stay separate between requests, so joining and playing as a guest is more reliable.\nThe home page and shared help now load faster with a lighter, native feel.\nIf a module fails to load, Linejam recovers automatically with a fresh request instead of leaving you stuck.",
+      "notesStatus": "landmark"
+    },
     {
       "version": "0.28.1",
       "date": "2026-10-15",
