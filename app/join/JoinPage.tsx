@@ -49,9 +49,9 @@ function JoinForm() {
           kind="join"
           code={searchParams.get('code') || ''}
           ready={ready}
-          onSubmit={({ resolve, ...input }) => {
+          onSubmit={(input) => {
             const identity = user;
-            void admitToRoom(
+            return admitToRoom(
               joinRoom,
               input,
               identity.guestToken,
@@ -62,7 +62,7 @@ function JoinForm() {
                 current.current.guestToken === identity.guestToken &&
                 current.current.clerkUser?.id === identity.clerkUser?.id,
               (href) => router.push(href)
-            ).then(resolve);
+            );
           }}
         />
       </div>

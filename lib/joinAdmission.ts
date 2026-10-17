@@ -35,7 +35,8 @@ export async function admitToRoom(
   trackJoinAttempted();
   try {
     const room = await joinRoom({
-      ...input,
+      code: input.code,
+      displayName: input.displayName,
       avatarId: input.avatarId,
       guestToken: guestToken || undefined,
     });

@@ -37,11 +37,11 @@ customElements.define(
             this.unmount = mount_join(
               this,
               (code, displayName, avatarId) =>
-                new Promise((resolve) => {
+                new Promise((resolve, reject) => {
                   const event = new CustomEvent('entry-submit', {
                     bubbles: true,
                     cancelable: true,
-                    detail: { code, displayName, avatarId, resolve },
+                    detail: { code, displayName, avatarId, resolve, reject },
                   });
                   // A missing boundary must recover visibly, not leave an
                   // infinite pending form. The consumer accepts responsibility.

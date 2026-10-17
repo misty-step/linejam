@@ -7,7 +7,11 @@ export interface EntrySubmission {
   code: string;
   displayName: string;
   avatarId: string;
+}
+
+interface EntryRequest extends EntrySubmission {
   resolve(feedback: string): void;
+  reject(cause: unknown): void;
 }
 
 export function EntryIsland({
@@ -22,7 +26,7 @@ export function EntryIsland({
 }: {
   kind: 'home' | 'help' | 'help-content' | 'join' | 'avatar-picker';
   onClose?: () => void;
-  onSubmit?: (submission: EntrySubmission) => void;
+  onSubmit?: (submission: EntrySubmission) => Promise<string>;
   onChange?: (value: string) => void;
   code?: string;
   ready?: boolean;
@@ -37,8 +41,18 @@ export function EntryIsland({
       if (!onSubmit || !(event instanceof CustomEvent)) return;
       event.preventDefault();
       // SAFETY: entry-island.js constructs this private event from mount_join's
-      // three string arguments and its Promise resolver; no credentials cross it.
-      onSubmit(event.detail as EntrySubmission);
+      // three string arguments and its Promise callbacks; no credentials cross it.
+      const request = event.detail as EntryRequest;
+      // Always settle the WASM request, including unexpected boundary failures.
+      void Promise.resolve()
+        .then(() =>
+          onSubmit({
+            code: request.code,
+            displayName: request.displayName,
+            avatarId: request.avatarId,
+          })
+        )
+        .then(request.resolve, request.reject);
     };
     const change = (event: Event) => {
       if (event instanceof CustomEvent) onChange?.(String(event.detail));

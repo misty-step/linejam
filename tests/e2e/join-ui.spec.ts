@@ -77,7 +77,7 @@ test('Rust join normalizes invitations, preserves rejection details, then joins 
     await avatar.click();
     await page.getByRole('button', { name: 'Doodle', exact: true }).click();
     await submit.click();
-    await expect(page.getByRole('alert')).toContainText(
+    await expect(page.getByTestId('join-error-alert')).toContainText(
       'Room code not found. Please check the code and try again.'
     );
     await expect(page).toHaveURL(/\/join\?/);
@@ -129,7 +129,7 @@ for (const route of ['/join?code=ABCD', '/host']) {
     const cast = dialog.getByRole('group');
     for (const name of Object.values(AVATAR_NAMES)) {
       const choice = cast.getByRole('button', { name, exact: true });
-      await expect(choice.locator('svg')).toHaveAttribute('width', '40');
+      await expect(choice.locator('svg')).toHaveAttribute('width', '44');
     }
     await expect(cast.locator('[aria-pressed=true]')).toBeFocused();
     await page.getByRole('button', { name: 'Doodle', exact: true }).click();
@@ -167,6 +167,28 @@ for (const route of ['/join?code=ABCD', '/host']) {
     }
     await trigger.click();
     await expect(dialog).toBeVisible();
+    await page.evaluate(() => {
+      const entry = document.querySelector(
+        'linejam-entry[view="avatar-picker"], linejam-entry[view="join"]'
+      )!;
+      if (entry.getAttribute('view') === 'join')
+        entry.setAttribute('ready', 'false');
+      else entry.setAttribute('disabled', '');
+    });
+    await expect(dialog).toBeHidden();
+    await expect(trigger).toBeDisabled();
+    await expect
+      .poll(() => page.evaluate(() => document.body.style.overflow))
+      .not.toBe('hidden');
+    await page.evaluate(() => {
+      const entry = document.querySelector(
+        'linejam-entry[view="avatar-picker"], linejam-entry[view="join"]'
+      )!;
+      entry.setAttribute('ready', 'true');
+      entry.removeAttribute('disabled');
+    });
+    await trigger.click();
+    await expect(dialog).toBeVisible();
     await page.evaluate(() =>
       document
         .querySelector(
@@ -202,7 +224,9 @@ test('guest-session delay does not steal toolbar focus and a refused session off
   const appearance = page.getByRole('button', { name: /^Color mode:/ });
   await appearance.focus();
   release.resolve();
-  await expect(page.getByRole('alert')).toContainText(/unable to connect/i);
+  await expect(
+    page.getByRole('alert').filter({ hasText: /unable to connect/i })
+  ).toBeVisible();
   await expect(page.getByRole('form', { name: 'Join room' })).toBeHidden();
   await screenshot(page, 'join-session-recovery.png');
   await page.getByRole('button', { name: 'Try again', exact: true }).click();
@@ -212,6 +236,35 @@ test('guest-session delay does not steal toolbar focus and a refused session off
   ).toBeVisible();
   await expect(appearance).toBeFocused();
   expect(requests).toBe(2);
+});
+
+test('an unexpected admission-boundary rejection restores the real Rust form without exposing its cause', async ({
+  page,
+}) => {
+  await page.goto('/join?code=ABCD');
+  await page.getByRole('textbox', { name: 'Your pen name' }).fill('Ada');
+  await page.evaluate(() => {
+    document.querySelector('linejam-entry[view="join"]')!.addEventListener(
+      'entry-submit',
+      (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (!(event instanceof CustomEvent))
+          throw new Error('Missing admission event');
+        event.detail.reject(new Error('private-sink-canary'));
+      },
+      { once: true }
+    );
+  });
+  const submit = page.getByRole('button', { name: 'Join room', exact: true });
+  await submit.click();
+  const alert = page.getByTestId('join-error-alert');
+  await expect(alert).toContainText(/try again.*refresh/i);
+  await expect(alert).not.toContainText('private-sink-canary');
+  await expect(submit).toBeEnabled();
+  await expect(
+    page.getByRole('textbox', { name: 'Your pen name' })
+  ).toHaveValue('Ada');
 });
 
 for (const colorScheme of ['light', 'dark'] as const) {
@@ -233,6 +286,10 @@ for (const colorScheme of ['light', 'dark'] as const) {
       await expect(
         page.getByRole('textbox', { name: 'Your pen name' })
       ).toBeVisible();
+      await screenshot(
+        page,
+        `join-${colorScheme}-${viewport.width}x${viewport.height}.png`
+      );
       await page.evaluate(() => {
         document.documentElement.style.fontSize = '200%';
       });
