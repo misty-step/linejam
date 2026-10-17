@@ -1,23 +1,43 @@
 ---
 name: verify-linejam
-description: Run source-bound account-free guest, nine-round poem, and sharing/privacy walks on Linejam's isolated Next.js and Convex stack, then inspect the story-walk receipt.
+description: Verify Linejam's built Worker and real guest journeys, inspect desktop/phone proof, and distinguish covered behavior from remaining story gaps.
 ---
 
 # Verify Linejam
 
-Use this skill for a PR-relevant story walk or the owned nightly full walk. [The feature map](../../../features/README.md) links the live stories to implementation. The [local runtime guide](../../../docs/local-development.md) owns Docker/port isolation, source synchronization, and limitations; the hosted `merge-gate` remains a separate required check. Browser work is on Mirrodin in the card workspace, never the chief or live desktop. No provider keys, Clerk account, production database, or remote Convex project is required for isolated guest play.
+Use [the shared feature map](../../../features/README.md) for SPEC intent and
+navigation. [README: Verify a candidate](../../../README.md#verify-a-candidate)
+owns the current built Worker/SQLite Durable Object verification lifecycle and
+runtime pins. Run it on Mirrodin in the card workspace, not the chief or live
+desktop. It needs no production credentials, Clerk account or remote backend.
 
 ## Launch
 
-On the isolated Linux/amd64 runner or an authorized project VM, install Node 22+ and ensure a local Docker daemon and Buildx are available, then run `bash .exe/setup.sh`. Setup installs Docker Compose 5.5.1 to a user plugin path after checking its published digest if the pinned version is missing; it does not install or start Docker. Run `qa/walk --stories "US-001 US-002"` for selected stories, or `qa/walk --all` for the full walk used by CI and nightly. The runner owns a fresh project-scoped local Next.js/Convex stack and a bounded browser journey, then tears down only its own containers/network. Never point it at a shared, preview, or production backend.
+In a clean candidate checkout, follow the README's frozen dependency, Rust and
+browser prerequisites, then run `pnpm check --mode full`. It builds the actual
+Worker and owns isolated workerd/SQLite, guest browser and recovery checks.
+`pnpm check --mode fast` is source/unit verification, not a rendered journey.
+
+The [local runtime guide](../../../docs/local-development.md) owns the separate
+Next/Convex Docker stack for interactive or legacy `qa/walk` work. A Docker
+bridge/startup failure is not a prerequisite for the native Worker command.
 
 ## Doctor
 
-If setup fails, resolve missing Linux Docker/Node prerequisites through the host's normal owner; never change socket permissions or select a remote daemon. The isolated `scripts/local/cli.mjs` verifies app/backend readiness and matching source snapshots; a health response by itself is not story proof. Check `SPEC.md` and the expected story IDs before a run. `qa/walk --help` reports the selection syntax.
+Check the README's pinned runtime/browser prerequisites and clean source before
+driving. The native checks own their readiness probes and refuse live
+credentials/dotenv files. Preserve a failure before correcting a run-owned
+environment problem; do not repair shared daemons or adopt another stack.
+Check SPEC and the selected stories; health alone is not acceptance.
 
 ## Drive
 
-The walk uses separate browser sessions for host, guest, and spectator. Check the actual rendered create/join and refresh continuity (US-001); the word/visibility contract, reconnect, nine accepted rounds and complete reveal (US-002); and private archive, spectator denial, explicit public-link activation and revocation (US-003). Existing local QA and browser tests are complementary, not a substitute for observing the numbered criteria in the same run. No skipped, inferred, or unrelated test is a passing story.
+Inspect the native guest/party controls through separate player contexts for
+the map's Guest party and Poem entries. Follow Keep and share and Release
+administration for their separate checkpoints. Visible Share/Revoke buttons
+do not prove public-link creation/read/revocation; a rendered Changelog does
+not prove the controlled release-note failure. Report those paths unverified
+until actually driven. Never infer a whole-story pass from related tests.
 
 ## Evidence
 
@@ -31,7 +51,12 @@ typing, visible submission state, legible poems and discoverable next actions.
 Record where either person waited, guessed or lost their place. Emulation is
 not a physical-phone test; public sharing stays inside the isolated stack.
 
-Read `target/walk/walk-receipt.json`: it binds the run to exact HEAD and tree, enumerates the numbered criteria actually observed, and hashes sanitized artifacts. CI and nightly invoke `qa/walk --all` directly. The runner validates clean source, synchronized runtime identity, and observed criteria, and exits nonzero on walk or cleanup failure. A passing walk is not hosted Clerk, production, physical phone, or provider-outage proof; name such gaps rather than promoting fixture evidence.
+Retain native source-bound command output and inspected media from
+`.qa/worker/qa/evidence` and `.qa/worker/qa/entry-ui`, as owned by the README.
+For an actual legacy `qa/walk` run, inspect `target/walk/walk-receipt.json`
+instead; a failed legacy receipt remains failed even when native checks pass.
+Neither isolated path proves hosted Clerk, deployment, physical-phone use or
+unexercised sharing/release behavior.
 
 ## Cleanup
 
@@ -40,4 +65,8 @@ Inspect actual screenshots/video, retain command/exit and candidate/serving
 identity separately, and attach approved media/transcript to card top-level
 `artifacts` and PR How to review. Keep this same feature map for fitness.
 
-The walk always runs the owned local `down` for its project; after a failure, inspect the owned `.qa/local/` private files in place before further cleanup. Raw logs/traces can contain guest credentials, poem text, and room codes: do not upload them or add them to a public PR. Only `target/walk/` is a sanitized portable artifact, and it is ignored by Git. Never reset a state volume you do not own. The parent operator owns VM/worktree teardown, if any.
+Confirm the native command has stopped its owned workerd/browser processes.
+For the separate Docker lifecycle, use its owned `down`/status controls. Retain
+approved evidence before removing owned temporary state. Raw logs/traces may
+contain guest credentials, poems and room codes: never publish them or reset
+another owner's volume. A screenshot directory is not a blanket privacy approval.

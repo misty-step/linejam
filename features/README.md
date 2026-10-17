@@ -2,10 +2,10 @@
 
 The [reference specification](../SPEC.md) owns stories and observable acceptance.
 These source globs identify implementation ownership, not another behavioral
-catalog or proof that a deployment or browser journey passed. CI and nightly
-walk all live stories from SPEC.md. Use [Linejam verification](../.agents/skills/verify-linejam/SKILL.md)
-to run and inspect the walk; [testing](../docs/testing.md) distinguishes its
-numbered checkpoints from the full acceptance surface.
+catalog or proof that a deployment or browser journey passed. Use
+[Linejam verification](../.agents/skills/verify-linejam/SKILL.md) for the current
+built-artifact lifecycle and its explicit coverage limits; [testing](../docs/testing.md)
+distinguishes individual checkpoints from the full acceptance surface.
 
 - [Guest party](guest-party.md): US-001
 - [Poem](poem.md): US-002
