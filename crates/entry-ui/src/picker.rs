@@ -101,7 +101,7 @@ pub fn Picker(
                 on:click=move |event| {
                     if event.target() == event.current_target() { close(); }
                 }
-                on:cancel=move |event| {
+                on:cancel=move |event: web_sys::Event| {
                     event.prevent_default();
                     close();
                 }>
