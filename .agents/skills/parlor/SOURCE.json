@@ -6,7 +6,7 @@
     "revision": "2b8c5c4114368e40905232a733c4193e22baee03",
     "origin": "commit",
     "provenance": "vendor/parlor/UPSTREAM.json",
-    "provenanceSha256": "c782445d5cd4e33c0f6687cdca60ff97124ec9422f5f85d772ecec8c171f7999"
+    "provenanceSha256": "1ce6f6d241cdc68b994f1a8c2ddec2c068e8a505bb4f0f3e2a5292fd60f43191"
   },
   "reference": {
     "path": "skills/parlor/SKILL.md",
@@ -17,7 +17,7 @@
   },
   "importer": {
     "path": "scripts/import-skill.mjs",
-    "baseRevision": "2b8c5c4114368e40905232a733c4193e22baee03",
+    "baseRevision": "1611e2143d0d3dc8b3d7b39f7b568d1cd16c92fd",
     "sha256": "db37058163d8074b81afcb9b906e9a88bf4d505f36baab8d181cb5a457798f56"
   }
 }
