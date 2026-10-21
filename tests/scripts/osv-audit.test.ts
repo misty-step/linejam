@@ -141,7 +141,7 @@ describe('OSV audit process boundary', () => {
     pkg.vulnerabilities[0].id = 'GHSA-vfj7-8cjw-p6xm';
     pkg.groups[0].ids = ['GHSA-vfj7-8cjw-p6xm'];
     pkg.groups[0].aliases = ['CVE-2026-93687'];
-    const expiry = Date.parse('2026-10-19T00:00:00Z');
+    const expiry = Date.parse('2026-11-04T00:00:00Z');
     expect(
       runAudit(JSON.stringify(output), 1, { now: expiry - 1 }).status
     ).toBe(0);
