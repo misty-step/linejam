@@ -62,7 +62,9 @@ describe('released Parlor core adoption', () => {
             await asUser(t, name).mutation(api.game.submitLine, {
               lineIndex: assignment.lineIndex,
               poemId: assignment.poemId,
-              text: Array.from({ length: wordCount }, () => 'fixture').join(' '),
+              text: Array.from({ length: wordCount }, () => 'fixture').join(
+                ' '
+              ),
             });
           }
         }
