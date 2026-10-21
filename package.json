@@ -152,7 +152,7 @@
     "tailwindcss": "^4",
     "tsx": "4.23.15",
     "typescript": "^5",
-    "vite": "7.3.5",
+    "vite": "7.3.7",
     "vitest": "^4.1.11",
     "wrangler": "^4.140.0",
     "yaml": "2.9.1"
