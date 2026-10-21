@@ -504,12 +504,14 @@ export function eligibleMembersForCycle<Member extends { readonly eligibleFromCy
 }
 
 export const HEARTBEAT_INTERVAL_MS = 15_000;
+export const PRESENT_FOR_MS = 2 * HEARTBEAT_INTERVAL_MS;
 export const AWAY_AFTER_MS = 45_000;
 export const HOST_STALE_AFTER_MS = 60_000;
 export const ABANDON_AFTER_MS = 10 * 60_000;
 export const HARD_DEADLINE_MS = 30 * 60_000;
 
 export interface PresencePolicy {
+  /** Maximum present evidence age, independent of the client send cadence. */
   readonly heartbeatMs: number;
   readonly awayMs: number;
   readonly hostStaleMs: number;
@@ -518,7 +520,7 @@ export interface PresencePolicy {
 }
 
 export const DEFAULT_PRESENCE_POLICY: PresencePolicy = Object.freeze({
-  heartbeatMs: HEARTBEAT_INTERVAL_MS,
+  heartbeatMs: PRESENT_FOR_MS,
   awayMs: AWAY_AFTER_MS,
   hostStaleMs: HOST_STALE_AFTER_MS,
   abandonMs: ABANDON_AFTER_MS,
@@ -553,7 +555,7 @@ export function classifyPresence(
   policy?: Partial<PresencePolicy>,
 ): PresenceStatus {
   const age = presenceAge(member, now);
-  if (age <= presenceThreshold(policy?.heartbeatMs, HEARTBEAT_INTERVAL_MS)) {
+  if (age <= presenceThreshold(policy?.heartbeatMs, PRESENT_FOR_MS)) {
     return "present";
   }
   if (age <= presenceThreshold(policy?.awayMs, AWAY_AFTER_MS)) {

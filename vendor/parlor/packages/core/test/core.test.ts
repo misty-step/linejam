@@ -230,8 +230,8 @@ describe("seating and cycles", () => {
 describe("presence and host choice", () => {
   it("uses joinedAt as the first-heartbeat grace", () => {
     const neverHeartbeat = member("new", 0, 1_000);
-    expect(classifyPresence(neverHeartbeat, timestamp(1_000 + 15_000))).toBe("present");
-    expect(classifyPresence(neverHeartbeat, timestamp(1_000 + 15_001))).toBe("away");
+    expect(classifyPresence(neverHeartbeat, timestamp(1_000 + 30_000))).toBe("present");
+    expect(classifyPresence(neverHeartbeat, timestamp(1_000 + 30_001))).toBe("away");
     expect(classifyPresence(neverHeartbeat, timestamp(1_000 + 45_001))).toBe("stale");
   });
 
