@@ -97,3 +97,7 @@ links in Kanban or the PR. Record exact commands, exercised surfaces, and
 unverified risk. Review, merge, deploy, monitor, and production verification
 are distinct operations, each requiring its own authorized scope.
 Run `upkeep where <task-kind>` before dispatching.
+
+## No fallbacks
+
+No fallbacks, backup paths or masking safety nets. Write the one best solution: direct, clean, simple, elegant. If it fails, it must fail loudly and visibly so we can fix it. Security checks (auth, signatures, schema validation) stay, but fail loudly, never silently.
