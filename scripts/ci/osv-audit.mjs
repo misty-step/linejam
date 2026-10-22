@@ -59,7 +59,7 @@ function classifyResults(report, scannerStatus) {
   }
 
   let groupsScanned = 0;
-  const bracesExceptionExpiry = '2026-10-19T00:00:00Z';
+  const bracesExceptionExpiry = '2026-11-04T00:00:00Z';
   const blocked = [];
   for (const entry of source.packages) {
     assertObject(entry, 'OSV package result');
