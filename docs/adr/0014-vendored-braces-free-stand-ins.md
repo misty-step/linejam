@@ -94,8 +94,14 @@ semantic-release>micromatch: file:tools/braces-free/micromatch
   (`Copyright (c) Denis Malinochkin`). It uses `picomatch` 4 and `tinyglobby`
   as ordinary dependencies.
 - `tests/scripts/braces-free-stand-ins.test.ts` resolves each stand-in the way
-  its dependent does at runtime and checks it against captured
-  `micromatch@4.0.8` / `fast-glob` results.
+  its dependent does at runtime and runs **captured regression cases**:
+  expected values recorded once from the real packages (`micromatch@4.0.8`,
+  `fast-glob@3.3.1`, and `semantic-release@25.0.9` with
+  `@semantic-release/commit-analyzer@13.0.1` on real micromatch). The
+  semantic-release checks run its branch expansion (`lib/branches/expand.js`)
+  and commit-analyzer's `analyzeCommits` with custom release rules. The Next
+  checks run the plugin's `getRootDirs`. Some micromatch cases also call the
+  stand-in directly.
 - `scripts/local/Dockerfile` copies `tools/braces-free` before
   `pnpm install`. `compose.yaml` watches it, and `eslint.config.mjs` allows
   `require()` in its CommonJS files.
@@ -115,14 +121,51 @@ When `braces` ships a release that GHSA-vfj7-8cjw-p6xm lists as
 If a dependent drops `micromatch` / `fast-glob` first, remove only its
 override and keep the rest until this trigger fires.
 
+## Upgrade checks
+
+The captured cases prove that the stand-ins still give the answers recorded
+from upstream. They cannot detect upstream changes: nothing re-captures them
+when a dependent or upstream package changes, and a passing run only means
+the old answers still hold. So any upgrade of `semantic-release`,
+`@semantic-release/commit-analyzer`, `eslint-config-next` or
+`@next/eslint-plugin-next` needs these consumer integration checks before
+merge:
+
+1. **Call sites.** List every `micromatch` / `fast-glob` call in the new
+   version. Today semantic-release has `micromatch(list, pattern)` in
+   `lib/branches/expand.js`, commit-analyzer has `micromatch.isMatch` in
+   `lib/analyze-commit.js`, and the Next plugin has
+   `globSync(pattern, { onlyDirectories: true })` in
+   `dist/utils/get-root-dirs.js`. Any new function, option or call site needs
+   a stand-in change and new captured cases first.
+   `rg -n "micromatch|fast-glob" node_modules/semantic-release/lib node_modules/.pnpm/@semantic-release+commit-analyzer*/node_modules/@semantic-release/commit-analyzer/lib node_modules/.pnpm/@next+eslint-plugin-next*/node_modules/@next/eslint-plugin-next/dist`
+2. **Release branch expansion.** Run the new semantic-release's
+   `lib/branches/expand.js` for `release.config.cjs` and its default branches
+   (maintenance `+([0-9])?(.{+([0-9]),x}).x`, `next`, prerelease `beta` /
+   `alpha`) against a repository with representative branches. Compare the
+   result with the same call on a scratch install that has the real
+   micromatch.
+3. **Custom release rules.** Run the new commit-analyzer's `analyzeCommits`
+   with glob, brace and extglob `releaseRules` (`README*`, `api-{v1,v2}`,
+   `core/**`, `!(deps)`) and compare it with the real-micromatch install.
+4. **Next root directories.** Run the new plugin's `getRootDirs` for
+   representative `settings.next.rootDir` values: `app`, `app/`, `./app`,
+   `tests/*/`, an absolute directory, an absolute glob and `/`. Compare the
+   result with the real `fast-glob` version the new plugin pins.
+5. If anything differs, fix the stand-in and re-capture the expected values
+   in the test from the real packages. Do not just edit the expectations to
+   match the stand-in.
+
 ## Consequences
 
 - `braces`, `micromatch` and `fast-glob` are absent from `pnpm-lock.yaml`, and
   the OSV gate keeps its no-exception rule.
 - Linejam owns a small fork of two upstream APIs. A dependent upgrade that
-  calls a new `micromatch` / `fast-glob` API fails loudly (missing function or
-  rejected option) instead of drifting. The parity tests catch behaviour
-  changes in the APIs it already uses.
+  calls a new `micromatch` / `fast-glob` function or option fails loudly
+  (missing function or rejected option). A changed meaning for a call that
+  already exists does not fail on its own. The captured regression cases
+  only show that the recorded answers still hold, which is why the upgrade
+  checks above are required.
 - Dependabot cannot upgrade these stand-ins. Recheck the advisory when bumping
   `semantic-release` or `eslint-config-next`.
 

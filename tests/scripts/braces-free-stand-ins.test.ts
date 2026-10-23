@@ -6,9 +6,11 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -39,6 +41,20 @@ type UnsupportedGlobOptions =
     }
   | readonly string[]
   | null;
+
+type ReleaseBranch = {
+  name: string;
+  channel?: string;
+  prerelease?: boolean;
+  range?: string;
+};
+
+type ReleaseRule = {
+  type?: string;
+  scope?: string;
+  subject?: string;
+  release: string;
+};
 
 type Micromatch = ((
   list: string[],
@@ -83,7 +99,9 @@ describe('braces-free dependency stand-ins', () => {
     ).toContain('./LICENSE');
   });
 
-  // Expected values were captured from micromatch@4.0.8 before it was removed.
+  // Captured regression cases: expected values were recorded from
+  // micromatch@4.0.8 before it was removed. These call the stand-in directly;
+  // the consumer checks below run the real semantic-release callers.
   it('matches micromatch list filtering for semantic-release branch patterns', () => {
     // SAFETY: the routing test above pins this to the micromatch stand-in, whose
     // default export is the micromatch(list, patterns) function with isMatch.
@@ -130,6 +148,168 @@ describe('braces-free dependency stand-ins', () => {
     expect(isMatch('docs', '!docs')).toBe(false);
     expect(isMatch('README.md', 'README.*')).toBe(true);
     expect(isMatch('scope-a', 'scope-{a,b}')).toBe(true);
+  });
+
+  // Consumer integration checks: run the installed semantic-release and
+  // commit-analyzer code paths that call micromatch, not the stand-in alone.
+  // Expected values were captured by running these same calls against
+  // semantic-release@25.0.9 and @semantic-release/commit-analyzer@13.0.1
+  // installed with the real micromatch@4.0.8. They are regression cases: an
+  // upgrade that changes these consumers still needs the upgrade checks in
+  // docs/adr/0014-vendored-braces-free-stand-ins.md.
+  describe('semantic-release consumers of the micromatch stand-in', () => {
+    let repo = '';
+    beforeAll(() => {
+      repo = realpathSync(mkdtempSync(join(tmpdir(), 'braces-free-release-')));
+      const git = (...args: string[]) =>
+        execFileSync('git', args, { cwd: repo, stdio: 'pipe' });
+      git('init', '-q', '-b', 'master');
+      git(
+        '-c',
+        'user.name=Fixture',
+        '-c',
+        'user.email=fixture@example.invalid',
+        'commit',
+        '-q',
+        '--allow-empty',
+        '-m',
+        'init'
+      );
+      for (const branch of [
+        'next',
+        'next-major',
+        'beta',
+        'alpha',
+        '1.x',
+        '2.x',
+        '1.2.x',
+        '10.x',
+        'x.1',
+        '1.x.x',
+        'feature/a',
+        'feature/b',
+        'feature/c',
+        'release/1.0',
+        'release/2.0',
+        'maint/3.x',
+      ]) {
+        git('branch', branch);
+      }
+    });
+    afterAll(() => rmSync(repo, { recursive: true, force: true }));
+
+    it('expands release branches like micromatch@4.0.8', async () => {
+      const expandPath = join(
+        realpathSync('node_modules/semantic-release'),
+        'lib/branches/expand.js'
+      );
+      // SAFETY: semantic-release@25 lib/branches/expand.js default-exports
+      // async (repositoryUrl, { cwd }, branches) => expanded branch objects.
+      const { default: expand } = (await import(
+        pathToFileURL(expandPath).href
+      )) as {
+        default: (
+          repositoryUrl: string,
+          context: { cwd: string },
+          branches: ReleaseBranch[]
+        ) => Promise<ReleaseBranch[]>;
+      };
+      const run = (branches: ReleaseBranch[]) =>
+        expand(repo, { cwd: repo }, branches);
+
+      // semantic-release's default branches.
+      expect(
+        await run([
+          { name: '+([0-9])?(.{+([0-9]),x}).x' },
+          { name: 'master' },
+          { name: 'main' },
+          { name: 'next' },
+          { name: 'next-major' },
+          { name: 'beta', prerelease: true },
+          { name: 'alpha', prerelease: true },
+        ])
+      ).toEqual([
+        { name: '1.2.x' },
+        { name: '1.x' },
+        { name: '1.x.x' },
+        { name: '10.x' },
+        { name: '2.x' },
+        { name: 'master' },
+        { name: 'next' },
+        { name: 'next-major' },
+        { name: 'beta', prerelease: true },
+        { name: 'alpha', prerelease: true },
+      ]);
+      // release.config.cjs.
+      expect(await run([{ name: 'master' }])).toEqual([{ name: 'master' }]);
+      // Globs, braces, extglobs and templated fields.
+      expect(
+        await run([
+          { name: 'release/*', channel: 'ch-${name}' },
+          { name: 'feature/{a,b}', prerelease: true },
+          { name: 'maint/+([0-9]).x', range: '${name.slice(6)}' },
+        ])
+      ).toEqual([
+        { name: 'release/1.0', channel: 'ch-release/1.0' },
+        { name: 'release/2.0', channel: 'ch-release/2.0' },
+        { name: 'feature/a', prerelease: true },
+        { name: 'feature/b', prerelease: true },
+        { name: 'maint/3.x', range: '3.x' },
+      ]);
+    });
+
+    it('applies custom release rules like micromatch@4.0.8', async () => {
+      const analyzerPath = join(realpathSync(commitAnalyzerDir), 'index.js');
+      // SAFETY: @semantic-release/commit-analyzer@13 exports
+      // analyzeCommits(pluginConfig, context) => release type or null.
+      const { analyzeCommits } = (await import(
+        pathToFileURL(analyzerPath).href
+      )) as {
+        analyzeCommits: (
+          pluginConfig: { releaseRules: ReleaseRule[] },
+          context: {
+            cwd: string;
+            commits: { hash: string; message: string }[];
+            logger: { log: () => void };
+          }
+        ) => Promise<string | null>;
+      };
+      const releaseRules: ReleaseRule[] = [
+        { type: 'docs', scope: 'README*', release: 'patch' },
+        { scope: 'api-{v1,v2}', release: 'minor' },
+        { type: 'perf', scope: 'core/**', release: 'minor' },
+        { type: 'chore', scope: '!(deps)', release: 'patch' },
+        { type: 'refactor', release: 'patch' },
+        { subject: '*DROP*', release: 'major' },
+      ];
+      const expected: Array<[string, string | null]> = [
+        ['docs(README.md): fix typo', 'patch'],
+        ['docs(guide): words', null],
+        ['fix(api-v1): x', 'minor'],
+        ['fix(api-v3): x', 'patch'],
+        ['perf(core/render): faster', 'minor'],
+        ['perf(ui): faster', 'patch'],
+        ['chore(deps): bump', null],
+        ['chore(build): tidy', 'patch'],
+        ['refactor: move', 'patch'],
+        ['style(x): DROP support', 'major'],
+        ['feat: add', 'minor'],
+        ['fix: bug', 'patch'],
+      ];
+      for (const [message, release] of expected) {
+        expect(
+          await analyzeCommits(
+            { releaseRules },
+            {
+              cwd: repo,
+              commits: [{ hash: 'abc1234', message }],
+              logger: { log: () => undefined },
+            }
+          ),
+          message
+        ).toBe(release);
+      }
+    });
   });
 
   describe('fast-glob stand-in for the Next lint root dirs', () => {
