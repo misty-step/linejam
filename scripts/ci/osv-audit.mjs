@@ -59,7 +59,6 @@ function classifyResults(report, scannerStatus) {
   }
 
   let groupsScanned = 0;
-  const bracesExceptionExpiry = '2026-11-04T00:00:00Z';
   const blocked = [];
   for (const entry of source.packages) {
     assertObject(entry, 'OSV package result');
@@ -105,34 +104,29 @@ function classifyResults(report, scannerStatus) {
       }
 
       // MaxSeverity formats one decimal place, or "" when no CVSS can be
-      // calculated. Reject unknown/malformed scores rather than treating them
-      // as low; the scanner owns CVSS v2/v3/v4 calculation and alias grouping.
-      assertString(group.max_severity, `${pkg.name} CVSS score`);
+      // calculated. An empty score is UNKNOWN severity and always blocks: it is
+      // never treated as low and has no exception path. Any other non-score
+      // value means an incompatible scanner schema and fails closed.
+      if (
+        Object.prototype.toString.call(group.max_severity) !== '[object String]'
+      ) {
+        throw new Error(`${pkg.name} CVSS score must be a string.`);
+      }
+      groupsScanned += 1;
+      const advisory = `${pkg.name}@${pkg.version}: ${group.ids.join(', ')}`;
+      if (group.max_severity === '') {
+        blocked.push(`UNKNOWN (no CVSS score) ${advisory}`);
+        continue;
+      }
       if (!/^(?:[0-9]\.[0-9]|10\.0)$/.test(group.max_severity)) {
         throw new Error(
           `Unclassifiable CVSS score for ${pkg.name}: ${group.ids.join(', ')}.`
         );
       }
       const score = Number(group.max_severity);
-      groupsScanned += 1;
-      // PR 549: lint/release tooling only; absent from the production Worker.
-      // Remove this temporary exception when an upstream fixed release exists.
-      const excepted =
-        pkg.name === 'braces' &&
-        pkg.version === '3.0.3' &&
-        group.ids.length === 1 &&
-        group.ids[0] === 'GHSA-vfj7-8cjw-p6xm' &&
-        Date.now() < Date.parse(bracesExceptionExpiry);
-      if (excepted) {
-        console.log(
-          `Temporary exception for ${pkg.name}@${pkg.version}: ${group.ids[0]}; expires ${bracesExceptionExpiry}.`
-        );
-      }
-      if (score >= 7 && !excepted) {
+      if (score >= 7) {
         const rating = score >= 9 ? 'CRITICAL' : 'HIGH';
-        blocked.push(
-          `${rating} ${group.max_severity} ${pkg.name}@${pkg.version}: ${group.ids.join(', ')}`
-        );
+        blocked.push(`${rating} ${group.max_severity} ${advisory}`);
       }
     }
     if (unclassified.size > 0) {
@@ -180,13 +174,13 @@ function main() {
     JSON.parse(scan.stdout),
     scan.status
   );
-  for (const finding of blocked) console.error(finding);
+  for (const finding of blocked) console.error(`Blocking advisory: ${finding}`);
   console.log(
-    `OSV scanned ${packagesScanned} packages and ${groupsScanned} advisory groups; ${blocked.length} blocking HIGH/CRITICAL groups.`
+    `OSV scanned ${packagesScanned} packages and ${groupsScanned} advisory groups; ${blocked.length} blocking HIGH/CRITICAL/UNKNOWN groups.`
   );
   if (blocked.length > 0) return 1;
   console.log(
-    'No blocking HIGH/CRITICAL advisories; known CVSS scores below 7.0 do not fail the gate.'
+    'No blocking HIGH/CRITICAL/UNKNOWN advisories; known CVSS scores below 7.0 do not fail the gate.'
   );
   return 0;
 }

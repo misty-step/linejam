@@ -72,6 +72,14 @@ const eslintConfig = defineConfig([
       ],
     },
   },
+  // Dependency stand-ins (#604) replace CommonJS packages that dependents
+  // load with require(), so they must stay CommonJS themselves.
+  {
+    files: ['tools/braces-free/**/*.cjs'],
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off',
+    },
+  },
   // Relax no-console in files that legitimately need it
   {
     files: [

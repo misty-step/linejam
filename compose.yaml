@@ -36,6 +36,7 @@ x-source-watch: &source-watch
       - compose.yaml
       - scripts/local/
       - vendor/parlor/
+      - tools/braces-free/
       - crates/
       - Cargo.toml
       - Cargo.lock
@@ -54,6 +55,8 @@ x-source-watch: &source-watch
     path: scripts/local
   - action: rebuild
     path: vendor/parlor
+  - action: rebuild
+    path: tools/braces-free
   - action: rebuild
     path: crates
   - action: rebuild
