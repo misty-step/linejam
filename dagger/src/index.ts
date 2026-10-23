@@ -72,10 +72,8 @@ function withAppEnv(container: Container, env: AppEnv): Container {
     ['PLAYWRIGHT_CLERK_TEST_EMAIL', env.playwrightClerkTestEmail],
     ['NEXT_PUBLIC_SENTRY_DSN', env.nextPublicSentryDsn],
     ['NEXT_PUBLIC_SENTRY_ENABLED', env.nextPublicSentryEnabled],
-    [
-      'NEXT_PUBLIC_SENTRY_ENVIRONMENT',
-      env.nextPublicSentryEnabled === '1' ? 'test' : undefined,
-    ],
+    // Dagger containers are test builds: Sentry resolves "test" and never sends.
+    ['NEXT_PUBLIC_SENTRY_ENVIRONMENT', 'test'],
     ['NEXT_PUBLIC_SENTRY_RELEASE', env.nextPublicSentryRelease],
     ['STAGEHAND_MODEL', env.stagehandModel],
   ];

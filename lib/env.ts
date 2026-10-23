@@ -29,6 +29,7 @@ export interface ReleaseEnvironment {
   NEXT_PUBLIC_CONVEX_URL?: string;
   NEXT_PUBLIC_SENTRY_DSN?: string;
   NEXT_PUBLIC_SENTRY_ENABLED?: string;
+  NEXT_PUBLIC_SENTRY_ENVIRONMENT?: string;
   NEXT_DEPLOYMENT_ID?: string;
   NEXT_SERVER_ACTIONS_ENCRYPTION_KEY?: string;
   LINEJAM_DEPLOY_ENVIRONMENT?: string;
@@ -85,6 +86,7 @@ export function validateEnv(phase: 'build' | 'runtime' = 'runtime'): void {
   }
   const environment: ReleaseEnvironment = {
     LINEJAM_DEPLOY_ENVIRONMENT: process.env.LINEJAM_DEPLOY_ENVIRONMENT,
+    NEXT_PUBLIC_SENTRY_ENVIRONMENT: process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT,
     GITHUB_ACTOR: process.env.GITHUB_ACTOR,
   };
   for (const name of [
@@ -113,6 +115,17 @@ function validateConfiguration(
   const invalid: string[] = [];
   const isDependabot =
     phase === 'build' && environment.GITHUB_ACTOR === 'dependabot[bot]';
+  const isDeployed =
+    environment.LINEJAM_DEPLOY_ENVIRONMENT === 'production' ||
+    environment.LINEJAM_DEPLOY_ENVIRONMENT === 'preview';
+  // A declared Sentry "test" build (CI, Playwright) never sends events, so it
+  // needs no DSN. Deployed builds can never declare it.
+  const declaresSentryTest =
+    environment.NEXT_PUBLIC_SENTRY_ENVIRONMENT === 'test';
+  if (declaresSentryTest && isDeployed) {
+    invalid.push('NEXT_PUBLIC_SENTRY_ENVIRONMENT');
+  }
+  const isSentryTestBuild = declaresSentryTest && !isDeployed;
 
   for (const key of REQUIRED_SERVER_ENV) {
     if (phase === 'runtime' && !value(key)?.trim()) {
@@ -121,6 +134,7 @@ function validateConfiguration(
   }
 
   for (const key of REQUIRED_PUBLIC_ENV) {
+    if (isSentryTestBuild && key !== 'NEXT_PUBLIC_CONVEX_URL') continue;
     if (!isDependabot && !value(key)?.trim()) {
       missing.push(key);
     }
@@ -144,7 +158,7 @@ function validateConfiguration(
     }
   }
 
-  if (environment.NEXT_PUBLIC_SENTRY_ENABLED !== '1') {
+  if (!isSentryTestBuild && environment.NEXT_PUBLIC_SENTRY_ENABLED !== '1') {
     invalid.push('NEXT_PUBLIC_SENTRY_ENABLED');
   }
 

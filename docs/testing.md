@@ -196,9 +196,11 @@ contexts. Never call a remote suite without confirming its base URL and
 mutation authority.
 
 The full Dagger E2E lane still needs deployment-aligned Convex, Clerk, and
-guest-token configuration. CI workflows pass no Sentry DSN and set
-`NEXT_PUBLIC_SENTRY_ENABLED=0`; Playwright and `NODE_ENV=test` runs resolve the
-Sentry `test` environment, which `sentry.runtime.mjs` never lets send events.
+guest-token configuration. CI jobs and Dagger containers pass no Sentry DSN
+and declare `NEXT_PUBLIC_SENTRY_ENVIRONMENT=test`, as do owned Playwright runs.
+`sentry.runtime.mjs` never lets the `test` environment or `NODE_ENV=test` send
+events, and `lib/env.ts` builds a declared test build without a DSN but rejects
+that declaration for production or preview deploys.
 Ordinary `all`/`e2e` invocations validate
 an existing Clerk Convex JWT template with `--check-only`; they never create
 templates, seed Convex environment variables, push code, or fetch remote
