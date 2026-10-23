@@ -31,6 +31,7 @@ describe('validateEnv', () => {
     await withEnv(
       {
         NODE_ENV: 'production',
+        NEXT_PUBLIC_SENTRY_ENVIRONMENT: undefined,
         GUEST_TOKEN_SECRET: 'guest-secret',
         NEXT_PUBLIC_CONVEX_URL: 'https://convex.example',
         NEXT_PUBLIC_SENTRY_DSN: undefined,
@@ -108,6 +109,7 @@ describe('validateEnv', () => {
     await withEnv(
       {
         NODE_ENV: 'production',
+        NEXT_PUBLIC_SENTRY_ENVIRONMENT: undefined,
         GUEST_TOKEN_SECRET: 'guest-secret',
         NEXT_PUBLIC_CONVEX_URL: 'https://convex.example',
         NEXT_PUBLIC_SENTRY_DSN: ['https://public', 'sentry.example/1'].join(

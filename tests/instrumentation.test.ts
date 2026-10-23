@@ -22,8 +22,10 @@ describe('instrumentation', () => {
 
   it('delegates Next request errors to the supported Sentry hook', async () => {
     vi.stubEnv('NEXT_PUBLIC_SENTRY_ENABLED', '1');
-    // Vitest runs with NODE_ENV=test, which keeps Sentry off by design.
+    // Vitest runs with NODE_ENV=test and CI declares the Sentry test
+    // environment; both keep Sentry off by design.
     vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('NEXT_PUBLIC_SENTRY_ENVIRONMENT', 'production');
     vi.stubEnv(
       'NEXT_PUBLIC_SENTRY_DSN',
       ['https://public', 'sentry.example.test/1'].join('@')

@@ -17,6 +17,7 @@ describe('uncredentialed production builds', () => {
       {
         ...publicConfiguration,
         NODE_ENV: 'production',
+        NEXT_PUBLIC_SENTRY_ENVIRONMENT: undefined,
         GUEST_TOKEN_SECRET: undefined,
         NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: undefined,
       },
