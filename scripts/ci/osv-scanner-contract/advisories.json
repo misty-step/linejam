@@ -897,5 +897,119 @@
         ]
       }
     ]
+  },
+  {
+    "schema_version": "1.6.0",
+    "id": "FIXTURE-ALIAS-MIXED-SCORED",
+    "modified": "2026-01-01T00:00:00Z",
+    "published": "2026-01-01T00:00:00Z",
+    "aliases": ["CVE-FIXTURE-0004"],
+    "summary": "Contract fixture for osv-fixture-aliased-scored-and-unscorable",
+    "severity": [
+      {
+        "type": "CVSS_V3",
+        "score": "CVSS:3.1/AV:L/AC:H/PR:H/UI:R/S:U/C:L/I:N/A:N"
+      }
+    ],
+    "database_specific": {
+      "severity": "LOW"
+    },
+    "affected": [
+      {
+        "package": {
+          "ecosystem": "npm",
+          "name": "osv-fixture-aliased-scored-and-unscorable"
+        },
+        "ranges": [
+          {
+            "type": "SEMVER",
+            "events": [
+              {
+                "introduced": "0"
+              },
+              {
+                "fixed": "2.0.0"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "schema_version": "1.6.0",
+    "id": "FIXTURE-ALIAS-MIXED-UNSCORABLE",
+    "modified": "2026-01-01T00:00:00Z",
+    "published": "2026-01-01T00:00:00Z",
+    "aliases": ["CVE-FIXTURE-0004"],
+    "summary": "Contract fixture for osv-fixture-aliased-scored-and-unscorable",
+    "severity": [
+      {
+        "type": "CVSS_V3",
+        "score": "CVSS:3.1/AV:N/AC:L/garbage"
+      }
+    ],
+    "database_specific": {
+      "severity": "LOW"
+    },
+    "affected": [
+      {
+        "package": {
+          "ecosystem": "npm",
+          "name": "osv-fixture-aliased-scored-and-unscorable"
+        },
+        "ranges": [
+          {
+            "type": "SEMVER",
+            "events": [
+              {
+                "introduced": "0"
+              },
+              {
+                "fixed": "2.0.0"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "schema_version": "1.6.0",
+    "id": "FIXTURE-NON-CVSS-AND-VALID-V3",
+    "modified": "2026-01-01T00:00:00Z",
+    "published": "2026-01-01T00:00:00Z",
+    "summary": "Contract fixture for osv-fixture-non-cvss-and-valid-v3",
+    "severity": [
+      {
+        "type": "Ubuntu",
+        "score": "high"
+      },
+      {
+        "type": "CVSS_V3",
+        "score": "CVSS:3.1/AV:L/AC:H/PR:H/UI:R/S:U/C:L/I:N/A:N"
+      }
+    ],
+    "affected": [
+      {
+        "package": {
+          "ecosystem": "npm",
+          "name": "osv-fixture-non-cvss-and-valid-v3"
+        },
+        "ranges": [
+          {
+            "type": "SEMVER",
+            "events": [
+              {
+                "introduced": "0"
+              },
+              {
+                "fixed": "2.0.0"
+              }
+            ]
+          }
+        ]
+      }
+    ]
   }
 ]

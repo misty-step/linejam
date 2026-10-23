@@ -489,11 +489,17 @@ no `HIGH` or `CRITICAL` label passes in exactly two cases:
   group has any severity vector, and at least one advisory carries a `LOW` or
   `MODERATE` label.
 
-UNKNOWN still fails closed: no score and no label, or any severity vector the
-scanner could not score, whatever the labels say (a label never stands in for
-an unscorable vector).
-Unrecognized labels or scores are a schema failure. There is no exception or
-allowlist path.
+UNKNOWN still fails closed: no score and no label, or any severity entry the
+scanner could not score, in any advisory of the group, whatever the labels or
+other entries' scores say. A label never stands in for an unscorable vector, and
+neither does a score. The scanner scores each aliased advisory on its own,
+keeps the highest, and silently skips non-CVSS entries beside a vector. That
+means a group can carry a score such as 1.8 while one of its entries was never
+scored. The gate therefore re-checks every entry against the grammar of the
+scanner's parser (`pandatix/go-cvss` v0.6.2). It accepts only `CVSS_V2`,
+`CVSS_V3` (3.0/3.1) and `CVSS_V4` vectors that parser scores, and blocks the
+group as UNKNOWN otherwise. Unrecognized labels or scores are a schema failure.
+There is no exception or allowlist path.
 
 One JSON scan includes all packages and disables call analysis. Only scanner
 exit 0/1, empty error-level stderr, valid complete source/package/group data, and
@@ -514,7 +520,9 @@ both the scanner's `max_severity` normalization and its pass-through of
 `database_specific.severity`, including a `CRITICAL` label with a 1.8 vector
 and aliased 1.8-scored advisories whose worst label is `HIGH` or `CRITICAL`,
 which must fail the gate, and label-only `LOW`/`MODERATE` advisories, which
-must pass it.
+must pass it. It also pins an alias group that pairs a 1.8-scored advisory with
+an unscorable one, and a non-CVSS entry beside a valid vector. The scanner
+reports 1.8 for both, and the gate must block both as UNKNOWN.
 
 Primary contract references:
 [JSON model](https://github.com/google/osv-scanner/blob/v2.0.2/pkg/models/results.go),
