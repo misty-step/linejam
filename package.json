@@ -103,7 +103,7 @@
     "@parlor/core": "workspace:*",
     "@parlor/web": "workspace:*",
     "@sentry/cloudflare": "10.76.2",
-    "@sentry/nextjs": "^10.76.2",
+    "@sentry/nextjs": "^11.8.0",
     "@sentry/node": "10.76.2",
     "ajv": "8.20.0",
     "clsx": "^2.1.1",
