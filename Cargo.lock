@@ -874,6 +874,7 @@ dependencies = [
  "leptos",
  "proptest",
  "wasm-bindgen",
+ "wasm-bindgen-futures",
  "web-sys",
 ]
 
