@@ -10,6 +10,10 @@ const workspaces: string[] = [];
 
 // Fixture shape follows v2.0.2 pkg/models/results.go. Scores here exercise the
 // gate boundary, not a second implementation of the scanner's CVSS calculator.
+// How the real scanner turns CVSS_V2/V3/V4, database_specific.severity and
+// absent or malformed severities into max_severity is pinned separately by
+// scripts/ci/osv-scanner-contract.mjs, which runs OSV-Scanner v2.0.2 offline
+// over local advisory fixtures in Dagger's audit step.
 function report(scores: string[] = []) {
   return {
     results: [

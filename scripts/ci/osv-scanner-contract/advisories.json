@@ -1,0 +1,613 @@
+[
+  {
+    "schema_version": "1.6.0",
+    "id": "FIXTURE-CVSS-V2",
+    "modified": "2026-01-01T00:00:00Z",
+    "published": "2026-01-01T00:00:00Z",
+    "summary": "Contract fixture for osv-fixture-cvss-v2",
+    "severity": [
+      {
+        "type": "CVSS_V2",
+        "score": "AV:N/AC:L/Au:N/C:P/I:P/A:P"
+      }
+    ],
+    "affected": [
+      {
+        "package": {
+          "ecosystem": "npm",
+          "name": "osv-fixture-cvss-v2"
+        },
+        "ranges": [
+          {
+            "type": "SEMVER",
+            "events": [
+              {
+                "introduced": "0"
+              },
+              {
+                "fixed": "2.0.0"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "schema_version": "1.6.0",
+    "id": "FIXTURE-CVSS-V3",
+    "modified": "2026-01-01T00:00:00Z",
+    "published": "2026-01-01T00:00:00Z",
+    "summary": "Contract fixture for osv-fixture-cvss-v3",
+    "severity": [
+      {
+        "type": "CVSS_V3",
+        "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+      }
+    ],
+    "affected": [
+      {
+        "package": {
+          "ecosystem": "npm",
+          "name": "osv-fixture-cvss-v3"
+        },
+        "ranges": [
+          {
+            "type": "SEMVER",
+            "events": [
+              {
+                "introduced": "0"
+              },
+              {
+                "fixed": "2.0.0"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "schema_version": "1.6.0",
+    "id": "FIXTURE-CVSS-V4",
+    "modified": "2026-01-01T00:00:00Z",
+    "published": "2026-01-01T00:00:00Z",
+    "summary": "Contract fixture for osv-fixture-cvss-v4",
+    "severity": [
+      {
+        "type": "CVSS_V4",
+        "score": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N"
+      }
+    ],
+    "affected": [
+      {
+        "package": {
+          "ecosystem": "npm",
+          "name": "osv-fixture-cvss-v4"
+        },
+        "ranges": [
+          {
+            "type": "SEMVER",
+            "events": [
+              {
+                "introduced": "0"
+              },
+              {
+                "fixed": "2.0.0"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "schema_version": "1.6.0",
+    "id": "FIXTURE-CVSS-V3-LOW",
+    "modified": "2026-01-01T00:00:00Z",
+    "published": "2026-01-01T00:00:00Z",
+    "summary": "Contract fixture for osv-fixture-cvss-v3-low",
+    "severity": [
+      {
+        "type": "CVSS_V3",
+        "score": "CVSS:3.1/AV:L/AC:H/PR:H/UI:R/S:U/C:L/I:N/A:N"
+      }
+    ],
+    "affected": [
+      {
+        "package": {
+          "ecosystem": "npm",
+          "name": "osv-fixture-cvss-v3-low"
+        },
+        "ranges": [
+          {
+            "type": "SEMVER",
+            "events": [
+              {
+                "introduced": "0"
+              },
+              {
+                "fixed": "2.0.0"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "schema_version": "1.6.0",
+    "id": "FIXTURE-CVSS-V4-MEDIUM",
+    "modified": "2026-01-01T00:00:00Z",
+    "published": "2026-01-01T00:00:00Z",
+    "summary": "Contract fixture for osv-fixture-cvss-v4-medium",
+    "severity": [
+      {
+        "type": "CVSS_V4",
+        "score": "CVSS:4.0/AV:N/AC:L/AT:N/PR:L/UI:N/VC:N/VI:N/VA:L/SC:N/SI:N/SA:N"
+      }
+    ],
+    "affected": [
+      {
+        "package": {
+          "ecosystem": "npm",
+          "name": "osv-fixture-cvss-v4-medium"
+        },
+        "ranges": [
+          {
+            "type": "SEMVER",
+            "events": [
+              {
+                "introduced": "0"
+              },
+              {
+                "fixed": "2.0.0"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "schema_version": "1.6.0",
+    "id": "FIXTURE-MULTIPLE-SEVERITIES",
+    "modified": "2026-01-01T00:00:00Z",
+    "published": "2026-01-01T00:00:00Z",
+    "summary": "Contract fixture for osv-fixture-multiple-severities",
+    "severity": [
+      {
+        "type": "CVSS_V3",
+        "score": "CVSS:3.1/AV:L/AC:H/PR:H/UI:R/S:U/C:L/I:N/A:N"
+      },
+      {
+        "type": "CVSS_V4",
+        "score": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N"
+      }
+    ],
+    "affected": [
+      {
+        "package": {
+          "ecosystem": "npm",
+          "name": "osv-fixture-multiple-severities"
+        },
+        "ranges": [
+          {
+            "type": "SEMVER",
+            "events": [
+              {
+                "introduced": "0"
+              },
+              {
+                "fixed": "2.0.0"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "schema_version": "1.6.0",
+    "id": "FIXTURE-ALIAS-LOW",
+    "modified": "2026-01-01T00:00:00Z",
+    "published": "2026-01-01T00:00:00Z",
+    "aliases": ["CVE-FIXTURE-0001"],
+    "summary": "Contract fixture for osv-fixture-aliased-pair",
+    "severity": [
+      {
+        "type": "CVSS_V3",
+        "score": "CVSS:3.1/AV:L/AC:H/PR:H/UI:R/S:U/C:L/I:N/A:N"
+      }
+    ],
+    "affected": [
+      {
+        "package": {
+          "ecosystem": "npm",
+          "name": "osv-fixture-aliased-pair"
+        },
+        "ranges": [
+          {
+            "type": "SEMVER",
+            "events": [
+              {
+                "introduced": "0"
+              },
+              {
+                "fixed": "2.0.0"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "schema_version": "1.6.0",
+    "id": "FIXTURE-ALIAS-HIGH",
+    "modified": "2026-01-01T00:00:00Z",
+    "published": "2026-01-01T00:00:00Z",
+    "aliases": ["CVE-FIXTURE-0001"],
+    "summary": "Contract fixture for osv-fixture-aliased-pair",
+    "severity": [
+      {
+        "type": "CVSS_V3",
+        "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+      }
+    ],
+    "affected": [
+      {
+        "package": {
+          "ecosystem": "npm",
+          "name": "osv-fixture-aliased-pair"
+        },
+        "ranges": [
+          {
+            "type": "SEMVER",
+            "events": [
+              {
+                "introduced": "0"
+              },
+              {
+                "fixed": "2.0.0"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "schema_version": "1.6.0",
+    "id": "FIXTURE-DATABASE-SPECIFIC-ONLY",
+    "modified": "2026-01-01T00:00:00Z",
+    "published": "2026-01-01T00:00:00Z",
+    "summary": "Contract fixture for osv-fixture-database-specific-only",
+    "database_specific": {
+      "severity": "CRITICAL"
+    },
+    "affected": [
+      {
+        "package": {
+          "ecosystem": "npm",
+          "name": "osv-fixture-database-specific-only"
+        },
+        "ranges": [
+          {
+            "type": "SEMVER",
+            "events": [
+              {
+                "introduced": "0"
+              },
+              {
+                "fixed": "2.0.0"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "schema_version": "1.6.0",
+    "id": "FIXTURE-DATABASE-SPECIFIC-AND-LOW-CVSS",
+    "modified": "2026-01-01T00:00:00Z",
+    "published": "2026-01-01T00:00:00Z",
+    "summary": "Contract fixture for osv-fixture-database-specific-and-low-cvss",
+    "severity": [
+      {
+        "type": "CVSS_V3",
+        "score": "CVSS:3.1/AV:L/AC:H/PR:H/UI:R/S:U/C:L/I:N/A:N"
+      }
+    ],
+    "database_specific": {
+      "severity": "CRITICAL"
+    },
+    "affected": [
+      {
+        "package": {
+          "ecosystem": "npm",
+          "name": "osv-fixture-database-specific-and-low-cvss"
+        },
+        "ranges": [
+          {
+            "type": "SEMVER",
+            "events": [
+              {
+                "introduced": "0"
+              },
+              {
+                "fixed": "2.0.0"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "schema_version": "1.6.0",
+    "id": "FIXTURE-SEVERITY-ABSENT",
+    "modified": "2026-01-01T00:00:00Z",
+    "published": "2026-01-01T00:00:00Z",
+    "summary": "Contract fixture for osv-fixture-severity-absent",
+    "affected": [
+      {
+        "package": {
+          "ecosystem": "npm",
+          "name": "osv-fixture-severity-absent"
+        },
+        "ranges": [
+          {
+            "type": "SEMVER",
+            "events": [
+              {
+                "introduced": "0"
+              },
+              {
+                "fixed": "2.0.0"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "schema_version": "1.6.0",
+    "id": "FIXTURE-SEVERITY-EMPTY",
+    "modified": "2026-01-01T00:00:00Z",
+    "published": "2026-01-01T00:00:00Z",
+    "summary": "Contract fixture for osv-fixture-severity-empty",
+    "severity": [],
+    "affected": [
+      {
+        "package": {
+          "ecosystem": "npm",
+          "name": "osv-fixture-severity-empty"
+        },
+        "ranges": [
+          {
+            "type": "SEMVER",
+            "events": [
+              {
+                "introduced": "0"
+              },
+              {
+                "fixed": "2.0.0"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "schema_version": "1.6.0",
+    "id": "FIXTURE-MALFORMED-V3",
+    "modified": "2026-01-01T00:00:00Z",
+    "published": "2026-01-01T00:00:00Z",
+    "summary": "Contract fixture for osv-fixture-malformed-v3",
+    "severity": [
+      {
+        "type": "CVSS_V3",
+        "score": "CVSS:3.1/AV:N/AC:L/garbage"
+      }
+    ],
+    "affected": [
+      {
+        "package": {
+          "ecosystem": "npm",
+          "name": "osv-fixture-malformed-v3"
+        },
+        "ranges": [
+          {
+            "type": "SEMVER",
+            "events": [
+              {
+                "introduced": "0"
+              },
+              {
+                "fixed": "2.0.0"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "schema_version": "1.6.0",
+    "id": "FIXTURE-MALFORMED-V4",
+    "modified": "2026-01-01T00:00:00Z",
+    "published": "2026-01-01T00:00:00Z",
+    "summary": "Contract fixture for osv-fixture-malformed-v4",
+    "severity": [
+      {
+        "type": "CVSS_V4",
+        "score": "CVSS:4.0/AV:Z"
+      }
+    ],
+    "affected": [
+      {
+        "package": {
+          "ecosystem": "npm",
+          "name": "osv-fixture-malformed-v4"
+        },
+        "ranges": [
+          {
+            "type": "SEMVER",
+            "events": [
+              {
+                "introduced": "0"
+              },
+              {
+                "fixed": "2.0.0"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "schema_version": "1.6.0",
+    "id": "FIXTURE-MALFORMED-AND-VALID-V2",
+    "modified": "2026-01-01T00:00:00Z",
+    "published": "2026-01-01T00:00:00Z",
+    "summary": "Contract fixture for osv-fixture-malformed-and-valid-v2",
+    "severity": [
+      {
+        "type": "CVSS_V3",
+        "score": "CVSS:3.1/AV:N/AC:L/garbage"
+      },
+      {
+        "type": "CVSS_V2",
+        "score": "AV:N/AC:L/Au:N/C:N/I:N/A:P"
+      }
+    ],
+    "affected": [
+      {
+        "package": {
+          "ecosystem": "npm",
+          "name": "osv-fixture-malformed-and-valid-v2"
+        },
+        "ranges": [
+          {
+            "type": "SEMVER",
+            "events": [
+              {
+                "introduced": "0"
+              },
+              {
+                "fixed": "2.0.0"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "schema_version": "1.6.0",
+    "id": "FIXTURE-BARE-NUMERIC-SCORE",
+    "modified": "2026-01-01T00:00:00Z",
+    "published": "2026-01-01T00:00:00Z",
+    "summary": "Contract fixture for osv-fixture-bare-numeric-score",
+    "severity": [
+      {
+        "type": "CVSS_V3",
+        "score": "9.8"
+      }
+    ],
+    "affected": [
+      {
+        "package": {
+          "ecosystem": "npm",
+          "name": "osv-fixture-bare-numeric-score"
+        },
+        "ranges": [
+          {
+            "type": "SEMVER",
+            "events": [
+              {
+                "introduced": "0"
+              },
+              {
+                "fixed": "2.0.0"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "schema_version": "1.6.0",
+    "id": "FIXTURE-V4-VECTOR-LABELLED-V3",
+    "modified": "2026-01-01T00:00:00Z",
+    "published": "2026-01-01T00:00:00Z",
+    "summary": "Contract fixture for osv-fixture-v4-vector-labelled-v3",
+    "severity": [
+      {
+        "type": "CVSS_V3",
+        "score": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N"
+      }
+    ],
+    "affected": [
+      {
+        "package": {
+          "ecosystem": "npm",
+          "name": "osv-fixture-v4-vector-labelled-v3"
+        },
+        "ranges": [
+          {
+            "type": "SEMVER",
+            "events": [
+              {
+                "introduced": "0"
+              },
+              {
+                "fixed": "2.0.0"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "schema_version": "1.6.0",
+    "id": "FIXTURE-NON-CVSS-TYPE",
+    "modified": "2026-01-01T00:00:00Z",
+    "published": "2026-01-01T00:00:00Z",
+    "summary": "Contract fixture for osv-fixture-non-cvss-type",
+    "severity": [
+      {
+        "type": "Ubuntu",
+        "score": "high"
+      }
+    ],
+    "affected": [
+      {
+        "package": {
+          "ecosystem": "npm",
+          "name": "osv-fixture-non-cvss-type"
+        },
+        "ranges": [
+          {
+            "type": "SEMVER",
+            "events": [
+              {
+                "introduced": "0"
+              },
+              {
+                "fixed": "2.0.0"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+]
