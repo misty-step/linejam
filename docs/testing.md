@@ -474,10 +474,20 @@ runtime, and artifact errors even when Playwright reports passing tests.
 ## Dependency audit
 
 `pnpm ci:dagger:audit` uses the pinned OSV-Scanner **v2.0.2** release binary and
-`scripts/ci/osv-audit.mjs`, not a regex over advisory text. The gate reads the
-scanner's computed `results[].packages[].groups[].max_severity` CVSS string and
-preserves the HIGH/CRITICAL threshold (scores **7.0–10.0**). Known scores below
-7.0 do not fail the severity gate; unknown/unclassifiable scores do fail closed.
+`scripts/ci/osv-audit.mjs`, not a regex over advisory text. For each advisory
+group the gate takes the worse of two ratings: the scanner's computed
+`results[].packages[].groups[].max_severity` CVSS string, and the
+`database_specific.severity` label (`LOW`/`MODERATE`/`HIGH`/`CRITICAL`) of
+every advisory in the group. The scanner ignores that label when it computes
+`max_severity`, so a `CRITICAL` label beside a vector scoring 1.8 would
+otherwise pass; the gate blocks it as CRITICAL. The threshold stays
+HIGH/CRITICAL (scores **7.0–10.0** or a `HIGH`/`CRITICAL` label). A group passes
+only if its known score is below 7.0 and no label is HIGH or CRITICAL.
+
+UNKNOWN still fails closed: no score and no label, or severity vectors the
+scanner could not score (a label never stands in for an unscorable vector).
+Unrecognized labels or scores are a schema failure. There is no exception or
+allowlist path.
 
 One JSON scan includes all packages and disables call analysis. Only scanner
 exit 0/1, empty error-level stderr, valid complete source/package/group data, and
@@ -489,8 +499,14 @@ timeout can coexist with findings exit 1, so exit status alone is insufficient.
 CVSS is owned by FIRST and used by permission. Thresholds follow the
 [FIRST qualitative rating scale](https://www.first.org/cvss/v3.1/specification-document#Qualitative-Severity-Rating-Scale);
 the pinned scanner, not this wrapper, calculates the scores from OSV vectors.
-The wrapper returns 1 for HIGH/CRITICAL findings and 2 for operational/schema
-failure; Dagger treats either as a failed audit.
+The wrapper returns 1 for HIGH/CRITICAL/UNKNOWN findings and 2 for
+operational/schema failure; Dagger treats either as a failed audit.
+
+`scripts/ci/osv-scanner-contract.mjs` runs the pinned scanner offline over
+`scripts/ci/osv-scanner-contract/advisories.json` before the real scan. It pins
+both the scanner's `max_severity` normalization and its pass-through of
+`database_specific.severity`, including a `CRITICAL` label with a 1.8 vector
+that must fail the gate.
 
 Primary contract references:
 [JSON model](https://github.com/google/osv-scanner/blob/v2.0.2/pkg/models/results.go),
