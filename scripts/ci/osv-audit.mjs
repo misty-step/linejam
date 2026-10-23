@@ -62,6 +62,173 @@ function severityLabel(vulnerability, label) {
   return specific.severity;
 }
 
+// MaxSeverity scores each grouped advisory on its own and keeps the highest,
+// and CalculateOverallScore silently skips non-CVSS types and CVSS_V3 scores
+// without a 3.0/3.1 prefix. A scored entry or alias can therefore hide one the
+// scanner could not score. The gate re-checks every severity entry against the
+// grammar of the scanner's parser, pandatix/go-cvss v0.6.2 via
+// internal/utility/severity/severity.go, and accepts at most what it accepts.
+const CVSS_V2_GROUPS = [
+  [
+    ['AV', ['L', 'A', 'N']],
+    ['AC', ['L', 'M', 'H']],
+    ['Au', ['M', 'S', 'N']],
+    ['C', ['N', 'P', 'C']],
+    ['I', ['N', 'P', 'C']],
+    ['A', ['N', 'P', 'C']],
+  ],
+  [
+    ['E', ['ND', 'U', 'POC', 'F', 'H']],
+    ['RL', ['ND', 'OF', 'TF', 'W', 'U']],
+    ['RC', ['ND', 'UC', 'UR', 'C']],
+  ],
+  [
+    ['CDP', ['ND', 'N', 'L', 'LM', 'MH', 'H']],
+    ['TD', ['ND', 'N', 'L', 'M', 'H']],
+    ['CR', ['ND', 'L', 'M', 'H']],
+    ['IR', ['ND', 'L', 'M', 'H']],
+    ['AR', ['ND', 'L', 'M', 'H']],
+  ],
+];
+const CVSS_V3_BASE = ['AV', 'AC', 'PR', 'UI', 'S', 'C', 'I', 'A'];
+const CVSS_V3_METRICS = new Map([
+  ['AV', ['N', 'A', 'L', 'P']],
+  ['AC', ['L', 'H']],
+  ['PR', ['N', 'L', 'H']],
+  ['UI', ['N', 'R']],
+  ['S', ['U', 'C']],
+  ['C', ['H', 'L', 'N']],
+  ['I', ['H', 'L', 'N']],
+  ['A', ['H', 'L', 'N']],
+  ['E', ['X', 'H', 'F', 'P', 'U']],
+  ['RL', ['X', 'U', 'W', 'T', 'O']],
+  ['RC', ['X', 'C', 'R', 'U']],
+  ['CR', ['X', 'H', 'M', 'L']],
+  ['IR', ['X', 'H', 'M', 'L']],
+  ['AR', ['X', 'H', 'M', 'L']],
+  ['MAV', ['X', 'N', 'A', 'L', 'P']],
+  ['MAC', ['X', 'L', 'H']],
+  ['MPR', ['X', 'N', 'L', 'H']],
+  ['MUI', ['X', 'N', 'R']],
+  ['MS', ['X', 'U', 'C']],
+  ['MC', ['X', 'H', 'L', 'N']],
+  ['MI', ['X', 'H', 'L', 'N']],
+  ['MA', ['X', 'H', 'L', 'N']],
+]);
+const CVSS_V4_BASE = [
+  ['AV', ['N', 'A', 'L', 'P']],
+  ['AC', ['H', 'L']],
+  ['AT', ['N', 'P']],
+  ['PR', ['H', 'L', 'N']],
+  ['UI', ['N', 'P', 'A']],
+  ['VC', ['H', 'L', 'N']],
+  ['VI', ['H', 'L', 'N']],
+  ['VA', ['H', 'L', 'N']],
+  ['SC', ['H', 'L', 'N']],
+  ['SI', ['H', 'L', 'N']],
+  ['SA', ['H', 'L', 'N']],
+];
+// Threat, environmental and supplemental metrics, each optional, in order.
+const CVSS_V4_OPTIONAL = [
+  ['E', ['X', 'A', 'P', 'U']],
+  ['CR', ['X', 'H', 'M', 'L']],
+  ['IR', ['X', 'H', 'M', 'L']],
+  ['AR', ['X', 'H', 'M', 'L']],
+  ['MAV', ['X', 'N', 'A', 'L', 'P']],
+  ['MAC', ['X', 'H', 'L']],
+  ['MAT', ['X', 'N', 'P']],
+  ['MPR', ['X', 'H', 'L', 'N']],
+  ['MUI', ['X', 'N', 'P', 'A']],
+  ['MVC', ['X', 'H', 'L', 'N']],
+  ['MVI', ['X', 'H', 'L', 'N']],
+  ['MVA', ['X', 'H', 'L', 'N']],
+  ['MSC', ['X', 'H', 'L', 'N']],
+  ['MSI', ['X', 'H', 'L', 'N', 'S']],
+  ['MSA', ['X', 'H', 'L', 'N', 'S']],
+  ['S', ['X', 'N', 'P']],
+  ['AU', ['X', 'N', 'Y']],
+  ['R', ['X', 'A', 'U', 'I']],
+  ['V', ['X', 'D', 'C']],
+  ['RE', ['X', 'L', 'M', 'H']],
+  ['U', ['X', 'Clear', 'Green', 'Amber', 'Red']],
+];
+
+function metric(part) {
+  const colon = part.indexOf(':');
+  return colon === -1
+    ? [part, '']
+    : [part.slice(0, colon), part.slice(colon + 1)];
+}
+
+// Consumes one complete metric group, in order, from the front of parts.
+function takeOrdered(parts, group) {
+  return group.every(([name, values]) => {
+    const part = parts.shift();
+    if (part === undefined) return false;
+    const [abv, value] = metric(part);
+    return abv === name && values.includes(value);
+  });
+}
+
+// CVSS v2.0: complete base, then optional complete temporal and environmental
+// groups, in order.
+function scorableCvssV2(vector) {
+  const parts = vector.split('/');
+  const [base, temporal, environmental] = CVSS_V2_GROUPS;
+  if (!takeOrdered(parts, base)) return false;
+  if (parts.length > 0 && metric(parts[0])[0] === 'E') {
+    if (!takeOrdered(parts, temporal)) return false;
+  }
+  if (parts.length > 0 && !takeOrdered(parts, environmental)) return false;
+  return parts.length === 0;
+}
+
+// CVSS v3.0/v3.1: any order, no repeats, every base metric present.
+function scorableCvssV3(vector) {
+  const header = ['CVSS:3.0/', 'CVSS:3.1/'].find((prefix) =>
+    vector.startsWith(prefix)
+  );
+  if (!header) return false;
+  const seen = new Set();
+  for (const part of vector.slice(header.length).split('/')) {
+    const [abv, value] = metric(part);
+    const values = CVSS_V3_METRICS.get(abv);
+    if (!values || seen.has(abv) || !values.includes(value)) return false;
+    seen.add(abv);
+  }
+  return CVSS_V3_BASE.every((abv) => seen.has(abv));
+}
+
+// CVSS v4.0: complete base in order, then optional metrics in order.
+function scorableCvssV4(vector) {
+  if (!vector.startsWith('CVSS:4.0/')) return false;
+  const parts = vector.slice('CVSS:4.0/'.length).split('/');
+  if (!takeOrdered(parts, CVSS_V4_BASE)) return false;
+  let next = 0;
+  for (const part of parts) {
+    const [abv, value] = metric(part);
+    const index = CVSS_V4_OPTIONAL.findIndex(
+      ([name], position) => position >= next && name === abv
+    );
+    if (index === -1 || !CVSS_V4_OPTIONAL[index][1].includes(value)) {
+      return false;
+    }
+    next = index + 1;
+  }
+  return true;
+}
+
+function scorableSeverity(entry, label) {
+  assertObject(entry, `${label} severity entry`);
+  if (Object.prototype.toString.call(entry.score) !== '[object String]') {
+    return false;
+  }
+  if (entry.type === 'CVSS_V2') return scorableCvssV2(entry.score);
+  if (entry.type === 'CVSS_V3') return scorableCvssV3(entry.score);
+  if (entry.type === 'CVSS_V4') return scorableCvssV4(entry.score);
+  return false;
+}
+
 function classifyResults(report, scannerStatus) {
   assertObject(report, 'OSV report');
   assertArray(report.results, 'OSV results');
@@ -118,6 +285,9 @@ function classifyResults(report, scannerStatus) {
       assertArray(severity, `${vulnerability.id} severity`);
       unclassified.set(vulnerability.id, {
         hasVectors: severity.length > 0,
+        unscorable: !severity.every((entry) =>
+          scorableSeverity(entry, vulnerability.id)
+        ),
         label: severityLabel(vulnerability, vulnerability.id),
       });
     }
@@ -130,6 +300,7 @@ function classifyResults(report, scannerStatus) {
       }
       let label = null;
       let hasVectors = false;
+      const unscorable = [];
       for (const id of group.ids) {
         assertString(id, `${pkg.name} group ID`);
         const member = unclassified.get(id);
@@ -140,6 +311,7 @@ function classifyResults(report, scannerStatus) {
         }
         unclassified.delete(id);
         hasVectors ||= member.hasVectors;
+        if (member.unscorable) unscorable.push(id);
         if (member.label && (!label || RANK[member.label] > RANK[label])) {
           label = member.label;
         }
@@ -171,6 +343,14 @@ function classifyResults(report, scannerStatus) {
         throw new Error(
           `Unclassifiable CVSS score for ${pkg.name}: ${group.ids.join(', ')}.`
         );
+      }
+      // A score from other entries or aliases never covers an entry the
+      // scanner could not score: the group is UNKNOWN whatever the labels say.
+      if (unscorable.length > 0) {
+        blocked.push(
+          `UNKNOWN (unscorable severity in ${unscorable.join(', ')}; CVSS ${group.max_severity}) ${advisory}`
+        );
+        continue;
       }
       // The worse of the CVSS rating and the label decides.
       const rating = scoreRating(Number(group.max_severity));

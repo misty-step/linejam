@@ -119,6 +119,18 @@ const EXPECTED_GROUPS = {
     { ids: ['FIXTURE-V4-VECTOR-LABELLED-V3'], max: '' },
   ],
   'osv-fixture-non-cvss-type': [{ ids: ['FIXTURE-NON-CVSS-TYPE'], max: '' }],
+  // The scanner scores each aliased advisory separately and keeps the highest,
+  // and skips non-CVSS entries beside a vector, so these unscorable entries
+  // are hidden behind a 1.8. The gate re-checks every entry and blocks them.
+  'osv-fixture-aliased-scored-and-unscorable': [
+    {
+      ids: ['FIXTURE-ALIAS-MIXED-SCORED', 'FIXTURE-ALIAS-MIXED-UNSCORABLE'],
+      max: '1.8',
+    },
+  ],
+  'osv-fixture-non-cvss-and-valid-v3': [
+    { ids: ['FIXTURE-NON-CVSS-AND-VALID-V3'], max: '1.8' },
+  ],
   'osv-fixture-clean': [],
 };
 
@@ -151,6 +163,10 @@ const LABELS = {
   'osv-fixture-database-specific-and-malformed': {
     'FIXTURE-DATABASE-SPECIFIC-AND-MALFORMED': 'LOW',
   },
+  'osv-fixture-aliased-scored-and-unscorable': {
+    'FIXTURE-ALIAS-MIXED-SCORED': 'LOW',
+    'FIXTURE-ALIAS-MIXED-UNSCORABLE': 'LOW',
+  },
 };
 
 const CRITICAL_LABEL_LOW_CVSS_LINE =
@@ -161,9 +177,15 @@ const ALIASED_LABEL_LINES = [
   'Blocking advisory: HIGH (severity label; CVSS 1.8) osv-fixture-aliased-low-cvss-high-label@1.0.0: FIXTURE-ALIAS-LABEL-HIGH, FIXTURE-ALIAS-LABEL-LOW',
 ];
 
+const HIDDEN_UNSCORABLE_LINES = [
+  'Blocking advisory: UNKNOWN (unscorable severity in FIXTURE-ALIAS-MIXED-UNSCORABLE; CVSS 1.8) osv-fixture-aliased-scored-and-unscorable@1.0.0: FIXTURE-ALIAS-MIXED-SCORED, FIXTURE-ALIAS-MIXED-UNSCORABLE',
+  'Blocking advisory: UNKNOWN (unscorable severity in FIXTURE-NON-CVSS-AND-VALID-V3; CVSS 1.8) osv-fixture-non-cvss-and-valid-v3@1.0.0: FIXTURE-NON-CVSS-AND-VALID-V3',
+];
+
 const BLOCKING_GATE_LINES = [
   CRITICAL_LABEL_LOW_CVSS_LINE,
   ...ALIASED_LABEL_LINES,
+  ...HIDDEN_UNSCORABLE_LINES,
   'Blocking advisory: CRITICAL (severity label; no CVSS score) osv-fixture-database-specific-only@1.0.0: FIXTURE-DATABASE-SPECIFIC-ONLY',
   'Blocking advisory: CRITICAL 9.3 osv-fixture-cvss-v4@1.0.0: FIXTURE-CVSS-V4',
   'Blocking advisory: CRITICAL 9.3 osv-fixture-multiple-severities@1.0.0: FIXTURE-MULTIPLE-SEVERITIES',
@@ -190,7 +212,21 @@ const SCENARIOS = [
     gateStatus: 1,
     gateStderr: BLOCKING_GATE_LINES,
     gateStdout: [
-      'OSV scanned 24 packages and 23 advisory groups; 18 blocking HIGH/CRITICAL/UNKNOWN groups.',
+      'OSV scanned 26 packages and 25 advisory groups; 20 blocking HIGH/CRITICAL/UNKNOWN groups.',
+    ],
+  },
+  {
+    name: 'a scored entry or alias hiding an unscorable vector',
+    packages: [
+      'osv-fixture-aliased-scored-and-unscorable',
+      'osv-fixture-non-cvss-and-valid-v3',
+      'osv-fixture-clean',
+    ],
+    scannerStatus: 1,
+    gateStatus: 1,
+    gateStderr: HIDDEN_UNSCORABLE_LINES,
+    gateStdout: [
+      'OSV scanned 3 packages and 2 advisory groups; 2 blocking HIGH/CRITICAL/UNKNOWN groups.',
     ],
   },
   {

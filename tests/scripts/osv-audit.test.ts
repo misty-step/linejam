@@ -67,6 +67,18 @@ function labelled(
   return output;
 }
 
+type Severity = { type: string; score: string };
+
+// One unlabelled advisory whose severity entries the scanner scored as `score`.
+function scored(score: string, severity: Severity[]) {
+  const output = report([score]);
+  output.results[0].packages[0].vulnerabilities[0] = {
+    id: 'OSV-fixture-0',
+    severity,
+  };
+  return output;
+}
+
 function runAudit(
   output: string,
   status: number,
@@ -332,6 +344,99 @@ describe('OSV audit process boundary', () => {
     expect(result.status).toBe(1);
     expect(result.stderr).toContain(
       'Blocking advisory: UNKNOWN (no CVSS score) fixture-package@1.0.0: OSV-fixture-0'
+    );
+  });
+
+  it('blocks an alias group whose scored member hides an unscorable vector', () => {
+    for (const label of ['LOW', undefined]) {
+      const output = labelled('1.8', 'LOW');
+      const pkg = output.results[0].packages[0];
+      pkg.vulnerabilities.push({
+        id: 'OSV-fixture-unscorable',
+        severity: [{ type: 'CVSS_V3', score: 'CVSS:3.1/AV:N/AC:L/garbage' }],
+        ...(label && { database_specific: { severity: label } }),
+      });
+      if (!label) delete pkg.vulnerabilities[0].database_specific;
+      pkg.groups[0].ids.push('OSV-fixture-unscorable');
+      const result = runAudit(JSON.stringify(output), 1);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain(
+        'Blocking advisory: UNKNOWN (unscorable severity in OSV-fixture-unscorable; CVSS 1.8) fixture-package@1.0.0: OSV-fixture-0, OSV-fixture-unscorable'
+      );
+      expect(result.stdout).not.toContain('No blocking');
+    }
+  });
+
+  it('blocks an unscorable entry beside a scored one in the same advisory', () => {
+    const result = runAudit(
+      JSON.stringify(
+        scored('1.8', [
+          { type: 'CVSS_V3', score: LOW_CVSS_V3 },
+          { type: 'Ubuntu', score: 'high' },
+        ])
+      ),
+      1
+    );
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      'Blocking advisory: UNKNOWN (unscorable severity in OSV-fixture-0; CVSS 1.8) fixture-package@1.0.0: OSV-fixture-0'
+    );
+  });
+
+  // Each vector was checked against the pinned scanner: accepted ones score,
+  // rejected ones do not.
+  it.each([
+    ['CVSS_V2', 'AV:N/AC:L/Au:N/C:P/I:N/A:N'],
+    ['CVSS_V2', 'AV:N/AC:L/Au:N/C:P/I:N/A:N/E:F/RL:OF/RC:C'],
+    ['CVSS_V2', 'AV:N/AC:L/Au:N/C:P/I:N/A:N/CDP:L/TD:H/CR:M/IR:M/AR:M'],
+    ['CVSS_V3', 'CVSS:3.0/AV:L/AC:H/PR:H/UI:R/S:U/C:L/I:N/A:N'],
+    ['CVSS_V3', 'CVSS:3.1/A:N/I:N/C:L/S:U/UI:R/PR:H/AC:H/AV:L/E:P/MAV:X'],
+    [
+      'CVSS_V4',
+      'CVSS:4.0/AV:N/AC:L/AT:N/PR:L/UI:N/VC:N/VI:N/VA:L/SC:N/SI:N/SA:N/E:U/MSI:S/U:Clear',
+    ],
+  ])('accepts scanner-scorable %s vector %s', (type, score) => {
+    const result = runAudit(
+      JSON.stringify(scored('1.8', [{ type, score }])),
+      1
+    );
+    expect(result.status).toBe(0);
+  });
+
+  it.each([
+    ['CVSS_V2', 'AV:N/AC:L/Au:N/C:P/I:N/A:N/E:F'],
+    ['CVSS_V2', 'AC:L/AV:N/Au:N/C:P/I:N/A:N'],
+    ['CVSS_V3', '9.8'],
+    ['CVSS_V3', 'CVSS:3.1/AV:L/AC:H/PR:H/UI:R/S:U/C:L/I:N'],
+    ['CVSS_V3', 'CVSS:3.1/AV:L/AV:L/AC:H/PR:H/UI:R/S:U/C:L/I:N/A:N'],
+    ['CVSS_V3', 'CVSS:3.1/AV:L/AC:H/PR:H/UI:R/S:U/C:L/I:N/A:N/'],
+    [
+      'CVSS_V3',
+      'CVSS:4.0/AV:N/AC:L/AT:N/PR:L/UI:N/VC:N/VI:N/VA:L/SC:N/SI:N/SA:N',
+    ],
+    [
+      'CVSS_V4',
+      'CVSS:4.0/AC:L/AV:N/AT:N/PR:L/UI:N/VC:N/VI:N/VA:L/SC:N/SI:N/SA:N',
+    ],
+    [
+      'CVSS_V4',
+      'CVSS:4.0/AV:N/AC:L/AT:N/PR:L/UI:N/VC:N/VI:N/VA:L/SC:N/SI:N/SA:N/U:Clear/E:U',
+    ],
+    ['CVSS_V4', 'CVSS:4.0/AV:Z'],
+    ['Ubuntu', 'high'],
+  ])('treats %s vector %s as unscorable', (type, score) => {
+    const result = runAudit(
+      JSON.stringify(
+        scored('1.8', [
+          { type: 'CVSS_V3', score: LOW_CVSS_V3 },
+          { type, score },
+        ])
+      ),
+      1
+    );
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      'UNKNOWN (unscorable severity in OSV-fixture-0; CVSS 1.8)'
     );
   });
 
