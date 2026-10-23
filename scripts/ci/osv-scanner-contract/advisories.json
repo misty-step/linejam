@@ -421,6 +421,220 @@
   },
   {
     "schema_version": "1.6.0",
+    "id": "FIXTURE-DATABASE-SPECIFIC-LOW-ONLY",
+    "modified": "2026-01-01T00:00:00Z",
+    "published": "2026-01-01T00:00:00Z",
+    "summary": "Contract fixture for osv-fixture-database-specific-low-only",
+    "database_specific": {
+      "severity": "LOW"
+    },
+    "affected": [
+      {
+        "package": {
+          "ecosystem": "npm",
+          "name": "osv-fixture-database-specific-low-only"
+        },
+        "ranges": [
+          {
+            "type": "SEMVER",
+            "events": [
+              {
+                "introduced": "0"
+              },
+              {
+                "fixed": "2.0.0"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "schema_version": "1.6.0",
+    "id": "FIXTURE-DATABASE-SPECIFIC-MODERATE-ONLY",
+    "modified": "2026-01-01T00:00:00Z",
+    "published": "2026-01-01T00:00:00Z",
+    "summary": "Contract fixture for osv-fixture-database-specific-moderate-only",
+    "database_specific": {
+      "severity": "MODERATE"
+    },
+    "affected": [
+      {
+        "package": {
+          "ecosystem": "npm",
+          "name": "osv-fixture-database-specific-moderate-only"
+        },
+        "ranges": [
+          {
+            "type": "SEMVER",
+            "events": [
+              {
+                "introduced": "0"
+              },
+              {
+                "fixed": "2.0.0"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "schema_version": "1.6.0",
+    "id": "FIXTURE-ALIAS-LABEL-HIGH",
+    "modified": "2026-01-01T00:00:00Z",
+    "published": "2026-01-01T00:00:00Z",
+    "aliases": ["CVE-FIXTURE-0002"],
+    "summary": "Contract fixture for osv-fixture-aliased-low-cvss-high-label",
+    "severity": [
+      {
+        "type": "CVSS_V3",
+        "score": "CVSS:3.1/AV:L/AC:H/PR:H/UI:R/S:U/C:L/I:N/A:N"
+      }
+    ],
+    "database_specific": {
+      "severity": "HIGH"
+    },
+    "affected": [
+      {
+        "package": {
+          "ecosystem": "npm",
+          "name": "osv-fixture-aliased-low-cvss-high-label"
+        },
+        "ranges": [
+          {
+            "type": "SEMVER",
+            "events": [
+              {
+                "introduced": "0"
+              },
+              {
+                "fixed": "2.0.0"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "schema_version": "1.6.0",
+    "id": "FIXTURE-ALIAS-LABEL-LOW",
+    "modified": "2026-01-01T00:00:00Z",
+    "published": "2026-01-01T00:00:00Z",
+    "aliases": ["CVE-FIXTURE-0002"],
+    "summary": "Contract fixture for osv-fixture-aliased-low-cvss-high-label",
+    "severity": [
+      {
+        "type": "CVSS_V3",
+        "score": "CVSS:3.1/AV:L/AC:H/PR:H/UI:R/S:U/C:L/I:N/A:N"
+      }
+    ],
+    "database_specific": {
+      "severity": "LOW"
+    },
+    "affected": [
+      {
+        "package": {
+          "ecosystem": "npm",
+          "name": "osv-fixture-aliased-low-cvss-high-label"
+        },
+        "ranges": [
+          {
+            "type": "SEMVER",
+            "events": [
+              {
+                "introduced": "0"
+              },
+              {
+                "fixed": "2.0.0"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "schema_version": "1.6.0",
+    "id": "FIXTURE-ALIAS-LABEL-CRITICAL",
+    "modified": "2026-01-01T00:00:00Z",
+    "published": "2026-01-01T00:00:00Z",
+    "aliases": ["CVE-FIXTURE-0003"],
+    "summary": "Contract fixture for osv-fixture-aliased-low-cvss-critical-label",
+    "severity": [
+      {
+        "type": "CVSS_V3",
+        "score": "CVSS:3.1/AV:L/AC:H/PR:H/UI:R/S:U/C:L/I:N/A:N"
+      }
+    ],
+    "database_specific": {
+      "severity": "CRITICAL"
+    },
+    "affected": [
+      {
+        "package": {
+          "ecosystem": "npm",
+          "name": "osv-fixture-aliased-low-cvss-critical-label"
+        },
+        "ranges": [
+          {
+            "type": "SEMVER",
+            "events": [
+              {
+                "introduced": "0"
+              },
+              {
+                "fixed": "2.0.0"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "schema_version": "1.6.0",
+    "id": "FIXTURE-ALIAS-LABEL-MODERATE",
+    "modified": "2026-01-01T00:00:00Z",
+    "published": "2026-01-01T00:00:00Z",
+    "aliases": ["CVE-FIXTURE-0003"],
+    "summary": "Contract fixture for osv-fixture-aliased-low-cvss-critical-label",
+    "severity": [
+      {
+        "type": "CVSS_V3",
+        "score": "CVSS:3.1/AV:L/AC:H/PR:H/UI:R/S:U/C:L/I:N/A:N"
+      }
+    ],
+    "database_specific": {
+      "severity": "MODERATE"
+    },
+    "affected": [
+      {
+        "package": {
+          "ecosystem": "npm",
+          "name": "osv-fixture-aliased-low-cvss-critical-label"
+        },
+        "ranges": [
+          {
+            "type": "SEMVER",
+            "events": [
+              {
+                "introduced": "0"
+              },
+              {
+                "fixed": "2.0.0"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "schema_version": "1.6.0",
     "id": "FIXTURE-SEVERITY-ABSENT",
     "modified": "2026-01-01T00:00:00Z",
     "published": "2026-01-01T00:00:00Z",

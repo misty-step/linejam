@@ -290,6 +290,34 @@ describe('OSV audit process boundary', () => {
     );
   });
 
+  it('passes a LOW or MODERATE label with no severity vectors', () => {
+    for (const label of ['LOW', 'MODERATE']) {
+      const result = runAudit(JSON.stringify(labelled('', label, [])), 1);
+      expect(result.status).toBe(0);
+      expect(result.stderr).toBe('');
+      expect(result.stdout).toContain(
+        '0 blocking HIGH/CRITICAL/UNKNOWN groups'
+      );
+      expect(result.stdout).toContain('No blocking');
+    }
+  });
+
+  it('blocks a CRITICAL label among aliased advisories with a low CVSS score', () => {
+    const output = labelled('1.8', 'MODERATE');
+    const pkg = output.results[0].packages[0];
+    pkg.vulnerabilities.push({
+      ...pkg.vulnerabilities[0],
+      id: 'OSV-fixture-alias',
+      database_specific: { severity: 'CRITICAL' },
+    });
+    pkg.groups[0].ids.push('OSV-fixture-alias');
+    const result = runAudit(JSON.stringify(output), 1);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      'Blocking advisory: CRITICAL (severity label; CVSS 1.8) fixture-package@1.0.0: OSV-fixture-0, OSV-fixture-alias'
+    );
+  });
+
   it('passes a MODERATE label beside a CVSS score below 7.0', () => {
     const result = runAudit(JSON.stringify(labelled('1.8', 'MODERATE')), 1);
     expect(result.status).toBe(0);
@@ -309,8 +337,10 @@ describe('OSV audit process boundary', () => {
 
   it('rejects an unrecognized severity label as an incompatible schema', () => {
     for (const label of ['critical', 'SEVERE', '', 9]) {
-      expect(runAudit(JSON.stringify(labelled('1.8', label)), 1).status).toBe(
-        2
+      const result = runAudit(JSON.stringify(labelled('1.8', label)), 1);
+      expect(result.status).toBe(2);
+      expect(result.stderr).toContain(
+        `Unclassifiable severity label ${JSON.stringify(label)} for OSV-fixture-0.`
       );
     }
   });

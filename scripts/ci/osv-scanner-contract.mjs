@@ -10,9 +10,10 @@
 // (osv-scanner-contract/advisories.json) and pins both halves:
 //
 // 1. the scanner's normalized output for CVSS_V2/V3/V4 vectors, multiple and
-//    aliased entries, database_specific.severity, absent or empty severity,
-//    malformed vectors and non-CVSS types, and that it passes each label
-//    through in vulnerabilities[] for the gate to read;
+//    aliased entries, database_specific.severity (alone, beside a vector, and
+//    across aliased advisories), absent or empty severity, malformed vectors
+//    and non-CVSS types, and that it passes each label through in
+//    vulnerabilities[] for the gate to read;
 // 2. the unmodified gate's exit status and blocking lines for that output.
 //
 // It runs offline. The fixtures are packed into the scanner's local database
@@ -76,6 +77,26 @@ const EXPECTED_GROUPS = {
   'osv-fixture-database-specific-moderate-and-low-cvss': [
     { ids: ['FIXTURE-DATABASE-SPECIFIC-MODERATE-AND-LOW-CVSS'], max: '1.8' },
   ],
+  // Label-only LOW/MODERATE advisories have no score and pass the gate.
+  'osv-fixture-database-specific-low-only': [
+    { ids: ['FIXTURE-DATABASE-SPECIFIC-LOW-ONLY'], max: '' },
+  ],
+  'osv-fixture-database-specific-moderate-only': [
+    { ids: ['FIXTURE-DATABASE-SPECIFIC-MODERATE-ONLY'], max: '' },
+  ],
+  // Aliased low-scoring advisories whose worst label decides the group.
+  'osv-fixture-aliased-low-cvss-high-label': [
+    {
+      ids: ['FIXTURE-ALIAS-LABEL-HIGH', 'FIXTURE-ALIAS-LABEL-LOW'],
+      max: '1.8',
+    },
+  ],
+  'osv-fixture-aliased-low-cvss-critical-label': [
+    {
+      ids: ['FIXTURE-ALIAS-LABEL-CRITICAL', 'FIXTURE-ALIAS-LABEL-MODERATE'],
+      max: '1.8',
+    },
+  ],
   // A label never stands in for a vector the scanner could not score.
   'osv-fixture-database-specific-and-malformed': [
     { ids: ['FIXTURE-DATABASE-SPECIFIC-AND-MALFORMED'], max: '' },
@@ -101,19 +122,48 @@ const EXPECTED_GROUPS = {
   'osv-fixture-clean': [],
 };
 
-// The scanner's pass-through of database_specific.severity, keyed by package.
+// The scanner's pass-through of database_specific.severity, keyed by package
+// and then by vulnerability ID.
 const LABELS = {
-  'osv-fixture-database-specific-only': ['CRITICAL'],
-  'osv-fixture-database-specific-and-low-cvss': ['CRITICAL'],
-  'osv-fixture-database-specific-moderate-and-low-cvss': ['MODERATE'],
-  'osv-fixture-database-specific-and-malformed': ['LOW'],
+  'osv-fixture-database-specific-only': {
+    'FIXTURE-DATABASE-SPECIFIC-ONLY': 'CRITICAL',
+  },
+  'osv-fixture-database-specific-and-low-cvss': {
+    'FIXTURE-DATABASE-SPECIFIC-AND-LOW-CVSS': 'CRITICAL',
+  },
+  'osv-fixture-database-specific-moderate-and-low-cvss': {
+    'FIXTURE-DATABASE-SPECIFIC-MODERATE-AND-LOW-CVSS': 'MODERATE',
+  },
+  'osv-fixture-database-specific-low-only': {
+    'FIXTURE-DATABASE-SPECIFIC-LOW-ONLY': 'LOW',
+  },
+  'osv-fixture-database-specific-moderate-only': {
+    'FIXTURE-DATABASE-SPECIFIC-MODERATE-ONLY': 'MODERATE',
+  },
+  'osv-fixture-aliased-low-cvss-high-label': {
+    'FIXTURE-ALIAS-LABEL-HIGH': 'HIGH',
+    'FIXTURE-ALIAS-LABEL-LOW': 'LOW',
+  },
+  'osv-fixture-aliased-low-cvss-critical-label': {
+    'FIXTURE-ALIAS-LABEL-CRITICAL': 'CRITICAL',
+    'FIXTURE-ALIAS-LABEL-MODERATE': 'MODERATE',
+  },
+  'osv-fixture-database-specific-and-malformed': {
+    'FIXTURE-DATABASE-SPECIFIC-AND-MALFORMED': 'LOW',
+  },
 };
 
 const CRITICAL_LABEL_LOW_CVSS_LINE =
   'Blocking advisory: CRITICAL (severity label; CVSS 1.8) osv-fixture-database-specific-and-low-cvss@1.0.0: FIXTURE-DATABASE-SPECIFIC-AND-LOW-CVSS';
 
+const ALIASED_LABEL_LINES = [
+  'Blocking advisory: CRITICAL (severity label; CVSS 1.8) osv-fixture-aliased-low-cvss-critical-label@1.0.0: FIXTURE-ALIAS-LABEL-CRITICAL, FIXTURE-ALIAS-LABEL-MODERATE',
+  'Blocking advisory: HIGH (severity label; CVSS 1.8) osv-fixture-aliased-low-cvss-high-label@1.0.0: FIXTURE-ALIAS-LABEL-HIGH, FIXTURE-ALIAS-LABEL-LOW',
+];
+
 const BLOCKING_GATE_LINES = [
   CRITICAL_LABEL_LOW_CVSS_LINE,
+  ...ALIASED_LABEL_LINES,
   'Blocking advisory: CRITICAL (severity label; no CVSS score) osv-fixture-database-specific-only@1.0.0: FIXTURE-DATABASE-SPECIFIC-ONLY',
   'Blocking advisory: CRITICAL 9.3 osv-fixture-cvss-v4@1.0.0: FIXTURE-CVSS-V4',
   'Blocking advisory: CRITICAL 9.3 osv-fixture-multiple-severities@1.0.0: FIXTURE-MULTIPLE-SEVERITIES',
@@ -140,7 +190,36 @@ const SCENARIOS = [
     gateStatus: 1,
     gateStderr: BLOCKING_GATE_LINES,
     gateStdout: [
-      'OSV scanned 20 packages and 19 advisory groups; 16 blocking HIGH/CRITICAL/UNKNOWN groups.',
+      'OSV scanned 24 packages and 23 advisory groups; 18 blocking HIGH/CRITICAL/UNKNOWN groups.',
+    ],
+  },
+  {
+    name: 'aliased low CVSS scores with a HIGH or CRITICAL label',
+    packages: [
+      'osv-fixture-aliased-low-cvss-high-label',
+      'osv-fixture-aliased-low-cvss-critical-label',
+      'osv-fixture-clean',
+    ],
+    scannerStatus: 1,
+    gateStatus: 1,
+    gateStderr: ALIASED_LABEL_LINES,
+    gateStdout: [
+      'OSV scanned 3 packages and 2 advisory groups; 2 blocking HIGH/CRITICAL/UNKNOWN groups.',
+    ],
+  },
+  {
+    name: 'label-only LOW and MODERATE advisories',
+    packages: [
+      'osv-fixture-database-specific-low-only',
+      'osv-fixture-database-specific-moderate-only',
+      'osv-fixture-clean',
+    ],
+    scannerStatus: 1,
+    gateStatus: 0,
+    gateStderr: [],
+    gateStdout: [
+      'OSV scanned 3 packages and 2 advisory groups; 0 blocking HIGH/CRITICAL/UNKNOWN groups.',
+      'No blocking HIGH/CRITICAL/UNKNOWN advisories; known CVSS scores below 7.0 with no HIGH/CRITICAL label do not fail the gate.',
     ],
   },
   {
@@ -387,11 +466,16 @@ function main() {
         report.results[0].packages
           .map((entry) => [
             entry.package.name,
-            (entry.vulnerabilities ?? [])
-              .map((vulnerability) => vulnerability.database_specific?.severity)
-              .filter((label) => label !== undefined),
+            Object.fromEntries(
+              (entry.vulnerabilities ?? [])
+                .map((vulnerability) => [
+                  vulnerability.id,
+                  vulnerability.database_specific?.severity,
+                ])
+                .filter(([, label]) => label !== undefined)
+            ),
           ])
-          .filter(([, labels]) => labels.length > 0)
+          .filter(([, labels]) => Object.keys(labels).length > 0)
       );
       const expectedLabels = Object.fromEntries(
         scenario.packages
