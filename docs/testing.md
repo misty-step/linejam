@@ -195,8 +195,11 @@ Playwright uses the checked-in `playwright.config.ts` and
 contexts. Never call a remote suite without confirming its base URL and
 mutation authority.
 
-The full Dagger E2E lane still needs deployment-aligned Convex, Clerk,
-guest-token, and Sentry configuration. Ordinary `all`/`e2e` invocations validate
+The full Dagger E2E lane still needs deployment-aligned Convex, Clerk, and
+guest-token configuration. CI workflows pass no Sentry DSN and set
+`NEXT_PUBLIC_SENTRY_ENABLED=0`; Playwright and `NODE_ENV=test` runs resolve the
+Sentry `test` environment, which `sentry.runtime.mjs` never lets send events.
+Ordinary `all`/`e2e` invocations validate
 an existing Clerk Convex JWT template with `--check-only`; they never create
 templates, seed Convex environment variables, push code, or fetch remote
 `GUEST_TOKEN_SECRET` values. Supply the secret in the invoking environment or a

@@ -97,4 +97,40 @@ describe('Sentry runtime options', () => {
       ).toMatchObject({ dsn: undefined, enabled: false, tracesSampleRate: 0 });
     }
   );
+
+  it.each([
+    [
+      'NODE_ENV=test',
+      { NODE_ENV: 'test', LINEJAM_DEPLOY_ENVIRONMENT: 'production' },
+    ],
+    [
+      'CI/Playwright test environment',
+      { NODE_ENV: 'production', NEXT_PUBLIC_SENTRY_ENVIRONMENT: 'test' },
+    ],
+  ])('disables ingestion for %s even with a DSN and enable flag', (_, env) => {
+    expect(
+      getSentryRuntimeOptions({
+        ...env,
+        NEXT_PUBLIC_SENTRY_DSN: [
+          'https://public',
+          'sentry.example.test/1',
+        ].join('@'),
+        NEXT_PUBLIC_SENTRY_ENABLED: '1',
+      })
+    ).toMatchObject({ enabled: false });
+  });
+
+  it('keeps production ingestion enabled with a DSN and enable flag', () => {
+    expect(
+      getSentryRuntimeOptions({
+        NODE_ENV: 'production',
+        LINEJAM_DEPLOY_ENVIRONMENT: 'production',
+        NEXT_PUBLIC_SENTRY_DSN: [
+          'https://public',
+          'sentry.example.test/1',
+        ].join('@'),
+        NEXT_PUBLIC_SENTRY_ENABLED: '1',
+      })
+    ).toMatchObject({ enabled: true, environment: 'production' });
+  });
 });
