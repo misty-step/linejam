@@ -47,9 +47,13 @@ export function resolveSentryRelease(env = process.env) {
 export function getSentryRuntimeOptions(env = process.env) {
   const localMode =
     env.LINEJAM_LOCAL === '1' || env.NEXT_PUBLIC_LINEJAM_LOCAL === '1';
-  const dsn = localMode ? undefined : clean(env.NEXT_PUBLIC_SENTRY_DSN);
-  const ingestEnabled = !localMode && env.NEXT_PUBLIC_SENTRY_ENABLED === '1';
   const environment = resolveSentryEnvironment(env);
+  // Unit tests (NODE_ENV=test) and CI/Playwright builds (environment "test")
+  // never send events, whatever DSN or enable flag they inherit.
+  const testMode = environment === 'test' || env.NODE_ENV === 'test';
+  const dsn = localMode ? undefined : clean(env.NEXT_PUBLIC_SENTRY_DSN);
+  const ingestEnabled =
+    !localMode && !testMode && env.NEXT_PUBLIC_SENTRY_ENABLED === '1';
 
   return {
     dsn,

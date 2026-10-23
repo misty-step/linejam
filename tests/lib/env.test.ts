@@ -31,6 +31,7 @@ describe('validateEnv', () => {
     await withEnv(
       {
         NODE_ENV: 'production',
+        NEXT_PUBLIC_SENTRY_ENVIRONMENT: undefined,
         GUEST_TOKEN_SECRET: 'guest-secret',
         NEXT_PUBLIC_CONVEX_URL: 'https://convex.example',
         NEXT_PUBLIC_SENTRY_DSN: undefined,
@@ -44,6 +45,48 @@ describe('validateEnv', () => {
       }
     );
   });
+
+  it('builds a declared Sentry test build without a DSN or enable flag', async () => {
+    await withEnv(
+      {
+        NODE_ENV: 'production',
+        LINEJAM_DEPLOY_ENVIRONMENT: undefined,
+        NEXT_PUBLIC_CONVEX_URL: 'https://convex.example',
+        NEXT_PUBLIC_SENTRY_ENVIRONMENT: 'test',
+        NEXT_PUBLIC_SENTRY_DSN: undefined,
+        NEXT_PUBLIC_SENTRY_ENABLED: '0',
+      },
+      async () => {
+        const { validateEnv } = await import('@/lib/env');
+        expect(() => validateEnv('build')).not.toThrow();
+      }
+    );
+  });
+
+  it.each(['production', 'preview'])(
+    'rejects a Sentry test build declared for a %s deploy',
+    async (deployEnvironment) => {
+      await withEnv(
+        {
+          NODE_ENV: 'production',
+          LINEJAM_DEPLOY_ENVIRONMENT: deployEnvironment,
+          NEXT_DEPLOYMENT_ID: 'a'.repeat(40),
+          NEXT_PUBLIC_CONVEX_URL: 'https://convex.example',
+          NEXT_PUBLIC_SENTRY_ENVIRONMENT: 'test',
+          NEXT_PUBLIC_SENTRY_DSN: ['https://public', 'sentry.example/1'].join(
+            '@'
+          ),
+          NEXT_PUBLIC_SENTRY_ENABLED: '1',
+        },
+        async () => {
+          const { validateEnv } = await import('@/lib/env');
+          expect(() => validateEnv('build')).toThrow(
+            /Invalid environment variables:\n {2}- NEXT_PUBLIC_SENTRY_ENVIRONMENT/
+          );
+        }
+      );
+    }
+  );
 
   it('skips secret-backed env requirements for dependabot builds', async () => {
     await withEnv(
@@ -66,6 +109,7 @@ describe('validateEnv', () => {
     await withEnv(
       {
         NODE_ENV: 'production',
+        NEXT_PUBLIC_SENTRY_ENVIRONMENT: undefined,
         GUEST_TOKEN_SECRET: 'guest-secret',
         NEXT_PUBLIC_CONVEX_URL: 'https://convex.example',
         NEXT_PUBLIC_SENTRY_DSN: ['https://public', 'sentry.example/1'].join(

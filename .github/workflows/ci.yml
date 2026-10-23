@@ -35,10 +35,9 @@ jobs:
       NEXT_PUBLIC_CONVEX_URL: ${{ secrets.NEXT_PUBLIC_CONVEX_URL }}
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.CI_NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
       CLERK_JWT_ISSUER_DOMAIN: ${{ secrets.CI_CLERK_JWT_ISSUER_DOMAIN || secrets.CLERK_JWT_ISSUER_DOMAIN }}
-      NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
-      NEXT_PUBLIC_SENTRY_ENABLED: '1'
+      # Sentry "test" builds need no DSN and never send events.
       NEXT_PUBLIC_SENTRY_ENVIRONMENT: test
-      NEXT_PUBLIC_SENTRY_RELEASE: ${{ github.sha }}
+      NEXT_PUBLIC_SENTRY_ENABLED: '0'
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -112,8 +111,9 @@ jobs:
       PLAYWRIGHT_CLERK_TEST_EMAIL: ${{ secrets.PLAYWRIGHT_CLERK_TEST_EMAIL }}
       PLAYWRIGHT_REQUIRE_AUTH_E2E: '1'
       GUEST_TOKEN_SECRET: ${{ secrets.GUEST_TOKEN_SECRET }}
-      NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
-      NEXT_PUBLIC_SENTRY_ENABLED: '1'
+      # Sentry "test" builds need no DSN and never send events.
+      NEXT_PUBLIC_SENTRY_ENVIRONMENT: test
+      NEXT_PUBLIC_SENTRY_ENABLED: '0'
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -201,8 +201,9 @@ jobs:
       PLAYWRIGHT_CLERK_TEST_EMAIL: ${{ secrets.PLAYWRIGHT_CLERK_TEST_EMAIL }}
       PLAYWRIGHT_REQUIRE_AUTH_E2E: '1'
       GUEST_TOKEN_SECRET: ${{ secrets.GUEST_TOKEN_SECRET }}
-      NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
-      NEXT_PUBLIC_SENTRY_ENABLED: '1'
+      # Sentry "test" builds need no DSN and never send events.
+      NEXT_PUBLIC_SENTRY_ENVIRONMENT: test
+      NEXT_PUBLIC_SENTRY_ENABLED: '0'
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -257,8 +258,9 @@ jobs:
       CLERK_SECRET_KEY: ${{ secrets.CI_CLERK_SECRET_KEY || secrets.CLERK_SECRET_KEY }}
       CLERK_JWT_ISSUER_DOMAIN: ${{ secrets.CI_CLERK_JWT_ISSUER_DOMAIN || secrets.CLERK_JWT_ISSUER_DOMAIN }}
       GUEST_TOKEN_SECRET: ${{ secrets.GUEST_TOKEN_SECRET }}
-      NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
-      NEXT_PUBLIC_SENTRY_ENABLED: '1'
+      # Sentry "test" builds need no DSN and never send events.
+      NEXT_PUBLIC_SENTRY_ENVIRONMENT: test
+      NEXT_PUBLIC_SENTRY_ENABLED: '0'
       LINEJAM_BASE_URL: http://127.0.0.1:3333
     steps:
       - name: Checkout code

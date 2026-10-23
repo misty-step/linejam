@@ -1,4 +1,5 @@
 import type { SentryReporterContext } from '@/lib/sentryPrivacy';
+import { getSentryRuntimeOptions } from '../sentry.runtime.mjs';
 
 export type ErrorReportContext = Record<
   string,
@@ -53,13 +54,17 @@ export type ErrorReporter = {
   ) => SentryReporterContext | undefined;
 };
 
+// Explicit member reads: Next inlines each NEXT_PUBLIC_* value in the browser.
 export function isSentryEnabled() {
-  return (
-    process.env.LINEJAM_LOCAL !== '1' &&
-    process.env.NEXT_PUBLIC_LINEJAM_LOCAL !== '1' &&
-    process.env.NEXT_PUBLIC_SENTRY_ENABLED === '1' &&
-    Boolean(process.env.NEXT_PUBLIC_SENTRY_DSN?.trim())
-  );
+  return getSentryRuntimeOptions({
+    LINEJAM_LOCAL: process.env.LINEJAM_LOCAL,
+    NEXT_PUBLIC_LINEJAM_LOCAL: process.env.NEXT_PUBLIC_LINEJAM_LOCAL,
+    NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
+    NEXT_PUBLIC_SENTRY_ENABLED: process.env.NEXT_PUBLIC_SENTRY_ENABLED,
+    NEXT_PUBLIC_SENTRY_ENVIRONMENT: process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT,
+    LINEJAM_DEPLOY_ENVIRONMENT: process.env.LINEJAM_DEPLOY_ENVIRONMENT,
+    NODE_ENV: process.env.NODE_ENV,
+  }).enabled;
 }
 
 export function captureReportedError(

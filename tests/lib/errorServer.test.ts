@@ -18,6 +18,10 @@ describe('captureServerError', () => {
       ['https://public', 'sentry.example.test/1'].join('@')
     );
     vi.stubEnv('NEXT_PUBLIC_SENTRY_ENABLED', '1');
+    // Vitest runs with NODE_ENV=test and CI declares the Sentry test
+    // environment; both keep Sentry off by design.
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('NEXT_PUBLIC_SENTRY_ENVIRONMENT', 'production');
     vi.spyOn(console, 'error').mockImplementation(() => {});
     setServerReporterForTests({
       captureException: captureExceptionMock,

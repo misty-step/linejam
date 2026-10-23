@@ -60,6 +60,9 @@ const config: PlaywrightTestConfig = {
 };
 
 if (!EXTERNAL_BASE_URL) {
+  // The owned E2E server is the Sentry "test" environment: the runner, its
+  // web server and dev-compiled clients all resolve ingestion off.
+  process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT = 'test';
   config.webServer = {
     command: process.env.CI
       ? `PORT=${PORT} pnpm start:next`

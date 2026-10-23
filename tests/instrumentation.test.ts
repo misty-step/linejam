@@ -22,6 +22,10 @@ describe('instrumentation', () => {
 
   it('delegates Next request errors to the supported Sentry hook', async () => {
     vi.stubEnv('NEXT_PUBLIC_SENTRY_ENABLED', '1');
+    // Vitest runs with NODE_ENV=test and CI declares the Sentry test
+    // environment; both keep Sentry off by design.
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('NEXT_PUBLIC_SENTRY_ENVIRONMENT', 'production');
     vi.stubEnv(
       'NEXT_PUBLIC_SENTRY_DSN',
       ['https://public', 'sentry.example.test/1'].join('@')
@@ -47,5 +51,28 @@ describe('instrumentation', () => {
       request,
       context
     );
+  });
+
+  it('skips Next request errors under NODE_ENV=test', async () => {
+    vi.stubEnv('NODE_ENV', 'test');
+    vi.stubEnv('NEXT_PUBLIC_SENTRY_ENABLED', '1');
+    vi.stubEnv(
+      'NEXT_PUBLIC_SENTRY_DSN',
+      ['https://public', 'sentry.example.test/1'].join('@')
+    );
+    const { onRequestError } = await import('@/instrumentation');
+
+    onRequestError(
+      new Error('boom'),
+      { path: '/room/ABCD', method: 'GET', headers: {} },
+      {
+        routerKind: 'App Router',
+        routePath: '/room/[code]',
+        routeType: 'render',
+      },
+      captureRequestErrorMock
+    );
+
+    expect(captureRequestErrorMock).not.toHaveBeenCalled();
   });
 });
