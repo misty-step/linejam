@@ -9,11 +9,18 @@ const auditScript = resolve('scripts/ci/osv-audit.mjs');
 const workspaces: string[] = [];
 
 // Fixture shape follows v2.0.2 pkg/models/results.go. Scores here exercise the
-// gate boundary, not a second implementation of the scanner's CVSS calculator.
+// gate boundary, not a second implementation of the scanner's CVSS calculator;
+// labels exercise the gate's own read of database_specific.severity.
 // How the real scanner turns CVSS_V2/V3/V4, database_specific.severity and
 // absent or malformed severities into max_severity is pinned separately by
 // scripts/ci/osv-scanner-contract.mjs, which runs OSV-Scanner v2.0.2 offline
 // over local advisory fixtures in Dagger's audit step.
+type Vulnerability = {
+  id: string;
+  severity?: { type: string; score: string }[];
+  database_specific?: { severity: string | number };
+};
+
 function report(scores: string[] = []) {
   return {
     results: [
@@ -26,7 +33,7 @@ function report(scores: string[] = []) {
               version: '1.0.0',
               ecosystem: 'npm',
             },
-            vulnerabilities: scores.map((_, index) => ({
+            vulnerabilities: scores.map((_, index): Vulnerability => ({
               id: `OSV-fixture-${index}`,
             })),
             groups: scores.map((score, index) => ({
@@ -40,6 +47,24 @@ function report(scores: string[] = []) {
     ],
     experimental_config: { licenses: { summary: false, allowlist: null } },
   };
+}
+
+const LOW_CVSS_V3 = 'CVSS:3.1/AV:L/AC:H/PR:H/UI:R/S:U/C:L/I:N/A:N';
+
+// One group whose advisory carries a database_specific.severity label and,
+// optionally, the severity vectors the scanner scored as `score`.
+function labelled(
+  score: string,
+  label: string | number,
+  vectors = [LOW_CVSS_V3]
+) {
+  const output = report([score]);
+  output.results[0].packages[0].vulnerabilities[0] = {
+    id: 'OSV-fixture-0',
+    severity: vectors.map((vector) => ({ type: 'CVSS_V3', score: vector })),
+    database_specific: { severity: label },
+  };
+  return output;
 }
 
 function runAudit(
@@ -222,6 +247,72 @@ describe('OSV audit process boundary', () => {
     expect(result.stderr).toContain(
       'UNKNOWN (no CVSS score) braces@3.0.3: GHSA-vfj7-8cjw-p6xm'
     );
+  });
+
+  it('blocks a CRITICAL label even when its CVSS vector scores 1.8', () => {
+    const result = runAudit(JSON.stringify(labelled('1.8', 'CRITICAL')), 1);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      'Blocking advisory: CRITICAL (severity label; CVSS 1.8) fixture-package@1.0.0: OSV-fixture-0'
+    );
+    expect(result.stdout).toContain('1 blocking HIGH/CRITICAL/UNKNOWN groups');
+  });
+
+  it('blocks on the worst label among aliased advisories in one group', () => {
+    const output = labelled('1.8', 'LOW');
+    const pkg = output.results[0].packages[0];
+    pkg.vulnerabilities.push({
+      ...pkg.vulnerabilities[0],
+      id: 'OSV-fixture-alias',
+      database_specific: { severity: 'HIGH' },
+    });
+    pkg.groups[0].ids.push('OSV-fixture-alias');
+    const result = runAudit(JSON.stringify(output), 1);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      'HIGH (severity label; CVSS 1.8) fixture-package@1.0.0: OSV-fixture-0, OSV-fixture-alias'
+    );
+  });
+
+  it('blocks a HIGH CVSS score even when the label is LOW', () => {
+    const result = runAudit(JSON.stringify(labelled('8.1', 'LOW')), 1);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      'Blocking advisory: HIGH 8.1 fixture-package@1.0.0: OSV-fixture-0'
+    );
+  });
+
+  it('blocks a CRITICAL label with no severity vectors', () => {
+    const result = runAudit(JSON.stringify(labelled('', 'CRITICAL', [])), 1);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      'Blocking advisory: CRITICAL (severity label; no CVSS score) fixture-package@1.0.0: OSV-fixture-0'
+    );
+  });
+
+  it('passes a MODERATE label beside a CVSS score below 7.0', () => {
+    const result = runAudit(JSON.stringify(labelled('1.8', 'MODERATE')), 1);
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('0 blocking HIGH/CRITICAL/UNKNOWN groups');
+  });
+
+  it('keeps an unscorable vector UNKNOWN even beside a low label', () => {
+    const result = runAudit(
+      JSON.stringify(labelled('', 'LOW', ['CVSS:3.1/AV:N/AC:L/garbage'])),
+      1
+    );
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      'Blocking advisory: UNKNOWN (no CVSS score) fixture-package@1.0.0: OSV-fixture-0'
+    );
+  });
+
+  it('rejects an unrecognized severity label as an incompatible schema', () => {
+    for (const label of ['critical', 'SEVERE', '', 9]) {
+      expect(runAudit(JSON.stringify(labelled('1.8', label)), 1).status).toBe(
+        2
+      );
+    }
   });
 
   it('rejects a missing or whitespace CVSS field as an incompatible schema', () => {

@@ -8,8 +8,9 @@ Accepted (2026-10-23)
 
 `braces` (GHSA-vfj7-8cjw-p6xm, CVE-2026-93687, CVSS 3.1 `A:H`) has a
 stack-exhaustion DoS through deeply nested patterns. The OSV audit gate
-(`scripts/ci/osv-audit.mjs`) fails on every HIGH, CRITICAL or UNKNOWN advisory
-and has no exception path (#604, #607). So `braces` cannot stay in
+(`scripts/ci/osv-audit.mjs`) fails on every HIGH, CRITICAL or UNKNOWN advisory,
+rated as the worse of its CVSS score and its `database_specific.severity`
+label, and has no exception path (#604, #607). So `braces` cannot stay in
 `pnpm-lock.yaml`.
 
 Only three packages pulled it in, all through `micromatch` (directly or via

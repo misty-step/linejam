@@ -2,15 +2,17 @@
 
 // Offline contract between the pinned OSV-Scanner v2.0.2 and osv-audit.mjs.
 //
-// osv-audit.mjs gates on groups[].max_severity, which the scanner computes
-// from each advisory's severity entries. The unit tests in
+// osv-audit.mjs gates on the worse of groups[].max_severity, which the scanner
+// computes from each advisory's severity entries, and the grouped
+// vulnerabilities' database_specific.severity labels. The unit tests in
 // tests/scripts/osv-audit.test.ts feed that field in directly. This contract
 // runs the real scanner over local advisory fixtures
 // (osv-scanner-contract/advisories.json) and pins both halves:
 //
 // 1. the scanner's normalized output for CVSS_V2/V3/V4 vectors, multiple and
 //    aliased entries, database_specific.severity, absent or empty severity,
-//    malformed vectors and non-CVSS types;
+//    malformed vectors and non-CVSS types, and that it passes each label
+//    through in vulnerabilities[] for the gate to read;
 // 2. the unmodified gate's exit status and blocking lines for that output.
 //
 // It runs offline. The fixtures are packed into the scanner's local database
@@ -62,14 +64,21 @@ const EXPECTED_GROUPS = {
   'osv-fixture-aliased-pair': [
     { ids: ['FIXTURE-ALIAS-HIGH', 'FIXTURE-ALIAS-LOW'], max: '7.5' },
   ],
-  // database_specific.severity is never read: alone it is UNKNOWN...
+  // The scanner never reads database_specific.severity: alone it scores
+  // nothing, and beside a vector only the vector is scored. The gate reads
+  // the label itself (LABELS below) and blocks on the worse of the two.
   'osv-fixture-database-specific-only': [
     { ids: ['FIXTURE-DATABASE-SPECIFIC-ONLY'], max: '' },
   ],
-  // ...and beside a CVSS vector the vector decides, even when the label is
-  // CRITICAL and the vector scores low.
   'osv-fixture-database-specific-and-low-cvss': [
     { ids: ['FIXTURE-DATABASE-SPECIFIC-AND-LOW-CVSS'], max: '1.8' },
+  ],
+  'osv-fixture-database-specific-moderate-and-low-cvss': [
+    { ids: ['FIXTURE-DATABASE-SPECIFIC-MODERATE-AND-LOW-CVSS'], max: '1.8' },
+  ],
+  // A label never stands in for a vector the scanner could not score.
+  'osv-fixture-database-specific-and-malformed': [
+    { ids: ['FIXTURE-DATABASE-SPECIFIC-AND-MALFORMED'], max: '' },
   ],
   'osv-fixture-severity-absent': [
     { ids: ['FIXTURE-SEVERITY-ABSENT'], max: '' },
@@ -92,14 +101,27 @@ const EXPECTED_GROUPS = {
   'osv-fixture-clean': [],
 };
 
+// The scanner's pass-through of database_specific.severity, keyed by package.
+const LABELS = {
+  'osv-fixture-database-specific-only': ['CRITICAL'],
+  'osv-fixture-database-specific-and-low-cvss': ['CRITICAL'],
+  'osv-fixture-database-specific-moderate-and-low-cvss': ['MODERATE'],
+  'osv-fixture-database-specific-and-malformed': ['LOW'],
+};
+
+const CRITICAL_LABEL_LOW_CVSS_LINE =
+  'Blocking advisory: CRITICAL (severity label; CVSS 1.8) osv-fixture-database-specific-and-low-cvss@1.0.0: FIXTURE-DATABASE-SPECIFIC-AND-LOW-CVSS';
+
 const BLOCKING_GATE_LINES = [
+  CRITICAL_LABEL_LOW_CVSS_LINE,
+  'Blocking advisory: CRITICAL (severity label; no CVSS score) osv-fixture-database-specific-only@1.0.0: FIXTURE-DATABASE-SPECIFIC-ONLY',
   'Blocking advisory: CRITICAL 9.3 osv-fixture-cvss-v4@1.0.0: FIXTURE-CVSS-V4',
   'Blocking advisory: CRITICAL 9.3 osv-fixture-multiple-severities@1.0.0: FIXTURE-MULTIPLE-SEVERITIES',
   'Blocking advisory: HIGH 7.5 osv-fixture-aliased-pair@1.0.0: FIXTURE-ALIAS-HIGH, FIXTURE-ALIAS-LOW',
   'Blocking advisory: HIGH 7.5 osv-fixture-cvss-v2@1.0.0: FIXTURE-CVSS-V2',
   'Blocking advisory: HIGH 7.5 osv-fixture-cvss-v3@1.0.0: FIXTURE-CVSS-V3',
   'Blocking advisory: UNKNOWN (no CVSS score) osv-fixture-bare-numeric-score@1.0.0: FIXTURE-BARE-NUMERIC-SCORE',
-  'Blocking advisory: UNKNOWN (no CVSS score) osv-fixture-database-specific-only@1.0.0: FIXTURE-DATABASE-SPECIFIC-ONLY',
+  'Blocking advisory: UNKNOWN (no CVSS score) osv-fixture-database-specific-and-malformed@1.0.0: FIXTURE-DATABASE-SPECIFIC-AND-MALFORMED',
   'Blocking advisory: UNKNOWN (no CVSS score) osv-fixture-malformed-and-valid-v2@1.0.0: FIXTURE-MALFORMED-AND-VALID-V2',
   'Blocking advisory: UNKNOWN (no CVSS score) osv-fixture-malformed-v3@1.0.0: FIXTURE-MALFORMED-V3',
   'Blocking advisory: UNKNOWN (no CVSS score) osv-fixture-malformed-v4@1.0.0: FIXTURE-MALFORMED-V4',
@@ -118,15 +140,28 @@ const SCENARIOS = [
     gateStatus: 1,
     gateStderr: BLOCKING_GATE_LINES,
     gateStdout: [
-      'OSV scanned 18 packages and 17 advisory groups; 14 blocking HIGH/CRITICAL/UNKNOWN groups.',
+      'OSV scanned 20 packages and 19 advisory groups; 16 blocking HIGH/CRITICAL/UNKNOWN groups.',
     ],
   },
   {
-    name: 'only known scores below 7.0',
+    name: 'CRITICAL label with a low CVSS vector',
+    packages: [
+      'osv-fixture-database-specific-and-low-cvss',
+      'osv-fixture-clean',
+    ],
+    scannerStatus: 1,
+    gateStatus: 1,
+    gateStderr: [CRITICAL_LABEL_LOW_CVSS_LINE],
+    gateStdout: [
+      'OSV scanned 2 packages and 1 advisory groups; 1 blocking HIGH/CRITICAL/UNKNOWN groups.',
+    ],
+  },
+  {
+    name: 'only known scores below 7.0 and labels below HIGH',
     packages: [
       'osv-fixture-cvss-v3-low',
       'osv-fixture-cvss-v4-medium',
-      'osv-fixture-database-specific-and-low-cvss',
+      'osv-fixture-database-specific-moderate-and-low-cvss',
       'osv-fixture-clean',
     ],
     scannerStatus: 1,
@@ -134,7 +169,7 @@ const SCENARIOS = [
     gateStderr: [],
     gateStdout: [
       'OSV scanned 4 packages and 3 advisory groups; 0 blocking HIGH/CRITICAL/UNKNOWN groups.',
-      'No blocking HIGH/CRITICAL/UNKNOWN advisories; known CVSS scores below 7.0 do not fail the gate.',
+      'No blocking HIGH/CRITICAL/UNKNOWN advisories; known CVSS scores below 7.0 with no HIGH/CRITICAL label do not fail the gate.',
     ],
   },
   {
@@ -145,7 +180,7 @@ const SCENARIOS = [
     gateStderr: [],
     gateStdout: [
       'OSV scanned 1 packages and 0 advisory groups; 0 blocking HIGH/CRITICAL/UNKNOWN groups.',
-      'No blocking HIGH/CRITICAL/UNKNOWN advisories; known CVSS scores below 7.0 do not fail the gate.',
+      'No blocking HIGH/CRITICAL/UNKNOWN advisories; known CVSS scores below 7.0 with no HIGH/CRITICAL label do not fail the gate.',
     ],
   },
 ];
@@ -347,6 +382,26 @@ function main() {
         actual,
         expected,
         `${scenario.name}: scanner max_severity normalization`
+      );
+      const actualLabels = Object.fromEntries(
+        report.results[0].packages
+          .map((entry) => [
+            entry.package.name,
+            (entry.vulnerabilities ?? [])
+              .map((vulnerability) => vulnerability.database_specific?.severity)
+              .filter((label) => label !== undefined),
+          ])
+          .filter(([, labels]) => labels.length > 0)
+      );
+      const expectedLabels = Object.fromEntries(
+        scenario.packages
+          .filter((name) => LABELS[name])
+          .map((name) => [name, LABELS[name]])
+      );
+      assert.deepEqual(
+        actualLabels,
+        expectedLabels,
+        `${scenario.name}: scanner database_specific.severity pass-through`
       );
 
       const gate = spawnSync(process.execPath, [auditScript], {

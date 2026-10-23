@@ -7,6 +7,9 @@ import { resolve } from 'node:path';
 // https://github.com/google/osv-scanner/blob/v2.0.2/pkg/models/results.go
 // https://github.com/google/osv-scanner/blob/v2.0.2/internal/output/table.go
 // groups[].max_severity is a computed CVSS score string, not a severity label.
+// The scanner ignores database_specific.severity when computing it, so the gate
+// reads that label from each grouped vulnerability and blocks on the worse of
+// the two: a CRITICAL label beside a vector scoring 1.8 is CRITICAL.
 // https://github.com/google/osv-scanner/blob/v2.0.2/docs/output.md#return-codes
 // Exit 1 means findings, but can coexist with a partial API failure. Error-level
 // stderr must also be empty: cmd/osv-scanner/internal/cmd/run.go returns findings before
@@ -31,6 +34,30 @@ function assertString(value, label) {
   ) {
     throw new Error(`${label} must be a nonempty string.`);
   }
+}
+
+// FIRST qualitative scale for scores; GHSA labels for database_specific.
+const RANK = { NONE: 0, LOW: 1, MODERATE: 2, HIGH: 3, CRITICAL: 4 };
+const LABELS = new Set(['LOW', 'MODERATE', 'HIGH', 'CRITICAL']);
+
+function scoreRating(score) {
+  if (score >= 9) return 'CRITICAL';
+  if (score >= 7) return 'HIGH';
+  if (score >= 4) return 'MODERATE';
+  return score > 0 ? 'LOW' : 'NONE';
+}
+
+// Returns the vulnerability's database_specific.severity label, or null when it
+// has none. Any other shape is an unrecognized schema and fails closed.
+function severityLabel(vulnerability, label) {
+  const specific = vulnerability.database_specific;
+  if (specific === undefined) return null;
+  assertObject(specific, `${label} database_specific`);
+  if (specific.severity === undefined) return null;
+  if (!LABELS.has(specific.severity)) {
+    throw new Error(`Unclassifiable severity label for ${label}.`);
+  }
+  return specific.severity;
 }
 
 function classifyResults(report, scannerStatus) {
@@ -78,14 +105,19 @@ function classifyResults(report, scannerStatus) {
     }
     assertArray(vulnerabilities, `${pkg.name} vulnerabilities`);
     assertArray(groups, `${pkg.name} groups`);
-    const unclassified = new Set();
+    const unclassified = new Map();
     for (const vulnerability of vulnerabilities) {
       assertObject(vulnerability, `${pkg.name} vulnerability`);
       assertString(vulnerability.id, `${pkg.name} vulnerability ID`);
       if (unclassified.has(vulnerability.id)) {
         throw new Error(`Duplicate vulnerability ID ${vulnerability.id}.`);
       }
-      unclassified.add(vulnerability.id);
+      const severity = vulnerability.severity ?? [];
+      assertArray(severity, `${vulnerability.id} severity`);
+      unclassified.set(vulnerability.id, {
+        hasVectors: severity.length > 0,
+        label: severityLabel(vulnerability, vulnerability.id),
+      });
     }
 
     for (const group of groups) {
@@ -94,19 +126,26 @@ function classifyResults(report, scannerStatus) {
       if (group.ids.length === 0) {
         throw new Error(`Empty vulnerability group for ${pkg.name}.`);
       }
+      let label = null;
+      let hasVectors = false;
       for (const id of group.ids) {
         assertString(id, `${pkg.name} group ID`);
-        if (!unclassified.delete(id)) {
+        const member = unclassified.get(id);
+        if (!member) {
           throw new Error(
             `Unmatched or repeated vulnerability group ID ${id}.`
           );
         }
+        unclassified.delete(id);
+        hasVectors ||= member.hasVectors;
+        if (member.label && (!label || RANK[member.label] > RANK[label])) {
+          label = member.label;
+        }
       }
 
       // MaxSeverity formats one decimal place, or "" when no CVSS can be
-      // calculated. An empty score is UNKNOWN severity and always blocks: it is
-      // never treated as low and has no exception path. Any other non-score
-      // value means an incompatible scanner schema and fails closed.
+      // calculated. Any other non-score value means an incompatible scanner
+      // schema and fails closed.
       if (
         Object.prototype.toString.call(group.max_severity) !== '[object String]'
       ) {
@@ -114,8 +153,16 @@ function classifyResults(report, scannerStatus) {
       }
       groupsScanned += 1;
       const advisory = `${pkg.name}@${pkg.version}: ${group.ids.join(', ')}`;
+      // An empty score with no label, or with severity vectors the scanner
+      // could not score, is UNKNOWN and always blocks: a label never stands in
+      // for an unscorable vector, nothing is treated as low, and there is no
+      // exception path.
       if (group.max_severity === '') {
-        blocked.push(`UNKNOWN (no CVSS score) ${advisory}`);
+        if (hasVectors || !label) {
+          blocked.push(`UNKNOWN (no CVSS score) ${advisory}`);
+        } else if (RANK[label] >= RANK.HIGH) {
+          blocked.push(`${label} (severity label; no CVSS score) ${advisory}`);
+        }
         continue;
       }
       if (!/^(?:[0-9]\.[0-9]|10\.0)$/.test(group.max_severity)) {
@@ -123,15 +170,21 @@ function classifyResults(report, scannerStatus) {
           `Unclassifiable CVSS score for ${pkg.name}: ${group.ids.join(', ')}.`
         );
       }
-      const score = Number(group.max_severity);
-      if (score >= 7) {
-        const rating = score >= 9 ? 'CRITICAL' : 'HIGH';
+      // The worse of the CVSS rating and the label decides.
+      const rating = scoreRating(Number(group.max_severity));
+      if (label && RANK[label] > RANK[rating]) {
+        if (RANK[label] >= RANK.HIGH) {
+          blocked.push(
+            `${label} (severity label; CVSS ${group.max_severity}) ${advisory}`
+          );
+        }
+      } else if (RANK[rating] >= RANK.HIGH) {
         blocked.push(`${rating} ${group.max_severity} ${advisory}`);
       }
     }
     if (unclassified.size > 0) {
       throw new Error(
-        `Ungrouped vulnerabilities for ${pkg.name}: ${[...unclassified].join(', ')}.`
+        `Ungrouped vulnerabilities for ${pkg.name}: ${[...unclassified.keys()].join(', ')}.`
       );
     }
   }
@@ -180,7 +233,7 @@ function main() {
   );
   if (blocked.length > 0) return 1;
   console.log(
-    'No blocking HIGH/CRITICAL/UNKNOWN advisories; known CVSS scores below 7.0 do not fail the gate.'
+    'No blocking HIGH/CRITICAL/UNKNOWN advisories; known CVSS scores below 7.0 with no HIGH/CRITICAL label do not fail the gate.'
   );
   return 0;
 }
