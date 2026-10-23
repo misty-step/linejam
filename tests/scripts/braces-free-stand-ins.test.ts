@@ -52,6 +52,22 @@ describe('braces-free dependency stand-ins', () => {
     );
   });
 
+  it('ships the upstream license with the code copied from micromatch', () => {
+    // micromatch@4.0.8's LICENSE, byte for byte (MIT requires the copyright
+    // and permission notice in all copies or substantial portions).
+    const license = readFileSync(
+      'tools/braces-free/micromatch/LICENSE',
+      'utf8'
+    );
+    expect(license).toContain('Copyright (c) 2014-present, Jon Schlinkert.');
+    expect(license).toContain(
+      'The above copyright notice and this permission notice shall be included in\nall copies or substantial portions of the Software.'
+    );
+    expect(
+      readFileSync('tools/braces-free/micromatch/index.cjs', 'utf8')
+    ).toContain('./LICENSE');
+  });
+
   // Expected values were captured from micromatch@4.0.8 before it was removed.
   it('matches micromatch list filtering for semantic-release branch patterns', () => {
     // SAFETY: the routing test above pins this to the micromatch stand-in, whose

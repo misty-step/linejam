@@ -74,6 +74,9 @@ semantic-release>micromatch: file:tools/braces-free/micromatch
 - `tools/braces-free/micromatch` copies `micromatch()` and `isMatch()` from
   `micromatch@4.0.8` (MIT) on `picomatch`. Neither function uses `braces`. The
   brace-expansion helpers are left out, so any new caller fails loudly.
+  `tools/braces-free/micromatch/LICENSE` is micromatch 4.0.8's license file
+  byte for byte, with its copyright and permission notice
+  (`Copyright (c) 2014-present, Jon Schlinkert.`).
 - `tools/braces-free/fast-glob` implements the single
   `globSync(pattern, { onlyDirectories: true })` call that
   `@next/eslint-plugin-next` makes, on `tinyglobby`. It throws on any other

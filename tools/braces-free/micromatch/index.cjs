@@ -5,8 +5,11 @@
 // packages call micromatch(list, patterns) and micromatch.isMatch(); neither
 // path uses braces, yet micromatch's dependency installs braces@3.0.3
 // (GHSA-vfj7-8cjw-p6xm, no fixed release). Both functions below are ported
-// verbatim from micromatch@4.0.8 (MIT) on the same picomatch major. Brace
+// verbatim from micromatch@4.0.8 on the same picomatch major. Brace
 // expansion helpers are deliberately absent so any new caller fails loudly.
+//
+// micromatch: Copyright (c) 2014-present, Jon Schlinkert. Released under the
+// MIT License; the original license and permission notice are in ./LICENSE.
 const picomatch = require('picomatch');
 
 const micromatch = (list, patterns, options) => {
