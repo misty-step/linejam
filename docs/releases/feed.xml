@@ -6,7 +6,18 @@
     <description>What&apos;s new in Linejam.</description>
     <language>en-us</language>
     <atom:link href="https://linejam.mistystep.io/releases.xml" rel="self" type="application/rss+xml"/>
-    <lastBuildDate>Thu, 15 Oct 2026 00:00:00 GMT</lastBuildDate>
+    <lastBuildDate>Fri, 23 Oct 2026 00:00:00 GMT</lastBuildDate>
+    <item>
+      <title>Linejam v0.28.2</title>
+      <link>https://linejam.mistystep.io/changelog#v0.28.2</link>
+      <guid isPermaLink="false">v0.28.2</guid>
+      <pubDate>Fri, 23 Oct 2026 00:00:00 GMT</pubDate>
+      <description>Improvements
+Joining or reopening a game now loads more reliably for guests, with less chance of a stalled lobby or missing room controls.
+Private poem downloads and social previews work again, so sharing a finished poem is smoother.
+Behind the scenes, Linejam&apos;s data now lives closer to the game itself, which keeps saves and restores quicker and more dependable.
+Error tracking now separates distinct problems, helping the team spot and fix issues faster.</description>
+    </item>
     <item>
       <title>Linejam v0.28.1</title>
       <link>https://linejam.mistystep.io/changelog#v0.28.1</link>
