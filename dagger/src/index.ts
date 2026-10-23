@@ -328,12 +328,15 @@ export class Ci {
       .container()
       .from('ghcr.io/google/osv-scanner:v2.0.2')
       .file('/osv-scanner');
+    // The offline contract proves this scanner's severity normalization and
+    // the gate against local advisory fixtures before the real scan runs.
     return dag
       .container()
       .from(NODE_IMAGE)
       .withFile('/usr/local/bin/osv-scanner', scanner)
       .withMountedDirectory('/src', source)
       .withWorkdir('/src')
+      .withExec(['node', 'scripts/ci/osv-scanner-contract.mjs'])
       .withExec(['node', 'scripts/ci/osv-audit.mjs'])
       .stdout();
   }
