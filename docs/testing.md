@@ -481,11 +481,17 @@ group the gate takes the worse of two ratings: the scanner's computed
 every advisory in the group. The scanner ignores that label when it computes
 `max_severity`, so a `CRITICAL` label beside a vector scoring 1.8 would
 otherwise pass; the gate blocks it as CRITICAL. The threshold stays
-HIGH/CRITICAL (scores **7.0–10.0** or a `HIGH`/`CRITICAL` label). A group passes
-only if its known score is below 7.0 and no label is HIGH or CRITICAL.
+HIGH/CRITICAL (scores **7.0–10.0** or a `HIGH`/`CRITICAL` label). A group with
+no `HIGH` or `CRITICAL` label passes in exactly two cases:
 
-UNKNOWN still fails closed: no score and no label, or severity vectors the
-scanner could not score (a label never stands in for an unscorable vector).
+- its known score is below 7.0; or
+- it is label-only: the scanner reports no score because no advisory in the
+  group has any severity vector, and at least one advisory carries a `LOW` or
+  `MODERATE` label.
+
+UNKNOWN still fails closed: no score and no label, or any severity vector the
+scanner could not score, whatever the labels say (a label never stands in for
+an unscorable vector).
 Unrecognized labels or scores are a schema failure. There is no exception or
 allowlist path.
 
@@ -506,7 +512,9 @@ operational/schema failure; Dagger treats either as a failed audit.
 `scripts/ci/osv-scanner-contract/advisories.json` before the real scan. It pins
 both the scanner's `max_severity` normalization and its pass-through of
 `database_specific.severity`, including a `CRITICAL` label with a 1.8 vector
-that must fail the gate.
+and aliased 1.8-scored advisories whose worst label is `HIGH` or `CRITICAL`,
+which must fail the gate, and label-only `LOW`/`MODERATE` advisories, which
+must pass it.
 
 Primary contract references:
 [JSON model](https://github.com/google/osv-scanner/blob/v2.0.2/pkg/models/results.go),

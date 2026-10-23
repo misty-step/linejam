@@ -55,7 +55,9 @@ function severityLabel(vulnerability, label) {
   assertObject(specific, `${label} database_specific`);
   if (specific.severity === undefined) return null;
   if (!LABELS.has(specific.severity)) {
-    throw new Error(`Unclassifiable severity label for ${label}.`);
+    throw new Error(
+      `Unclassifiable severity label ${JSON.stringify(specific.severity)} for ${label}.`
+    );
   }
   return specific.severity;
 }
