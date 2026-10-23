@@ -28,3 +28,4 @@ Use a four-digit number and record status, context, decision, consequences, and 
 | [0011](./0011-backend-on-cloudflare-durable-object.md) | Backend on a Cloudflare Durable Object        | Accepted  |
 | [0012](./0012-rust-entry-islands.md)                   | Rust entry islands                            | Candidate |
 | [0013](./0013-native-application-train.md)             | Native application train                      | Candidate |
+| [0014](./0014-vendored-braces-free-stand-ins.md)       | Vendored braces-free stand-ins                | Accepted  |

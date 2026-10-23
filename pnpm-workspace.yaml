@@ -72,10 +72,7 @@ overrides:
   # braces@3.0.3 (GHSA-vfj7-8cjw-p6xm) has no fixed release and no current
   # micromatch, fast-glob, semantic-release or Next lint plugin avoids it (#604).
   # Route each dependent to a braces-free stand-in for the API it calls.
-  # Re-checked 2026-10-23: the advisory's first_patched_version is null (affects
-  # <= 3.0.3, the latest braces), micromatch 4.0.8 and fast-glob 3.3.3 are still
-  # latest, and semantic-release 26 beta / Next lint plugin canary still pull them.
-  # Delete tools/braces-free once any of those changes.
+  # Proof and removal trigger: docs/adr/0014-vendored-braces-free-stand-ins.md.
   '@next/eslint-plugin-next>fast-glob': file:tools/braces-free/fast-glob
   '@semantic-release/commit-analyzer>micromatch': file:tools/braces-free/micromatch
   semantic-release>micromatch: file:tools/braces-free/micromatch
