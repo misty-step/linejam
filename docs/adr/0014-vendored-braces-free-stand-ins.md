@@ -79,8 +79,10 @@ semantic-release>micromatch: file:tools/braces-free/micromatch
   (`Copyright (c) 2014-present, Jon Schlinkert.`).
 - `tools/braces-free/fast-glob` implements the single
   `globSync(pattern, { onlyDirectories: true })` call that
-  `@next/eslint-plugin-next` makes, on `tinyglobby`. It throws on any other
-  option.
+  `@next/eslint-plugin-next` makes, on `tinyglobby`. That is its whole
+  contract: it throws on a non-string pattern, on any other option, and on
+  every other `onlyDirectories` value, including omitted options, `{}` and
+  `{ onlyDirectories: false }`. File-globbing mode is not supported.
 - `tests/scripts/braces-free-stand-ins.test.ts` resolves each stand-in the way
   its dependent does at runtime and checks it against captured
   `micromatch@4.0.8` / `fast-glob` results.

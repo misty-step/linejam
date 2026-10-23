@@ -23,7 +23,14 @@ const nextPluginDir = join(
   '@next/eslint-plugin-next'
 );
 
-type GlobOptions = { onlyDirectories?: boolean; dot?: boolean };
+// Option shapes the fast-glob stand-in must reject (plus the one it accepts).
+type UnsupportedGlobOptions =
+  | {
+      readonly onlyDirectories?: boolean | number | string;
+      readonly dot?: boolean;
+    }
+  | readonly string[]
+  | null;
 
 type Micromatch = ((
   list: string[],
@@ -137,14 +144,41 @@ describe('braces-free dependency stand-ins', () => {
     expect(rootDirs('tests/*').every((dir) => !dir.endsWith('/'))).toBe(true);
   });
 
-  it('rejects fast-glob options the stand-in does not reproduce', () => {
-    // SAFETY: the routing test above pins this to the fast-glob stand-in,
-    // which exports only globSync(patterns, options).
+  it('accepts only the { onlyDirectories: true } call the Next plugin makes', () => {
+    // SAFETY: the routing test above pins this to the fast-glob stand-in.
+    // Its signature is widened so unsupported calls can be passed.
     const { globSync } = requireFrom(nextPluginDir)('fast-glob') as {
-      globSync: (pattern: string, options: GlobOptions) => string[];
+      globSync: (
+        pattern?: string | readonly string[],
+        options?: UnsupportedGlobOptions
+      ) => string[];
     };
+    expect(globSync('app', { onlyDirectories: true })).toEqual(['app']);
+
+    expect(() => globSync('app', { onlyDirectories: true, dot: true })).toThrow(
+      'Unsupported fast-glob option in stand-in: dot'
+    );
     expect(() => globSync('app', { dot: true })).toThrow(
       'Unsupported fast-glob option in stand-in: dot'
+    );
+    for (const options of [
+      undefined,
+      null,
+      {},
+      { onlyDirectories: false },
+      { onlyDirectories: 'true' },
+      { onlyDirectories: 1 },
+      [],
+    ]) {
+      expect(() => globSync('app', options)).toThrow(
+        'fast-glob stand-in supports only { onlyDirectories: true }'
+      );
+    }
+    expect(() => globSync()).toThrow(
+      'fast-glob stand-in supports only a single string pattern'
+    );
+    expect(() => globSync(['app'], { onlyDirectories: true })).toThrow(
+      'fast-glob stand-in supports only a single string pattern'
     );
   });
 });
