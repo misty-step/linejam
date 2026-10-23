@@ -83,6 +83,16 @@ semantic-release>micromatch: file:tools/braces-free/micromatch
   contract: it throws on a non-string pattern, on any other option, and on
   every other `onlyDirectories` value, including omitted options, `{}` and
   `{ onlyDirectories: false }`. File-globbing mode is not supported.
+  Results follow `fast-glob@3.3.1`'s shape. Static patterns come back as
+  written, so `/` stays `/` and `C:/` stays `C:/`. Dynamic patterns keep their
+  base as written (relative, `./`, `../` or absolute) and drop trailing
+  slashes, but never turn a root into an empty or drive-relative path. One
+  divergence is deliberate: `fast-glob@3.3.1` returns `[]` for a `?` pattern
+  with a trailing slash (`ap?/`), and the stand-in returns the matches. Its
+  duplicate-slash rule is copied from fast-glob, so
+  `tools/braces-free/fast-glob/LICENSE` is fast-glob 3.3.1's license file
+  (`Copyright (c) Denis Malinochkin`). It uses `picomatch` 4 and `tinyglobby`
+  as ordinary dependencies.
 - `tests/scripts/braces-free-stand-ins.test.ts` resolves each stand-in the way
   its dependent does at runtime and checks it against captured
   `micromatch@4.0.8` / `fast-glob` results.

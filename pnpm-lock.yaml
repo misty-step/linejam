@@ -10622,6 +10622,7 @@ snapshots:
 
   '@linejam/braces-free-fast-glob@file:tools/braces-free/fast-glob':
     dependencies:
+      picomatch: 4.0.4
       tinyglobby: 0.2.17
 
   '@linejam/braces-free-micromatch@file:tools/braces-free/micromatch':
