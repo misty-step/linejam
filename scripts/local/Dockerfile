@@ -17,6 +17,7 @@ WORKDIR /workspace
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY patches ./patches
 COPY vendor/parlor ./vendor/parlor
+COPY tools/braces-free ./tools/braces-free
 RUN corepack enable \
     && corepack prepare pnpm@10.22.0 --activate \
     && pnpm install --frozen-lockfile --child-concurrency=1 --network-concurrency=4 \

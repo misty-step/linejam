@@ -1,0 +1,11 @@
+{
+  "name": "@linejam/braces-free-fast-glob",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Braces-free stand-in for the fast-glob globSync() call made by @next/eslint-plugin-next (#604).",
+  "license": "MIT",
+  "main": "index.cjs",
+  "dependencies": {
+    "tinyglobby": "^0.2.17"
+  }
+}
