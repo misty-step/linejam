@@ -1,0 +1,11 @@
+{
+  "name": "@linejam/braces-free-micromatch",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Braces-free stand-in for the micromatch() and micromatch.isMatch() calls made by semantic-release (#604).",
+  "license": "MIT",
+  "main": "index.cjs",
+  "dependencies": {
+    "picomatch": "^2.3.2"
+  }
+}

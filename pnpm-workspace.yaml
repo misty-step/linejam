@@ -46,7 +46,7 @@ overrides:
   hono@<4.13.2: ^4.13.2
   '@hono/node-server@<1.19.17': ^1.19.17
   ip-address@<10.7.3: ^10.7.3
-  dompurify@<3.4.16: ^3.4.16
+  dompurify@<3.4.17: ^3.4.17
   adm-zip@<0.6.1: ^0.6.1
   sharp@<0.35.5: ^0.35.5
   rollup@<4.59.0: ^4.59.0
@@ -68,3 +68,10 @@ overrides:
   fast-uri@<4.2.1: ^4.2.1
   browserslist@<4.28.8: ^4.28.8
   basic-ftp@<6.2.1: ^6.2.1
+
+  # braces@3.0.3 (GHSA-vfj7-8cjw-p6xm) has no fixed release and no current
+  # micromatch, fast-glob, semantic-release or Next lint plugin avoids it (#604).
+  # Route each dependent to a braces-free stand-in for the API it calls.
+  '@next/eslint-plugin-next>fast-glob': file:tools/braces-free/fast-glob
+  '@semantic-release/commit-analyzer>micromatch': file:tools/braces-free/micromatch
+  semantic-release>micromatch: file:tools/braces-free/micromatch
