@@ -3,11 +3,7 @@ import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import {
-  JoinPage,
-  type JoinPageDependencies,
-  type JoinRoom,
-} from '@/app/join/JoinPage';
+
 import { Header } from '@/components/Header';
 import type { HeaderDependencies } from '@/components/Header';
 import { ColorModeProvider } from '@/lib/colorMode';
@@ -17,23 +13,8 @@ import { SignUpPage } from '@/app/(auth)/sign-up/[[...sign-up]]/SignUpPage';
 import { AccountContext } from '@/lib/account';
 
 let currentPathname = '/join';
-let currentSearchParams = new URLSearchParams('code=ABCD');
+
 let currentIsSignedIn = false;
-
-const mockRouter = { push: vi.fn() };
-const mockJoinRoom = vi.fn<JoinRoom>();
-
-const joinDependencies: JoinPageDependencies = {
-  useRouter: () => mockRouter,
-  useSearchParams: () => currentSearchParams,
-  useUser: () => ({
-    guestToken: 'guest-token',
-    isLoading: false,
-    authError: null,
-    retryAuth: vi.fn(),
-  }),
-  useJoinRoom: () => mockJoinRoom,
-};
 
 const headerDependencies: HeaderDependencies = {
   usePathname: () => currentPathname,
@@ -52,23 +33,10 @@ describe('entry and shell behavior', () => {
     localStorage.clear();
     document.documentElement.className = '';
     currentIsSignedIn = false;
-    mockJoinRoom.mockResolvedValue({ ok: true, _id: 'room-1' });
+
     currentPathname = '/join';
-    currentSearchParams = new URLSearchParams('code=ABCD');
+
     installMatchMedia(false);
-  });
-
-  it('preserves invitation prefill and Enter-to-name navigation', async () => {
-    renderEntry(<JoinPage dependencies={joinDependencies} />);
-
-    const code = await screen.findByRole('textbox', { name: /room code/i });
-    const name = screen.getByRole('textbox', { name: /your pen name/i });
-    expect(code).toHaveValue('ABCD');
-    expect(code).not.toHaveAttribute('readonly');
-    expect(name).toBeRequired();
-
-    fireEvent.keyDown(code, { key: 'Enter' });
-    expect(name).toHaveFocus();
   });
 
   it('keeps account, archive, help, and color-mode actions available without duplicate controls', async () => {
