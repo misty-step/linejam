@@ -96,7 +96,6 @@ repository fixtures. Share sanitized, revision-specific conclusions and
 links in Kanban or the PR. Record exact commands, exercised surfaces, and
 unverified risk. Review, merge, deploy, monitor, and production verification
 are distinct operations, each requiring its own authorized scope.
-Run `upkeep where <task-kind>` before dispatching.
 
 ## No fallbacks
 
