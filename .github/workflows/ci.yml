@@ -137,7 +137,7 @@ jobs:
 
   worker-images:
     name: Worker Routes, Images & Guest QA
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, hetzner-ci, linejam-ci]
     timeout-minutes: 30
     permissions:
       contents: read
@@ -160,6 +160,10 @@ jobs:
           node-version: '22'
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Install the repository Rust toolchain
+        uses: dtolnay/rust-toolchain@1.98.1
+        with:
+          targets: wasm32-unknown-unknown
       - run: pnpm build:cf
       - run: pnpm test:worker-routes
       - run: pnpm test:worker-images
