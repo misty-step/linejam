@@ -29,7 +29,7 @@ concurrency:
 jobs:
   quality-gates:
     name: Quality Gates
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, hetzner-ci, linejam-ci]
     timeout-minutes: 15
     env:
       NEXT_PUBLIC_CONVEX_URL: ${{ secrets.NEXT_PUBLIC_CONVEX_URL }}
@@ -101,7 +101,7 @@ jobs:
 
   test-build:
     name: Test & Build
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, hetzner-ci, linejam-ci]
     timeout-minutes: 20
     needs: [quality-gates]
     env:
@@ -190,7 +190,7 @@ jobs:
 
   e2e:
     name: E2E Mirror
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, hetzner-ci, linejam-ci]
     timeout-minutes: 25
     needs: [quality-gates]
     if: |
@@ -248,7 +248,7 @@ jobs:
   # files, and unwaived packaging failures fail before merge-gate.
   qa-evidence:
     name: QA Evidence
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, hetzner-ci, linejam-ci]
     timeout-minutes: 20
     needs: [quality-gates]
     if: |
@@ -358,7 +358,7 @@ jobs:
   # It walks every live story and fails on unobserved criteria or cleanup failure.
   story-walk:
     name: story-walk
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, hetzner-ci, linejam-ci]
     timeout-minutes: 60
     permissions:
       contents: read
@@ -388,7 +388,7 @@ jobs:
   # Job name must match exactly. Workflow name: is a display label only.
   merge-gate:
     name: merge-gate
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, hetzner-ci, linejam-ci]
     needs: [quality-gates, test-build, worker-images, e2e, qa-evidence]
     if: always()
     steps:
