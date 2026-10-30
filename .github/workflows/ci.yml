@@ -388,7 +388,7 @@ jobs:
   # Job name must match exactly. Workflow name: is a display label only.
   merge-gate:
     name: merge-gate
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, hetzner-ci, linejam-ci]
     needs: [quality-gates, test-build, worker-images, e2e, qa-evidence]
     if: always()
     steps:
