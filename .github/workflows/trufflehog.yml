@@ -13,7 +13,7 @@ permissions:
 jobs:
   trufflehog:
     name: trufflehog
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, hetzner-ci, linejam-ci]
     timeout-minutes: 10
     steps:
       - name: Checkout
