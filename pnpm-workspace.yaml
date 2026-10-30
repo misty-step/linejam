@@ -69,6 +69,7 @@ overrides:
   fast-uri@<4.2.1: ^4.2.1
   browserslist@<4.28.8: ^4.28.8
   basic-ftp@<6.2.1: ^6.2.1
+  body-parser@>=2 <2.4.0: ^2.4.0
 
   # braces@3.0.3 (GHSA-vfj7-8cjw-p6xm) has no fixed release and no current
   # micromatch, fast-glob, semantic-release or Next lint plugin avoids it (#604).
