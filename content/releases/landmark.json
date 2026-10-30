@@ -60,5 +60,38 @@
     "slack": "## New Features\n\n- The footer now links to a changelog page, so you can see what’s changed in Linejam at a glance.",
     "tag": "v0.28.1",
     "version": "0.28.1"
+  },
+  {
+    "audience": "end-user",
+    "html": "<h2>Improvements</h2>\n<ul>\n<li>Private poem downloads and social previews are working again after a recent disruption.</li>\n<li>Guest sessions now stay separate between requests, making joining and playing as a guest more reliable.</li>\n<li>The home screen and shared help pages load faster.</li>\n</ul>\n",
+    "markdown": "## Improvements\n- Private poem downloads and social previews are working again after a recent disruption.\n- Guest sessions now stay separate between requests, making joining and playing as a guest more reliable.\n- The home screen and shared help pages load faster.",
+    "notes": "## Improvements\n- Private poem downloads and social previews are working again after a recent disruption.\n- Guest sessions now stay separate between requests, making joining and playing as a guest more reliable.\n- The home screen and shared help pages load faster.",
+    "plaintext": "Improvements\nPrivate poem downloads and social previews are working again after a recent disruption.\nGuest sessions now stay separate between requests, making joining and playing as a guest more reliable.\nThe home screen and shared help pages load faster.",
+    "published_at": "2026-10-30T19:03:39.543567470+00:00",
+    "release_url": "https://github.com/misty-step/linejam/releases/tag/v0.28.2",
+    "repository": "misty-step/linejam",
+    "schema_version": "landmark.public-release-notes.v1",
+    "sections": [
+      {
+        "bullets": [
+          {
+            "links": [],
+            "text": "Private poem downloads and social previews are working again after a recent disruption."
+          },
+          {
+            "links": [],
+            "text": "Guest sessions now stay separate between requests, making joining and playing as a guest more reliable."
+          },
+          {
+            "links": [],
+            "text": "The home screen and shared help pages load faster."
+          }
+        ],
+        "title": "Improvements"
+      }
+    ],
+    "slack": "## Improvements\n- Private poem downloads and social previews are working again after a recent disruption.\n- Guest sessions now stay separate between requests, making joining and playing as a guest more reliable.\n- The home screen and shared help pages load faster.",
+    "tag": "v0.28.2",
+    "version": "0.28.2"
   }
 ]
