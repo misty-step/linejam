@@ -358,7 +358,7 @@ jobs:
   # It walks every live story and fails on unobserved criteria or cleanup failure.
   story-walk:
     name: story-walk
-    runs-on: [self-hosted, hetzner-ci, linejam-ci]
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     permissions:
       contents: read
