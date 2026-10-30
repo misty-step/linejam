@@ -190,7 +190,7 @@ jobs:
 
   e2e:
     name: E2E Mirror
-    runs-on: [self-hosted, hetzner-ci, linejam-ci]
+    runs-on: ubuntu-latest
     timeout-minutes: 25
     needs: [quality-gates]
     if: |
