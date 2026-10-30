@@ -8,6 +8,7 @@
     "LICENSE"
   ],
   "modifications": [
-    "integrations/cloudflare is vendored from misty-step/parlor 356856cd706843423f0b34615bc032fd2c489b37 (PR #27, squash-merged with the same tree as master 610f57104a9eb7ece5c9b39f8e822c99a17e1596) without the operator CLI (src/cli.ts, src/convexZip.ts, src/operator.ts, test/operator.test.ts); its vitest devDependency follows Linejam's version"
+    "integrations/cloudflare is vendored from misty-step/parlor 356856cd706843423f0b34615bc032fd2c489b37 (PR #27, squash-merged with the same tree as master 610f57104a9eb7ece5c9b39f8e822c99a17e1596) without the operator CLI (src/cli.ts, src/convexZip.ts, src/operator.ts, test/operator.test.ts); its vitest devDependency follows Linejam's version",
+    "packages/react pins its happy-dom devDependency to 21.0.4, following Linejam's version, to clear GHSA-834v-8h66-3h79 and GHSA-c8p4-j97h-3vg8 in 20.14.5"
   ]
 }
