@@ -82,9 +82,96 @@
             What changed in Linejam. You can also read the
             <a href="https://linejam.mistystep.io/changelog">changelog in the app</a>.
           </p>
-          <p>Current application version: <strong>v0.28.1</strong>.</p>
+          <p>Current application version: <strong>v0.28.2</strong>.</p>
           <p>Release history is ordered by date. Older version numbers are preserved, not treated as the current version.</p>
 
+
+          <section class="msk-release" id="v0.28.2">
+            <p class="lj-kicker">2026-10-31 - v0.28.2</p>
+            <h2>Version 0.28.2</h2>
+            <ul>
+              <li>Improvements
+Private poem downloads and social previews are working again, so saved poems and shared links render as expected.
+The game now runs on a faster, self-contained backend, which should make joining and playing feel more responsive.
+Guest sessions are handled more reliably, reducing the chance of connection hiccups when you play without an account.
+Background upkeep for poem sweeps and game recovery is monitored more closely, helping keep games tidy and recoverable.
+Bug Fixes
+Fixed an issue where some poem images failed to download or preview correctly.
+Fixed a problem that could mix up guest session data during busy moments.
+Fixed a rare failure where the game could briefly check a stale version after an update.
+Fixed error tracking so different problems are no longer lumped together, making it easier to spot and fix real issues quickly.</li>
+            </ul>
+            <p>Release notes by Landmark.</p>
+            <details>
+              <summary>Technical history (58 changes)</summary>
+              <ul>
+                <li>(deploy) wait for the new Worker before verifying production (15378de)</li>
+                <li>(observability) keep distinct failure classes in distinct Sentry issues (30405f1)</li>
+                <li>(images) restore private poem downloads and social previews on Workers</li>
+                <li>(ci) bound the complete production health response (4537145)</li>
+                <li>(auth) isolate guest-session I/O per Worker request (3b6326f)</li>
+                <li>(deps-dev) bump @vitest/coverage-v8 from 4.1.10 to 5.0.1 (88d7d84)</li>
+                <li>(linejam) [US-003/S2] fix(observability): require status on sanitized spans (9e68557)</li>
+                <li>(linejam) [US-001/S5] docs: state that parlor is vendored (73ff177)</li>
+                <li>(ops) restore recoverable encrypted Convex backups (fb07f85)</li>
+                <li>(ops) record verified backup recovery and alarm receipt (43ec579)</li>
+                <li>(ops) detect missing daily backup check-ins (3f906d3)</li>
+                <li>(ci) fail releases on Worker route runtime errors (449f9eb)</li>
+                <li>(backend) serve the Convex backend from a Cloudflare Durable Object (e1bd67e)</li>
+                <li>link contributors to Constitution and Way of working (b718ec8)</li>
+                <li>(ops) monitor complete abandonment sweeps in Sentry (d3c670c)</li>
+                <li>(spec) consolidate Linejam behavior and canonical story QA (edaf96b)</li>
+                <li>(backend) point-in-time restore for the Durable Object backend (9771a68)</li>
+                <li>(readme) remove retired GitHub Pages links (9c747a0)</li>
+                <li>(backend) serve production from the Durable Object backend (ad2f936)</li>
+                <li>(analytics) measure guest stories without collecting content (371b09c)</li>
+                <li>exercise guest games against the Durable Object backend (c4f551a)</li>
+                <li>point new code at the Misty Step Stack standard (77d4b3a)</li>
+                <li>keep usage and sweep acceptance within canonical player stories (be26bdb)</li>
+                <li>expose portable native fast and full checks</li>
+                <li>(ci) preserve source archives and refuse dotenv discovery</li>
+                <li>(ui) replace home and shared help with Rust islands</li>
+                <li>(ui) retain error reporting and classify native client cancellation</li>
+                <li>(qa) cover both native peer-disconnect write errors</li>
+                <li>(ui) recover rejected module fetches with a fresh import URL</li>
+                <li>(observability) qualify party recovery and measure guest funnel</li>
+                <li>(observability) follow consolidated native Sentry route</li>
+                <li>make product purpose explicit [skip ci]</li>
+                <li>(release) verify production artifacts on the native train</li>
+                <li>(release) isolate verifier scratch from deploy artifacts</li>
+                <li>(release) retain bounded full and fast browser evidence</li>
+                <li>(observability) integrate approved recovery proof with native release candidate</li>
+                <li>(release) retain failed verdict on unchanged native ticks</li>
+                <li>(release) admit the root-importer pinned Wrangler</li>
+                <li>Merge branch &#39;stability/t_4ab4a7db&#39; of /home/exedev/.hermes/kanban/workspaces/t_4ab4a7db/linejam into rust/t_79984c80-entry</li>
+                <li>Merge remote-tracking branch &#39;origin/master&#39; into rust/t79984c80-approved-live</li>
+                <li>(ci) carry Rust into Dagger and ignore generated WASM identity</li>
+                <li>(qa) observe the configured entry error reporter</li>
+                <li>(qa) add linejam verification entry and shared navigation (389ef70)</li>
+                <li>(qa) lead with the proven native Worker lifecycle (520c4e5)</li>
+                <li>(deps) patch Next.js for October 14 2026 security advisories (de6f934)</li>
+                <li>(ci) fail OSV audit on unknown severity and remove braces path (ec6d25e)</li>
+                <li>run upkeep where before dispatching (de142b9)</li>
+                <li>(deps) dedupe @sentry/core and re-verify braces stand-ins (3a64aef)</li>
+                <li>(ci) block OSV audit on worse of severity label and CVSS score (177648a)</li>
+                <li>(ci) cover label-only OSV gate paths and document them (e37d393)</li>
+                <li>(ci) fail OSV gate when any alias member has an unscorable vector (0d35910)</li>
+                <li>add no-fallbacks rule to AGENTS.md (ef629de)</li>
+                <li>(deploy) declare credential needs for fleet reconciliation (e1e652b)</li>
+                <li>enable Entire session tracking (469eb7f)</li>
+                <li>run title, secret-scan and worker-image jobs on our drydock runner (5c00f16)</li>
+                <li>(deps) clear OSV blocking advisories (undici, zod, body-parser, happy-dom, msal-node) (cf19b19)</li>
+                <li>run merge-gate on our drydock runner (a267e07)</li>
+                <li>(deps) raise follow-redirects floor to 1.16.2 (GHSA-mrwp-f3q8-3g9p) (7ba974b)</li>
+              </ul>
+            </details>
+            <p class="lj-status">
+              <svg class="lj-icon" data-lucide="circle-check">
+                <use href="#i-circle-check" />
+              </svg>
+              <span>Evidence: PR #563, PR #567, commit 2259b6e, PR #571, PR #570, PR #509, PR #541, PR #540, PR #565, PR #578, PR #579, PR #577, PR #566, PR #581, PR #583, PR #560, PR #582, PR #572, PR #580, PR #584, PR #585, PR #586, PR #587, commit f3f1e74, commit 61c0ed8, commit c789e57, commit 15b814e, commit c94ec98, commit 4b4a50f, commit 962a46e, commit 4abce8b, commit ba7d565, commit a62e532, commit 5d4563a, commit 4583808, commit 44ac999, commit b84c81b, commit d19d604, commit d35edae, commit eccac00, commit 982075f, commit d0cb1ed, PR #589, PR #593, PR #603, PR #607, PR #606, PR #608, PR #609, PR #610, PR #611, PR #612, PR #588, PR #627, PR #628, PR #633, PR #630, PR #638.</span>
+            </p>
+          </section>
 
           <section class="msk-release" id="v0.28.1">
             <p class="lj-kicker">2026-10-15 - v0.28.1</p>
