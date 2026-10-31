@@ -80,7 +80,7 @@
         "schedule": "* * * * *",
         "timezone": "UTC",
         "maxRuntimeMinutes": 1,
-        "checkinMarginMinutes": 1,
+        "checkinMarginMinutes": 3,
         "recoveryThreshold": 1,
         "failureIssueThreshold": 1,
         "environments": ["production"]
