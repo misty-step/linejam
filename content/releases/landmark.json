@@ -60,5 +60,63 @@
     "slack": "## New Features\n\n- The footer now links to a changelog page, so you can see what’s changed in Linejam at a glance.",
     "tag": "v0.28.1",
     "version": "0.28.1"
+  },
+  {
+    "audience": "end-user",
+    "html": "<h2>Improvements</h2>\n<ul>\n<li>Private poem downloads and social previews are working again, so saved poems and shared links render as expected.</li>\n<li>The game now runs on a faster, self-contained backend, which should make joining and playing feel more responsive.</li>\n<li>Guest sessions are handled more reliably, reducing the chance of connection hiccups when you play without an account.</li>\n<li>Background upkeep for poem sweeps and game recovery is monitored more closely, helping keep games tidy and recoverable.</li>\n</ul>\n<h2>Bug Fixes</h2>\n<ul>\n<li>Fixed an issue where some poem images failed to download or preview correctly.</li>\n<li>Fixed a problem that could mix up guest session data during busy moments.</li>\n<li>Fixed a rare failure where the game could briefly check a stale version after an update.</li>\n<li>Fixed error tracking so different problems are no longer lumped together, making it easier to spot and fix real issues quickly.</li>\n</ul>\n",
+    "markdown": "## Improvements\n\n- Private poem downloads and social previews are working again, so saved poems and shared links render as expected.\n- The game now runs on a faster, self-contained backend, which should make joining and playing feel more responsive.\n- Guest sessions are handled more reliably, reducing the chance of connection hiccups when you play without an account.\n- Background upkeep for poem sweeps and game recovery is monitored more closely, helping keep games tidy and recoverable.\n\n## Bug Fixes\n\n- Fixed an issue where some poem images failed to download or preview correctly.\n- Fixed a problem that could mix up guest session data during busy moments.\n- Fixed a rare failure where the game could briefly check a stale version after an update.\n- Fixed error tracking so different problems are no longer lumped together, making it easier to spot and fix real issues quickly.",
+    "notes": "## Improvements\n\n- Private poem downloads and social previews are working again, so saved poems and shared links render as expected.\n- The game now runs on a faster, self-contained backend, which should make joining and playing feel more responsive.\n- Guest sessions are handled more reliably, reducing the chance of connection hiccups when you play without an account.\n- Background upkeep for poem sweeps and game recovery is monitored more closely, helping keep games tidy and recoverable.\n\n## Bug Fixes\n\n- Fixed an issue where some poem images failed to download or preview correctly.\n- Fixed a problem that could mix up guest session data during busy moments.\n- Fixed a rare failure where the game could briefly check a stale version after an update.\n- Fixed error tracking so different problems are no longer lumped together, making it easier to spot and fix real issues quickly.",
+    "plaintext": "Improvements\nPrivate poem downloads and social previews are working again, so saved poems and shared links render as expected.\nThe game now runs on a faster, self-contained backend, which should make joining and playing feel more responsive.\nGuest sessions are handled more reliably, reducing the chance of connection hiccups when you play without an account.\nBackground upkeep for poem sweeps and game recovery is monitored more closely, helping keep games tidy and recoverable.\nBug Fixes\nFixed an issue where some poem images failed to download or preview correctly.\nFixed a problem that could mix up guest session data during busy moments.\nFixed a rare failure where the game could briefly check a stale version after an update.\nFixed error tracking so different problems are no longer lumped together, making it easier to spot and fix real issues quickly.",
+    "published_at": "2026-10-31T17:46:24.455248524+00:00",
+    "release_url": "https://github.com/misty-step/linejam/releases/tag/v0.28.2",
+    "repository": "misty-step/linejam",
+    "schema_version": "landmark.public-release-notes.v1",
+    "sections": [
+      {
+        "bullets": [
+          {
+            "links": [],
+            "text": "Private poem downloads and social previews are working again, so saved poems and shared links render as expected."
+          },
+          {
+            "links": [],
+            "text": "The game now runs on a faster, self-contained backend, which should make joining and playing feel more responsive."
+          },
+          {
+            "links": [],
+            "text": "Guest sessions are handled more reliably, reducing the chance of connection hiccups when you play without an account."
+          },
+          {
+            "links": [],
+            "text": "Background upkeep for poem sweeps and game recovery is monitored more closely, helping keep games tidy and recoverable."
+          }
+        ],
+        "title": "Improvements"
+      },
+      {
+        "bullets": [
+          {
+            "links": [],
+            "text": "Fixed an issue where some poem images failed to download or preview correctly."
+          },
+          {
+            "links": [],
+            "text": "Fixed a problem that could mix up guest session data during busy moments."
+          },
+          {
+            "links": [],
+            "text": "Fixed a rare failure where the game could briefly check a stale version after an update."
+          },
+          {
+            "links": [],
+            "text": "Fixed error tracking so different problems are no longer lumped together, making it easier to spot and fix real issues quickly."
+          }
+        ],
+        "title": "Bug Fixes"
+      }
+    ],
+    "slack": "## Improvements\n\n- Private poem downloads and social previews are working again, so saved poems and shared links render as expected.\n- The game now runs on a faster, self-contained backend, which should make joining and playing feel more responsive.\n- Guest sessions are handled more reliably, reducing the chance of connection hiccups when you play without an account.\n- Background upkeep for poem sweeps and game recovery is monitored more closely, helping keep games tidy and recoverable.\n\n## Bug Fixes\n\n- Fixed an issue where some poem images failed to download or preview correctly.\n- Fixed a problem that could mix up guest session data during busy moments.\n- Fixed a rare failure where the game could briefly check a stale version after an update.\n- Fixed error tracking so different problems are no longer lumped together, making it easier to spot and fix real issues quickly.",
+    "tag": "v0.28.2",
+    "version": "0.28.2"
   }
 ]

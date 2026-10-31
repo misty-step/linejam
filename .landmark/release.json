@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "version": "0.28.1",
-  "tag": "v0.28.1",
-  "previousTag": "v0.28.0",
-  "sourceSha": "27f85abacb6abfdddf8eb31edab1e82d6ac5866f",
-  "preparedAt": "2026-10-15T01:18:12.020Z",
+  "version": "0.28.2",
+  "tag": "v0.28.2",
+  "previousTag": "v0.28.1",
+  "sourceSha": "7ba974bfb293fc7bf441d9f8bf65023937c7d244",
+  "preparedAt": "2026-10-31T17:46:09.090Z",
   "quality": "valid"
 }
