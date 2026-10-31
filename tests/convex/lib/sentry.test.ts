@@ -294,7 +294,7 @@ describe('closed Convex Sentry transport', () => {
         monitor_config: {
           schedule: { type: 'crontab', value: '* * * * *' },
           timezone: 'UTC',
-          checkin_margin: 1,
+          checkin_margin: 3,
           max_runtime: 1,
           failure_issue_threshold: 1,
           recovery_threshold: 1,
