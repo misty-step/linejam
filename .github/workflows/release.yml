@@ -27,7 +27,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout protected branch
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
         with:
           ref: master
           fetch-depth: 0
@@ -62,7 +62,7 @@ jobs:
         if: steps.gate.outputs.ready == 'true'
         # Pinned Landmark publishes Linux binaries with checksums. Its full-mode
         # prepare hook verifies already-merged artifacts; it never pushes master.
-        uses: misty-step/landmark@ee0b84f88302ddeb93d2cef7a350192479ad0121 # v0.28.8
+        uses: misty-step/landmark@d443b69caf9b1043f3f6127974e0e0af5425db80 # v0.28.15
         with:
           mode: full
           node-version: '22'

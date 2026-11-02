@@ -21,7 +21,7 @@ jobs:
       LINEJAM_HEALTH_TIMEOUT_MS: '10000'
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
