@@ -10,6 +10,8 @@ Use `SPEC.md` for observable behavior, `project.md` for the product brief, and
 `DESIGN.md` for identity and interaction. Powder owns priorities, open questions
 and decisions in flight; historical issues are context, not an automatic queue.
 
+Design principles (UX/DX/AX; no layout captions) live in [mistystack design](https://github.com/misty-step/mistystack/blob/master/skills/design/SKILL.md#principles); point there, don't copy them.
+
 ## Authority
 
 - State the goal, files/systems in scope, and live authority before mutation.
