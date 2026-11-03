@@ -13,6 +13,7 @@ proptest = { version = "=1.12.0", default-features = false, features = ["std"] }
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 leptos = { version = "=0.8.19", features = ["csr"] }
 wasm-bindgen = "=0.2.129"
+wasm-bindgen-futures = "0.4"
 js-sys = "0.3"
 gloo-events = "0.2"
-web-sys = { version = "0.3", features = ["CssStyleDeclaration", "Document", "Element", "Event", "HtmlElement", "KeyboardEvent", "Node", "Window"] }
+web-sys = { version = "0.3", features = ["CssStyleDeclaration", "Document", "Element", "Event", "HtmlDialogElement", "HtmlInputElement", "HtmlElement", "KeyboardEvent", "Node", "Window"] }

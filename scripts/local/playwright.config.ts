@@ -11,6 +11,8 @@ export default defineConfig(base, {
   testDir: '../../tests/e2e',
   testMatch: [
     'entry-ui.spec.ts',
+    'join-ui.spec.ts',
+    'errors.spec.ts',
     'early-smoke.spec.ts',
     'game-flow.spec.ts',
     'guest-flow.evidence.spec.ts',
