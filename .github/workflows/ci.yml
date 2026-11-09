@@ -248,7 +248,7 @@ jobs:
   # files, and unwaived packaging failures fail before merge-gate.
   qa-evidence:
     name: QA Evidence
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     needs: [quality-gates]
     if: |
