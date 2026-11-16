@@ -109,7 +109,7 @@
     "clsx": "^2.1.1",
     "convex": "^1.42.3",
     "lucide-react": "^1.47.0",
-    "next": "16.4.1",
+    "next": "16.4.5",
     "posthog-js": "^1.434.0",
     "qrcode.react": "^4.2.0",
     "react": "19.3.1",
