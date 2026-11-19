@@ -25,12 +25,17 @@ async function loopback(
 ) {
   const requests: string[] = [];
   const closed = new Set<Socket>();
+  const observed = new Set<Socket>();
   const server = createServer((request, response) => {
     requests.push(request.url ?? '');
+    // Node's fetch may preconnect idle sockets after aborting a request.
+    // Count only sockets that served HTTP, not speculative connections.
+    const socket = request.socket;
+    if (!observed.has(socket)) {
+      observed.add(socket);
+      socket.once('close', () => closed.add(socket));
+    }
     respond(request, response);
-  });
-  server.on('connection', (socket) => {
-    socket.once('close', () => closed.add(socket));
   });
   server.listen(0, '127.0.0.1');
   await once(server, 'listening');
