@@ -6,7 +6,19 @@
     <description>What&apos;s new in Linejam.</description>
     <language>en-us</language>
     <atom:link href="https://linejam.mistystep.io/releases.xml" rel="self" type="application/rss+xml"/>
-    <lastBuildDate>Thu, 15 Oct 2026 00:00:00 GMT</lastBuildDate>
+    <lastBuildDate>Fri, 13 Nov 2026 00:00:00 GMT</lastBuildDate>
+    <item>
+      <title>Linejam v0.28.2</title>
+      <link>https://linejam.mistystep.io/changelog#v0.28.2</link>
+      <guid isPermaLink="false">v0.28.2</guid>
+      <pubDate>Fri, 13 Nov 2026 00:00:00 GMT</pubDate>
+      <description>Bug Fixes
+Private poem downloads and social preview images are working again.
+Guest sessions stay separate, so one player’s writing won’t spill into another’s game.
+If a screen hits a snag while loading, Linejam retries automatically instead of leaving you stuck.
+Improvements
+Guest play is now measured in a privacy-preserving way: Linejam can see how games flow without collecting any poem content.</description>
+    </item>
     <item>
       <title>Linejam v0.28.1</title>
       <link>https://linejam.mistystep.io/changelog#v0.28.1</link>
