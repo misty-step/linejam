@@ -157,8 +157,8 @@ rankings.
 ### Owner decisions — ratify before merge
 
 These three UX nuances came out of Design Exploration Round 1. They are ratified
-together with the Round 2 design pick. Until the owner flips one, the standing
-default (left column) is the requirement.
+together with the Round 2 design pick. Until the owner flips one, the
+"Standing default" column is the requirement.
 
 | #   | Decision        | Standing default (matches `SPEC.md`) | Alternative under consideration          |
 | --- | --------------- | ------------------------------------ | ---------------------------------------- |
