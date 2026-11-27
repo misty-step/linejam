@@ -177,4 +177,27 @@ describe('[L1-5] one runtime', () => {
     expect(wrangler).toMatch(/"new_sqlite_classes": \["RoomDO", "ArchiveDO"\]/);
     expect(wrangler).not.toMatch(/open-next|convex|nodejs_compat/i);
   });
+
+  // Sentry issue 7795445353: the recompile deleted the code that fed Sentry cron
+  // monitors, but the monitors stayed live and alerted on every missed minute.
+  it('feeds no cron monitor, and names every retired one for removal', () => {
+    const wrangler = read('wrangler.jsonc');
+    expect(wrangler).not.toMatch(/"triggers"\s*:|"crons"\s*:/);
+    const workerSource = readdirSync(join(root, 'src'))
+      .filter((file) => file.endsWith('.ts'))
+      .map((file) => read(`src/${file}`))
+      .join('\n');
+    expect(workerSource).not.toMatch(/\bscheduled\s*\(|ScheduledController/);
+    expect(workerSource).not.toMatch(/sentry|check_in|monitor_slug/i);
+    const operations = read('docs/operations.md');
+    const monitoring = operations.slice(
+      operations.indexOf('## Monitoring'),
+      operations.indexOf('## The legacy data object')
+    );
+    for (const slug of ['linejam-abandonment-sweep', 'linejam-production-smoke', 'linejam-convex-backup']) {
+      expect(monitoring, slug).toContain(`\`${slug}\``);
+    }
+    expect(existsSync(join(root, '.github/workflows/health-monitor.yml'))).toBe(true);
+    expect(read('.github/workflows/health-monitor.yml')).toContain('https://linejam.mistystep.io/api/health');
+  });
 });

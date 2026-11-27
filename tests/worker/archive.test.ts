@@ -392,6 +392,42 @@ describe('[L1-4.9] bounded retention', () => {
     expect(await count()).toBe(0);
     expect((await call('GET', '/api/poems', { token: (await renewed(players[0]!)).token })).body).toEqual([]);
   });
+
+  // The retired stack ran this as a minutely `linejam-abandonment-sweep` cron
+  // (Sentry issue 7795445353). Now the room arms its own alarm; nothing external
+  // schedules or monitors it.
+  it('ends a writing game nobody touched for 7 days from the room’s own alarm, with no external scheduler', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    const { code, players } = await party(2);
+    await start(code, players[0]!);
+    await playRound(code, players, 0);
+    const room = bindings.ROOM.get(bindings.ROOM.idFromName(code));
+    const inspect = () =>
+      runInDurableObject(room, async (_instance, ctx) => ({
+        alarm: await ctx.storage.getAlarm(),
+        status: ctx.storage.sql.exec('SELECT status FROM games ORDER BY cycle DESC LIMIT 1').one().status,
+        lines: ctx.storage.sql.exec('SELECT COUNT(*) AS n FROM lines').one().n,
+      }));
+    const before = await inspect();
+    expect(before).toMatchObject({ status: 'writing', lines: 2 });
+    expect(before.alarm).not.toBeNull();
+
+    // One day short of the threshold, the game is untouched.
+    vi.setSystemTime(Date.now() + ABANDONED_RETENTION_MS - DAY);
+    await runDurableObjectAlarm(room);
+    expect(await inspect()).toMatchObject({ status: 'writing', lines: 2 });
+
+    vi.setSystemTime(Date.now() + 2 * DAY);
+    expect(await runDurableObjectAlarm(room)).toBe(true);
+    const after = await inspect();
+    expect(after).toMatchObject({ status: 'ended', lines: 0 });
+    // The room re-arms itself for its 90-day idle removal.
+    expect(after.alarm).not.toBeNull();
+    const view = await state(code, await renewed(players[0]!));
+    expect(view.body.phase).toBe('lobby');
+    expect(view.body.game).toBeNull();
+    expect((await call('GET', '/api/poems', { token: (await renewed(players[0]!)).token })).body).toEqual([]);
+  });
 });
 
 describe('[L1-5.4] legacy data is imported, never invented or reset', () => {

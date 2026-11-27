@@ -29,6 +29,35 @@ deploy. After activation, read back `GET https://linejam.mistystep.io/api/health
 (`PRODUCT.md` `[V-4]`). `.github/workflows/health-monitor.yml` polls the same
 route.
 
+## Monitoring
+
+The Worker sends nothing to any monitoring service: it has no cron trigger, no
+`scheduled` handler and no check-in code. Background work (abandoned-game
+cleanup, idle-room removal, archive retries, the daily retention sweep) runs on
+each Durable Object's own alarm. The only things that watch production are
+outside probes of `GET /api/health`:
+
+| Monitor                                           | Fed by                                            |
+| ------------------------------------------------- | ------------------------------------------------- |
+| `.github/workflows/health-monitor.yml`            | polls `/api/health` every 5 minutes               |
+| Sentry uptime monitor "Linejam production health" | Sentry polls `/api/health`; nothing in the Worker |
+
+The retired stack also fed three Sentry **cron** monitors from code that the
+recompile deleted. Nothing sends their check-ins any more, so each one opens a
+"Cron failure" issue on every missed schedule until it is removed in Sentry
+(`misty-step` / `linejam`, Crons). Removing them is an operator action in
+Sentry, not a code change:
+
+| Retired cron monitor        | Was fed by                                                  | Schedule (UTC) |
+| --------------------------- | ----------------------------------------------------------- | -------------- |
+| `linejam-abandonment-sweep` | Convex `runAbandonmentSweep` cron in the old backend object | every minute   |
+| `linejam-production-smoke`  | `prod-smoke.yml` workflow                                   | `17 * * * *`   |
+| `linejam-convex-backup`     | `convex-backup.yml` workflow                                | `17 9 * * *`   |
+
+Do not restore them by adding check-ins to the Worker: there is no global
+sweep left to report on. A new external monitor needs a named emitter in this
+repository and a row in the table above.
+
 ## The legacy data object
 
 Before the recompile, production data lived in one SQLite Durable Object of
