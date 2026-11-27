@@ -1,5 +1,5 @@
 import { createExecutionContext, waitOnExecutionContext } from 'cloudflare:test';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
 import { signGuestToken } from '../../src/auth.ts';
 import type { Env } from '../../src/env.ts';
 import { RELEASE, parseDsn, resetBeaconWindow, scrub } from '../../src/telemetry.ts';
@@ -15,7 +15,7 @@ const SHARE = 'Zx9_share-slug-0123456789abcdefABCD';
 const TOKEN = 'eyJndWVzdElkIjoiYWJjIiwiaXNzdWVkQXQiOjF9.c2lnbmF0dXJlLXNpZ25hdHVyZS1zaWc';
 const SECRETS = [SHARE, TOKEN, 'K7QM', 'ada@example.com', 'p_0123456789abcdef01234567', DSN, 'public0key@'];
 
-let sentry: ReturnType<typeof vi.spyOn<typeof globalThis, 'fetch'>>;
+let sentry: MockInstance<typeof fetch>;
 let logged: string[];
 
 beforeEach(() => {
