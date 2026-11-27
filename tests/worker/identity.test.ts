@@ -23,7 +23,9 @@ describe('[L1-2.3] signed guest credentials', () => {
     expect(again.status).toBe(200);
     expect(again.body.guestId).toBe(minted.body.guestId);
     const me = await call('GET', '/api/guest', { headers: { cookie: pair } });
-    expect(me.body).toEqual({ guestId: minted.body.guestId });
+    expect(me.body).toEqual({ status: 'ready', guestId: minted.body.guestId });
+    // A first-time visitor is not an error.
+    expect((await call('GET', '/api/guest')).body).toEqual({ status: 'none', guestId: null });
   });
 
   it('refuses a tampered, foreign-signed or expired credential instead of silently creating a writer', async () => {
@@ -34,8 +36,10 @@ describe('[L1-2.3] signed guest credentials', () => {
     const foreign = await signGuestToken('another-secret-another-secret-another', player.guestId, Date.now());
     for (const bad of [`${forgedPayload}.${signature}`, `${payload}.AAAA`, foreign, 'garbage', `${payload}`]) {
       const reply = await call('GET', '/api/guest', { token: bad });
-      expect(reply.status).toBe(401);
-      expect(reply.body.error.code).toBe('guest_invalid');
+      expect(reply.body).toEqual({ status: 'invalid', guestId: null });
+      const refused = await call('GET', '/api/poems', { token: bad });
+      expect(refused.status).toBe(401);
+      expect(refused.body.error.code).toBe('guest_invalid');
       // Bootstrap with a refused credential shows recovery; it does not mint.
       const boot = await call('POST', '/api/guest', { token: bad });
       expect(boot.status).toBe(401);
@@ -47,7 +51,7 @@ describe('[L1-2.3] signed guest credentials', () => {
     expect(fresh.body.guestId).not.toBe(player.guestId);
 
     vi.setSystemTime(Date.now() + GUEST_TOKEN_TTL_MS + 1000);
-    expect((await call('GET', '/api/guest', { token: player.token })).status).toBe(401);
+    expect((await call('GET', '/api/guest', { token: player.token })).body.status).toBe('invalid');
   });
 
   it('renews a credential in use and keeps the identity', async () => {
@@ -59,8 +63,8 @@ describe('[L1-2.3] signed guest credentials', () => {
     expect(renewed.body.guestId).toBe(player.guestId);
     expect(renewed.body.token).not.toBe(player.token);
     vi.setSystemTime(Date.now() + 6 * 24 * 60 * 60 * 1000);
-    expect((await call('GET', '/api/guest', { token: player.token })).status).toBe(401);
-    expect((await call('GET', '/api/guest', { token: renewed.body.token })).status).toBe(200);
+    expect((await call('GET', '/api/guest', { token: player.token })).body.status).toBe('invalid');
+    expect((await call('GET', '/api/guest', { token: renewed.body.token })).body.status).toBe('ready');
   });
 
   it('honors a credential in the pre-recompile format and cookie name', async () => {
@@ -73,7 +77,7 @@ describe('[L1-2.3] signed guest credentials', () => {
     const legacy = `${payload}.${signature}`;
     expect(await verifyGuestToken(SECRET, legacy, Date.now())).toEqual({ guestId: 'legacy-guest-1', issuedAt });
     const me = await call('GET', '/api/guest', { headers: { cookie: `linejam_guest_token=${legacy}` } });
-    expect(me.body).toEqual({ guestId: 'legacy-guest-1' });
+    expect(me.body).toEqual({ status: 'ready', guestId: 'legacy-guest-1' });
   });
 
   it('refuses cross-origin writes and non-JSON bodies', async () => {

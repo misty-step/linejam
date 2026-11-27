@@ -98,12 +98,21 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     return json({ guestId, token }, 201, { 'set-cookie': guestCookie(request, token) });
   }
   if (is('GET', 'guest')) {
-    const identity = await requireGuest(request, env.GUEST_TOKEN_SECRET, now);
+    // Asking "who am I" is not an error for a first-time visitor: the answer is
+    // a 200 that says none, ready, or invalid (so the browser can show recovery).
+    if (!presentedToken(request)) return json({ status: 'none', guestId: null });
+    let identity;
+    try {
+      identity = await requireGuest(request, env.GUEST_TOKEN_SECRET, now);
+    } catch (error) {
+      if (error instanceof Reject && error.code === 'guest_invalid') return json({ status: 'invalid', guestId: null });
+      throw error;
+    }
     const headers: Record<string, string> = {};
     if (shouldRenew(identity, now) && !request.headers.get('authorization')) {
       headers['set-cookie'] = guestCookie(request, await signGuestToken(requireSecret(env.GUEST_TOKEN_SECRET), identity.guestId, now));
     }
-    return json({ guestId: identity.guestId }, 200, headers);
+    return json({ status: 'ready', guestId: identity.guestId }, 200, headers);
   }
 
   // ── public reads through a share link (no identity needed) ──
