@@ -12,11 +12,11 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
           'flex min-h-12 min-w-0 w-full max-w-full bg-surface px-4 py-3',
           'text-base ring-offset-background',
           'border border-border',
-          'rounded-md',
+          'rounded-[var(--radius-control)]',
           'placeholder:text-text-muted',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:border-transparent',
           'disabled:cursor-not-allowed disabled:opacity-50',
-          'transition-colors duration-150',
+          'transition-colors duration-[var(--duration-micro)]',
           className
         )}
         ref={ref}

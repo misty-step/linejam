@@ -251,11 +251,6 @@ export function PoemDetail({
     authorStableId: line.authorKey,
   }));
 
-  // Collect all stable IDs for consistent color assignment
-  const allStableIds = lines
-    .map((l) => l.authorKey)
-    .filter((id): id is string => !!id);
-
   // Calculate unique poets
   const uniquePoets = new Set(lines.map((l) => l.authorName)).size;
 
@@ -266,7 +261,6 @@ export function PoemDetail({
       lines={poemLines}
       variant="archive"
       alreadyRevealed
-      allStableIds={allStableIds}
       metadata={{
         createdAt: poem.createdAt,
         firstLine: lines[0]?.text ?? '',

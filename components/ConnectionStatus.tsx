@@ -89,7 +89,7 @@ export function ConnectionStatus({
       aria-atomic="true"
       className="lj-safe-inline fixed inset-x-0 top-0 z-[60] flex justify-center pt-[max(0.5rem,env(safe-area-inset-top))]"
     >
-      <p className="max-w-xl rounded-full border border-[var(--color-border)] bg-[var(--color-surface)]/95 px-4 py-2 text-center text-sm text-[var(--color-text-primary)] shadow-[var(--shadow-lg)] backdrop-blur">
+      <p className="max-w-xl rounded-[var(--radius-control)] border border-[var(--color-border)] bg-[var(--color-surface)]/95 px-4 py-2 text-center text-sm text-[var(--color-text-primary)] shadow-[var(--shadow-lg)] backdrop-blur">
         {message}
       </p>
     </div>

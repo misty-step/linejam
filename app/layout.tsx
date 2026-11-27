@@ -25,6 +25,15 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: siteConfig.title }],
   manifest: '/site.webmanifest',
+  // Rasters are rendered mechanically from folio/assets/mark.svg ([D1-2.3]).
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: '16x16 32x32' },
+      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: [{ url: '/apple-touch-icon.png', sizes: '180x180' }],
+  },
   metadataBase: new URL(siteConfig.url),
   openGraph: {
     title: siteConfig.title,

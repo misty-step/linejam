@@ -9,8 +9,8 @@ export interface CardFontPairing {
 }
 
 const CARD_FONT_PAIRING: CardFontPairing = {
-  displayFamily: 'DynaPuff',
-  sansFamily: 'Nunito Sans',
+  displayFamily: 'Newsreader',
+  sansFamily: 'Plus Jakarta Sans',
 };
 
 export function getCardFontPairing(): CardFontPairing {
@@ -47,8 +47,9 @@ async function readFont(filename: string): Promise<ArrayBuffer> {
 /** Workers use the static asset binding, never an origin request or file: fetch. */
 export async function loadCardFonts(): Promise<LoadedCardFonts> {
   const [display, sans] = await Promise.all([
-    readFont('dynapuff-500.ttf'),
-    readFont('nunitosans-400.ttf'),
+    // Satori reads WOFF, not WOFF2; these are the same self-hosted OFL faces.
+    readFont('newsreader-latin-500-normal.woff'),
+    readFont('plus-jakarta-sans-latin-400-normal.woff'),
   ]);
 
   return {

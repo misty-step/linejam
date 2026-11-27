@@ -50,11 +50,12 @@ test.describe('guest archive access (no account)', () => {
       });
 
       await expect(
-        page.getByRole('link', { name: /Start a game/i })
+        page.getByRole('link', { name: /^New room$/i })
       ).toHaveAttribute('href', '/host');
-      await expect(
-        page.getByRole('link', { name: /Join a room/i })
-      ).toHaveAttribute('href', '/join');
+      await expect(page.getByRole('link', { name: /^Join$/i })).toHaveAttribute(
+        'href',
+        '/join'
+      );
     } finally {
       await context.close();
     }

@@ -212,18 +212,19 @@ async function main() {
         await page.emulateMedia({ colorScheme });
         await page.goto(origin);
         await page
-          .getByRole('heading', { level: 1, name: 'A little room for words.' })
+          .getByRole('heading', { level: 1, name: 'Linejam' })
           .waitFor();
+        await page
+          .getByRole('button', { name: 'New room', exact: true })
+          .waitFor();
+        await page.getByRole('button', { name: 'Join', exact: true }).waitFor();
+        // The eight locked folio emblems (DESIGN.md [D1-2.4]).
         assert.equal(
           await page
-            .getByRole('navigation', { name: 'Play Linejam' })
-            .getByRole('link', { name: 'Join a room' })
-            .getAttribute('href'),
-          '/join'
-        );
-        assert.equal(
-          await page.locator('linejam-entry[view="home"] svg').count(),
-          4
+            .getByRole('radiogroup', { name: 'Emblem' })
+            .getByRole('radio')
+            .count(),
+          8
         );
         assert(
           await page.evaluate(

@@ -91,7 +91,7 @@ export function createRecapPage(
                 <article
                   key={poem._id}
                   aria-labelledby={`recap-poem-${poem._id}`}
-                  className="poem-print-surface rounded-3xl bg-surface p-5 sm:p-8"
+                  className="poem-print-surface rounded-[var(--radius-sheet)] bg-surface p-5 sm:p-8"
                 >
                   <header className="mb-5 space-y-1">
                     <h2
@@ -129,13 +129,13 @@ export function createRecapPage(
           <footer className="flex flex-col gap-3 pt-2 print:hidden sm:flex-row">
             <Link
               href={`/join?code=${recap.roomCode}`}
-              className="inline-flex min-h-12 items-center justify-center rounded-full bg-primary px-6 py-3 text-base font-bold text-text-inverse hover:bg-primary-hover focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-focus-ring"
+              className="inline-flex min-h-12 items-center justify-center rounded-[var(--radius-control)] bg-primary px-6 py-3 text-base font-bold text-text-inverse hover:bg-primary-hover focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-focus-ring"
             >
               Join this room
             </Link>
             <Link
               href="/"
-              className="inline-flex min-h-12 items-center justify-center rounded-full border border-border bg-surface px-6 py-3 text-base font-bold hover:border-primary focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-focus-ring"
+              className="inline-flex min-h-12 items-center justify-center rounded-[var(--radius-control)] border border-border bg-surface px-6 py-3 text-base font-bold hover:border-primary focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-focus-ring"
             >
               Start a new room
             </Link>

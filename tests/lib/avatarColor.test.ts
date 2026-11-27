@@ -1,35 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getUniqueColor, getStableId } from '@/lib/avatarColor';
-
-describe('getUniqueColor', () => {
-  it('returns unique colors for all users in room', () => {
-    const allIds = ['alice', 'bob', 'charlie', 'diana'];
-    const colors = allIds.map((id) => getUniqueColor(id, allIds));
-
-    // All colors should be unique
-    const uniqueColors = new Set(colors);
-    expect(uniqueColors.size).toBe(allIds.length);
-  });
-
-  it('handles sorted order correctly', () => {
-    // Order of allIds shouldn't affect result - internal sorting ensures consistency
-    const ids1 = ['zebra', 'apple', 'mango'];
-    const ids2 = ['mango', 'zebra', 'apple'];
-
-    const color1 = getUniqueColor('apple', ids1);
-    const color2 = getUniqueColor('apple', ids2);
-    expect(color1).toBe(color2);
-  });
-
-  it('returns fallback when stableId not in list', () => {
-    const allIds = ['user-1', 'user-2'];
-    // Query for user not in the list
-    const color = getUniqueColor('unknown-user', allIds);
-
-    // Should still return a valid color (fallback branch)
-    expect(color).toMatch(/^#[0-9a-f]{6}$/i);
-  });
-});
+import { getStableId } from '@/lib/avatarColor';
 
 describe('getStableId', () => {
   it('prefers clerkUserId over guestId', () => {

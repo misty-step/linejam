@@ -118,9 +118,7 @@ function WritingComposer({
   const [submissionState, setSubmissionState] = useState<
     'idle' | 'submitting' | 'retryable' | 'failed'
   >('idle');
-  const [acknowledgement, setAcknowledgement] = useState(
-    'Tucked into the poem.'
-  );
+  const [acknowledgement, setAcknowledgement] = useState('Line tucked');
   const [browserOnline, setBrowserOnline] = useState(
     () => globalThis.navigator?.onLine ?? true
   );
@@ -216,7 +214,7 @@ function WritingComposer({
       setAcknowledgement(
         result?.status === 'already_submitted'
           ? 'Your line was already recorded.'
-          : 'Tucked into the poem.'
+          : 'Line tucked'
       );
       clearWritingDraft(draftKey, identityKey);
       // Only the server acknowledgement advances the composer to waiting.
@@ -265,145 +263,149 @@ function WritingComposer({
         data-testid={E2E_TEST_IDS.writingScrollRegion}
         className="lj-safe-inline min-h-0 overflow-x-hidden overflow-y-auto overscroll-contain py-3 [--lj-safe-inline-space:1rem] md:py-8"
       >
-        <div className="mx-auto flex w-full max-w-xl flex-col gap-4">
-          <RoundProgress
-            round={assignment.lineIndex + 1}
-            total={assignment.totalRounds}
-          />
-          {draftWasRestored && (
-            <p aria-live="polite" className="text-sm text-text-secondary">
-              Draft restored
-            </p>
-          )}
-          {assignment.previousLineText && (
-            <div data-testid={E2E_TEST_IDS.writingCarriedLine}>
-              <p className="mb-1 text-sm text-text-secondary">Previous line</p>
-              <p className="break-words text-lg font-sans leading-snug text-text-primary [overflow-wrap:anywhere] md:text-2xl">
-                {assignment.previousLineText}
+        <div className="mx-auto grid w-full max-w-xl gap-4 md:max-w-[920px] md:grid-cols-2 md:items-start md:gap-10">
+          <div className="flex min-w-0 flex-col gap-4">
+            <RoundProgress
+              round={assignment.lineIndex + 1}
+              total={assignment.totalRounds}
+            />
+            {draftWasRestored && (
+              <p aria-live="polite" className="text-sm text-text-secondary">
+                Draft restored
               </p>
-            </div>
-          )}
-          {isReadOnly && (
-            <p
-              id="writing-confirmation"
-              className="text-sm text-text-secondary"
-            >
-              This line stays read-only until the room confirms whether it was
-              recorded.
-            </p>
-          )}
-          <textarea
-            ref={textareaRef}
-            data-testid={E2E_TEST_IDS.writingLineInput}
-            className="field-sizing-content min-h-[72px] max-h-[168px] w-full min-w-0 resize-none rounded-md border border-border bg-surface p-3 font-sans text-xl leading-snug text-text-primary outline-none [overflow-wrap:anywhere] focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-focus-ring md:p-5 md:text-2xl"
-            placeholder="Your line…"
-            value={text}
-            readOnly={isReadOnly}
-            onChange={(event) => {
-              if (isReadOnly) return;
-              setText(event.target.value.replace(/[\r\n]+/g, ' '));
-            }}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') event.preventDefault();
-            }}
-            onFocus={() => {
-              window.clearTimeout(focusTimeoutRef.current);
-              focusTimeoutRef.current = window.setTimeout(() => {
-                textareaRef.current?.scrollIntoView({
-                  behavior: 'auto',
-                  block: 'center',
-                });
-                focusTimeoutRef.current = undefined;
-              }, 300);
-            }}
-            rows={2}
-            maxLength={500}
-            inputMode="text"
-            autoCapitalize="sentences"
-            autoCorrect="on"
-            enterKeyHint="done"
-            wrap="soft"
-            aria-label={`Write your line for round ${assignment.lineIndex + 1}. Target: ${targetCount} ${targetCount === 1 ? 'word' : 'words'}.`}
-            aria-required="true"
-            aria-invalid={currentWordCount > targetCount}
-            aria-describedby={
-              isReadOnly ? 'word-slots writing-confirmation' : 'word-slots'
-            }
-          />
-          {text.length >= 450 && (
-            <p className="text-sm text-text-secondary">
-              {text.length}/500 characters
-            </p>
-          )}
-          {(submissionState === 'retryable' ||
-            submissionState === 'failed') && (
-            <Alert variant="error">
-              <p>{error}</p>
-              {submissionState === 'retryable' && (
-                <Button
-                  type="button"
-                  onClick={() => void submit(true)}
-                  data-sound="loading"
-                  disabled={!browserOnline}
-                  variant="secondary"
-                  className="mt-3"
-                >
-                  {browserOnline ? 'Retry once' : 'Waiting for connection…'}
-                </Button>
-              )}
-              {submissionState === 'failed' && (
-                <Button
-                  type="button"
-                  onClick={() => window.location.reload()}
-                  disabled={!browserOnline}
-                  variant="secondary"
-                  className="mt-3"
-                >
-                  Reload room
-                </Button>
-              )}
-            </Alert>
-          )}
-        </div>
-      </div>
-      <div
-        data-testid={E2E_TEST_IDS.writingActionZone}
-        className="lj-safe-inline bg-background pt-2 pb-[max(12px,env(safe-area-inset-bottom))] [--lj-safe-inline-space:1rem]"
-      >
-        <div className="mx-auto flex max-w-xl flex-wrap items-center justify-between gap-3">
-          <output
-            id="word-slots"
-            data-testid={E2E_TEST_IDS.writingWordSlots}
-            aria-label={`${currentWordCount} of ${targetCount} words`}
-            aria-live="off"
-            className={cn(
-              'shrink-0 whitespace-nowrap text-sm font-semibold tabular-nums',
-              currentWordCount > targetCount
-                ? 'text-error'
-                : 'text-text-secondary'
             )}
-          >
-            <span className="block">
-              {currentWordCount} / {targetCount}
-            </span>
-            <span className="block text-xs font-normal">
-              {targetCount === 1 ? 'word' : 'words'}
-            </span>
-          </output>
-          <Button
-            onClick={() => void submit()}
-            data-testid={E2E_TEST_IDS.writingSubmitLineButton}
-            data-sound="loading"
-            data-ready={isReady ? 'true' : undefined}
-            disabled={!isReady}
-            className="min-h-[44px] min-w-[112px] px-[20px] py-[10px]"
-          >
-            {submissionState === 'submitting'
-              ? 'Submitting…'
-              : submissionState === 'failed'
-                ? 'Unable to confirm'
-                : 'Submit'}
-          </Button>
+            {assignment.previousLineText && (
+              <div data-testid={E2E_TEST_IDS.writingCarriedLine}>
+                <p className="mb-1 text-sm text-text-secondary">Previous</p>
+                <p className="break-words font-serif text-xl leading-snug text-text-primary [overflow-wrap:anywhere] md:text-2xl">
+                  {assignment.previousLineText}
+                </p>
+              </div>
+            )}
+          </div>
+          <div className="flex min-w-0 flex-col gap-4 md:rounded-[var(--radius-sheet)] md:border md:border-[var(--hairline)] md:bg-[var(--surface)] md:p-6">
+            {isReadOnly && (
+              <p
+                id="writing-confirmation"
+                className="text-sm text-text-secondary"
+              >
+                This line stays read-only until the room confirms whether it was
+                recorded.
+              </p>
+            )}
+            <textarea
+              ref={textareaRef}
+              data-testid={E2E_TEST_IDS.writingLineInput}
+              className="field-sizing-content min-h-[72px] max-h-[168px] w-full min-w-0 resize-none rounded-[var(--radius-control)] border border-border bg-surface p-3 font-sans text-xl leading-snug text-text-primary outline-none [overflow-wrap:anywhere] focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-focus-ring md:p-5 md:text-2xl"
+              placeholder="Your line…"
+              value={text}
+              readOnly={isReadOnly}
+              onChange={(event) => {
+                if (isReadOnly) return;
+                setText(event.target.value.replace(/[\r\n]+/g, ' '));
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') event.preventDefault();
+              }}
+              onFocus={() => {
+                window.clearTimeout(focusTimeoutRef.current);
+                focusTimeoutRef.current = window.setTimeout(() => {
+                  textareaRef.current?.scrollIntoView({
+                    behavior: 'auto',
+                    block: 'center',
+                  });
+                  focusTimeoutRef.current = undefined;
+                }, 300);
+              }}
+              rows={2}
+              maxLength={500}
+              inputMode="text"
+              autoCapitalize="sentences"
+              autoCorrect="on"
+              enterKeyHint="done"
+              wrap="soft"
+              aria-label={`Write your line for round ${assignment.lineIndex + 1}. Target: ${targetCount} ${targetCount === 1 ? 'word' : 'words'}.`}
+              aria-required="true"
+              aria-invalid={currentWordCount > targetCount}
+              aria-describedby={
+                isReadOnly ? 'word-slots writing-confirmation' : 'word-slots'
+              }
+            />
+            {text.length >= 450 && (
+              <p className="text-sm text-text-secondary">
+                {text.length}/500 characters
+              </p>
+            )}
+            {(submissionState === 'retryable' ||
+              submissionState === 'failed') && (
+              <Alert variant="error">
+                <p>{error}</p>
+                {submissionState === 'retryable' && (
+                  <Button
+                    type="button"
+                    onClick={() => void submit(true)}
+                    data-sound="loading"
+                    disabled={!browserOnline}
+                    variant="secondary"
+                    className="mt-3"
+                  >
+                    {browserOnline ? 'Retry once' : 'Waiting for connection…'}
+                  </Button>
+                )}
+                {submissionState === 'failed' && (
+                  <Button
+                    type="button"
+                    onClick={() => window.location.reload()}
+                    disabled={!browserOnline}
+                    variant="secondary"
+                    className="mt-3"
+                  >
+                    Reload room
+                  </Button>
+                )}
+              </Alert>
+            )}
+          </div>
+        </div>
+        <div
+          data-testid={E2E_TEST_IDS.writingActionZone}
+          className="lj-safe-inline bg-background pt-2 pb-[max(12px,env(safe-area-inset-bottom))] [--lj-safe-inline-space:1rem]"
+        >
+          <div className="mx-auto flex max-w-xl flex-wrap items-center justify-between gap-3 md:max-w-[920px] md:pl-[calc(50%+1.25rem)]">
+            <output
+              id="word-slots"
+              data-testid={E2E_TEST_IDS.writingWordSlots}
+              aria-label={`${currentWordCount} of ${targetCount} words`}
+              aria-live="off"
+              className={cn(
+                'shrink-0 whitespace-nowrap font-mono text-sm font-medium tabular-nums',
+                currentWordCount > targetCount
+                  ? 'text-error'
+                  : 'text-text-secondary'
+              )}
+            >
+              <span className="block">
+                {currentWordCount} / {targetCount}
+              </span>
+              <span className="block text-xs font-normal">
+                {targetCount === 1 ? 'word' : 'words'}
+              </span>
+            </output>
+            <Button
+              onClick={() => void submit()}
+              data-testid={E2E_TEST_IDS.writingSubmitLineButton}
+              data-sound="loading"
+              data-ready={isReady ? 'true' : undefined}
+              disabled={!isReady}
+              className="min-h-[44px] min-w-[112px] px-[20px] py-[10px]"
+            >
+              {submissionState === 'submitting'
+                ? 'Tucking…'
+                : submissionState === 'failed'
+                  ? 'Unable to confirm'
+                  : 'Tuck line'}
+            </Button>
+          </div>
         </div>
       </div>
     </div>

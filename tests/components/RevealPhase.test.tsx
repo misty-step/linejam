@@ -292,7 +292,7 @@ describe('RevealPhase component', () => {
     expect(
       within(poemView).getByRole('button', { name: /favorite this poem/i })
     ).toBeEnabled();
-    const done = within(poemView).getByRole('button', { name: 'Done' });
+    const done = within(poemView).getByRole('button', { name: 'Next poem' });
     expect(done).toBeEnabled();
     await user.click(done);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
@@ -335,7 +335,7 @@ describe('RevealPhase component', () => {
       expect(within(visibleLines[index]).getByText(line.text)).toBeVisible();
     });
     expect(
-      within(poemView).getByRole('button', { name: 'Done' })
+      within(poemView).getByRole('button', { name: 'Next poem' })
     ).toBeEnabled();
   });
 

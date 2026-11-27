@@ -108,7 +108,7 @@ test('room chrome does not cover lobby or writing content on desktop and mobile'
 
     await expectBelow(
       desktopChrome,
-      hostPage.getByRole('button', { name: /Start Linejam/i }).first()
+      hostPage.getByRole('button', { name: /Start game/i }).first()
     );
     await expectBelow(
       mobileChrome,
@@ -124,7 +124,7 @@ test('room chrome does not cover lobby or writing content on desktop and mobile'
       fullPage: true,
     });
 
-    await hostPage.getByRole('button', { name: /Start Linejam/i }).click();
+    await hostPage.getByRole('button', { name: /Start game/i }).click();
 
     await expect(hostPage.getByRole('textbox')).toBeVisible({
       timeout: 30000,

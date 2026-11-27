@@ -4,6 +4,27 @@ export type ColorModePreference = ColorMode | 'system';
 
 /** Flat token keys map directly to root CSS variables. */
 export interface DesignTokens {
+  /** Canonical folio properties, DESIGN.md [D1-3.1]. */
+  bg: string;
+  'bg-desk': string;
+  surface: string;
+  'surface-subtle': string;
+  'surface-elevated': string;
+  ink: string;
+  'ink-secondary': string;
+  'ink-muted': string;
+  hairline: string;
+  'hairline-strong': string;
+  accent: string;
+  'accent-hover': string;
+  'accent-ink': string;
+  'accent-soft': string;
+  'accent-border': string;
+  danger: string;
+  'danger-soft': string;
+  'danger-border': string;
+  heart: string;
+  'heart-soft': string;
   'color-primary': string;
   'color-primary-hover': string;
   'color-primary-active': string;
@@ -24,6 +45,7 @@ export interface DesignTokens {
   'color-warning': string;
   'color-info': string;
   'font-display': string;
+  'font-serif': string;
   'font-sans': string;
   'font-mono': string;
   'text-xs': string;
@@ -47,7 +69,9 @@ export interface DesignTokens {
   'shadow-sm': string;
   'shadow-md': string;
   'shadow-lg': string;
-  'shadow-color': string;
+  'radius-tag': string;
+  'radius-control': string;
+  'radius-sheet': string;
   'radius-sm': string;
   'radius-md': string;
   'radius-lg': string;
@@ -60,6 +84,9 @@ export interface DesignTokens {
   'space-6': string;
   'space-7': string;
   'space-8': string;
+  'duration-tap': string;
+  'duration-micro': string;
+  'duration-screen': string;
   'duration-instant': string;
   'duration-fast': string;
   'duration-normal': string;

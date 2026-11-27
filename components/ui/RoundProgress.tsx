@@ -25,14 +25,12 @@ export function RoundProgress({
             height={count * 4.6}
             rx="1.8"
             fill={
-              index === round - 1
-                ? 'var(--color-primary)'
-                : 'var(--color-border)'
+              index === round - 1 ? 'var(--accent)' : 'var(--hairline-strong)'
             }
           />
         ))}
       </svg>
-      <span>
+      <span className="font-mono font-medium">
         Round {round} of {total}
       </span>
     </div>

@@ -62,7 +62,7 @@ describe('entry and shell behavior', () => {
     renderEntry(<JoinPage dependencies={joinDependencies} />);
 
     const code = await screen.findByRole('textbox', { name: /room code/i });
-    const name = screen.getByRole('textbox', { name: /your pen name/i });
+    const name = screen.getByRole('textbox', { name: /^pen name$/i });
     expect(code).toHaveValue('ABCD');
     expect(code).not.toHaveAttribute('readonly');
     expect(name).toBeRequired();

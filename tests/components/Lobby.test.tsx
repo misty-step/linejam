@@ -113,9 +113,7 @@ describe('Lobby component', () => {
     renderLobby(
       <Lobby room={rematchRoom} players={mockPlayers} isHost={true} />
     );
-    await user.click(
-      screen.getAllByRole('button', { name: /Start Linejam/i })[0]
-    );
+    await user.click(screen.getAllByRole('button', { name: /Start game/i })[0]);
 
     await waitFor(() => {
       expect(mockTrackLobbyReady).toHaveBeenCalledWith({
@@ -138,7 +136,7 @@ describe('Lobby component', () => {
     renderLobby(<Lobby room={mockRoom} players={mockPlayers} isHost={true} />);
 
     const startButtons = screen.getAllByRole('button', {
-      name: /Start Linejam/i,
+      name: /Start game/i,
     });
 
     await user.click(startButtons[0]);

@@ -18,6 +18,6 @@ cpSync(
   { recursive: true }
 );
 cpSync(
-  resolve(dirname(siteTokensPath), '../public/linejam-mark.svg'),
+  resolve(dirname(siteTokensPath), '../folio/assets/mark.svg'),
   resolve(dirname(siteTokensPath), 'icon.svg')
 );

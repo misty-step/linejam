@@ -239,7 +239,6 @@ export function RevealPhase({
     );
 
   const { myPoems, allRevealed, poems } = state;
-  const allStableIds = poems.map((p) => p.readerStableId);
 
   const displayingPoem = showingPoemId
     ? [...(myPoems ?? []), ...(state.revealedPoems ?? [])].find(
@@ -261,7 +260,6 @@ export function RevealPhase({
           onDone={() => setShowingPoemId(null)}
           alreadyRevealed={displayingPoem.isRevealed}
           readOnly={!state.canManageArtifacts}
-          allStableIds={allStableIds}
           roomId={state.roomId}
           cycle={state.cycle}
           metadata={{
@@ -305,7 +303,6 @@ export function RevealPhase({
                             stableId={poem.readerStableId}
                             displayName={poem.readerName}
                             avatarId={poem.readerAvatarId}
-                            allStableIds={allStableIds}
                             size="md"
                           />
                           <h2 className="min-w-0 text-xl font-bold leading-snug text-text-primary [overflow-wrap:anywhere]">
@@ -396,7 +393,7 @@ export function RevealPhase({
                             className={cn(
                               'flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-border-subtle px-3 py-3 focus-visible:outline-2 focus-visible:outline-focus-ring',
                               status === 'reading-now' &&
-                                'rounded-xl bg-surface'
+                                'rounded-[var(--radius-control)] bg-surface'
                             )}
                           >
                             <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -411,15 +408,9 @@ export function RevealPhase({
                                   stableId={poem.readerStableId}
                                   displayName={poem.readerName}
                                   avatarId={poem.readerAvatarId}
-                                  allStableIds={allStableIds}
                                   size="sm"
-                                  mood={
-                                    status === 'reading-now'
-                                      ? 'reading'
-                                      : 'idle'
-                                  }
-                                  outlined={
-                                    !poem.isRevealed && status !== 'reading-now'
+                                  tone={
+                                    status === 'reading-now' ? 'accent' : 'ink'
                                   }
                                 />
                               </span>

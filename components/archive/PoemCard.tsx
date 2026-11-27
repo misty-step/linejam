@@ -106,7 +106,7 @@ export function PoemCard({
           onClick={handleFavoriteClick}
           data-sound="loading"
           disabled={isFavoriting}
-          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full text-[var(--color-primary)] hover:bg-[var(--color-muted)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-focus-ring)] disabled:opacity-50"
+          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-[var(--radius-control)] text-[var(--color-primary)] hover:bg-[var(--color-muted)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-focus-ring)] disabled:opacity-50"
           aria-label={
             localFavorited ? 'Remove from favorites' : 'Add to favorites'
           }
@@ -177,7 +177,7 @@ export function PoemCardSkeleton() {
       aria-label="Loading poem"
       className="rounded-[var(--radius-lg)] bg-[var(--color-surface)] p-6 motion-safe:animate-pulse"
     >
-      <div className="mb-6 h-5 w-20 rounded-full bg-[var(--color-muted)]" />
+      <div className="mb-6 h-5 w-20 rounded-[var(--radius-tag)] bg-[var(--color-muted)]" />
       <div className="space-y-3">
         <div className="h-6 w-3/4 rounded-[var(--radius-sm)] bg-[var(--color-muted)]" />
         <div className="h-6 w-1/2 rounded-[var(--radius-sm)] bg-[var(--color-muted)]" />

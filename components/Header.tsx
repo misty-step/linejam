@@ -71,10 +71,10 @@ interface HeaderProps {
 }
 
 const headerIconClasses =
-  'inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] transition-colors duration-[var(--duration-normal)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)] focus-visible:ring-offset-2';
+  'inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--radius-control)] border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] transition-colors duration-[var(--duration-micro)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)] focus-visible:ring-offset-2';
 
 const menuItemClasses =
-  'flex min-h-11 w-full items-center gap-3 rounded-[var(--radius-md)] px-3 py-2 text-left text-base font-semibold text-[var(--color-text-primary)] transition-colors hover:bg-[var(--color-background)] focus-visible:outline-none focus-visible:bg-[var(--color-background)] focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)]';
+  'flex min-h-11 w-full items-center gap-3 rounded-[var(--radius-md)] px-3 py-2 text-left text-base font-semibold text-[var(--color-text-primary)] transition-colors hover:bg-[var(--surface-subtle)] focus-visible:outline-none focus-visible:bg-[var(--surface-subtle)] focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)]';
 
 export function Header({
   className = '',
@@ -134,8 +134,10 @@ export function Header({
           menuTriggerRef.current?.focus();
         }}
       />
-      <header className={`w-full px-4 py-3 sm:px-6 ${className}`}>
-        <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-2">
+      <header
+        className={`w-full border-b border-[var(--hairline)] bg-[var(--bg)] px-4 py-3 sm:px-6 ${className}`}
+      >
+        <div className="mx-auto flex w-full max-w-[1040px] flex-wrap items-center justify-between gap-2">
           <Link
             href="/"
             aria-label="Linejam"
@@ -179,7 +181,7 @@ export function Header({
                 <nav
                   id={menuId}
                   aria-label="More options"
-                  className="lj-room-popover absolute right-0 top-full z-50 mt-2 w-56 max-w-[calc(100vw-2rem)] rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-2 shadow-[var(--shadow-lg)]"
+                  className="lj-room-popover absolute right-0 top-full z-50 mt-2 w-56 max-w-[calc(100vw-2rem)] rounded-[var(--radius-control)] border border-[var(--hairline-strong)] bg-[var(--surface-elevated)] p-2 shadow-[var(--shadow-lg)]"
                 >
                   <Link
                     ref={firstMenuItemRef}

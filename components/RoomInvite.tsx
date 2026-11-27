@@ -1,5 +1,6 @@
 'use client';
 
+import folio from '@/folio/assets/tokens.json';
 import { useEffect, useRef, useState } from 'react';
 import { Check, Copy, Share2 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
@@ -51,7 +52,7 @@ export function RoomInvite({ roomCode }: { roomCode: string }) {
   return (
     <section
       aria-label="Room invitation"
-      className="flex min-w-0 flex-wrap items-center gap-3 rounded-2xl border border-border bg-surface p-3 sm:gap-6 sm:p-5"
+      className="flex min-w-0 flex-wrap items-center gap-3 rounded-[var(--radius-sheet)] border border-border bg-surface p-3 sm:gap-6 sm:p-5"
     >
       <div className="min-w-0 flex-[1_1_8rem] space-y-3">
         <button
@@ -65,7 +66,7 @@ export function RoomInvite({ roomCode }: { roomCode: string }) {
           }
           className="flex min-h-11 w-full min-w-0 items-center gap-2 rounded-lg py-1 text-left text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2"
         >
-          <span className="min-w-0 break-words text-3xl font-bold leading-tight tracking-wide sm:text-4xl">
+          <span className="min-w-0 break-words font-mono text-3xl font-medium leading-tight tracking-[0.12em] text-[var(--ink)] sm:text-4xl">
             {formattedCode}
           </span>
           {copyState === 'copied' ? (
@@ -99,14 +100,14 @@ export function RoomInvite({ roomCode }: { roomCode: string }) {
       </div>
       <QRCodeSVG
         value={joinUrl}
-        size={144}
+        size={216}
         marginSize={4}
         level="M"
-        fgColor="#000000"
-        bgColor="#ffffff"
+        fgColor={folio.light.ink}
+        bgColor={folio.light.surfaceElevated}
         role="img"
         aria-label={`QR code for joining room ${formattedCode}`}
-        className="mx-auto h-[112px] w-[112px] shrink-0 rounded-lg sm:h-[144px] sm:w-[144px]"
+        className="mx-auto h-[144px] w-[144px] shrink-0 rounded-[var(--radius-control)] md:h-[216px] md:w-[216px]"
       />
       <p role="status" aria-live="polite" className="sr-only">
         {copyState === 'copied'

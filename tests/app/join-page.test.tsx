@@ -43,7 +43,7 @@ async function enterDetails(
   penName: string
 ) {
   const code = screen.getByRole('textbox', { name: /room code/i });
-  const name = screen.getByRole('textbox', { name: /your pen name/i });
+  const name = screen.getByRole('textbox', { name: /^pen name$/i });
   await user.type(code, roomCode);
   await user.type(name, penName);
   return { code, name };
@@ -99,10 +99,9 @@ describe('joining a room', () => {
     );
     expect(code).toHaveValue('A1BC');
 
-    await user.click(screen.getByRole('button', { name: /change avatar/i }));
-    await user.click(screen.getByRole('button', { name: 'Quill' }));
+    await user.click(screen.getByRole('radio', { name: 'Clover' }));
 
-    await user.click(screen.getByRole('button', { name: /^join room$/i }));
+    await user.click(screen.getByRole('button', { name: /^join$/i }));
 
     expect(joinRoom).toHaveBeenCalledExactlyOnceWith({
       code: 'A1BC',
@@ -119,7 +118,7 @@ describe('joining a room', () => {
     const user = userEvent.setup();
     renderJoinPage();
     const { code, name } = await enterDetails(user, '---!', 'Ada');
-    const submit = screen.getByRole('button', { name: /^join room$/i });
+    const submit = screen.getByRole('button', { name: /^join$/i });
 
     expect(code).toHaveValue('');
     expect(submit).toBeDisabled();
@@ -179,10 +178,9 @@ describe('joining a room', () => {
       const user = userEvent.setup();
       renderJoinPage();
       const { code, name } = await enterDetails(user, 'ABCD', 'Ada');
-      const avatar = screen.getByRole('button', { name: /change avatar/i });
+      const avatar = screen.getByRole('radio', { name: 'Arch' });
       await user.click(avatar);
-      await user.click(screen.getByRole('button', { name: 'Doodle' }));
-      await user.click(screen.getByRole('button', { name: /^join room$/i }));
+      await user.click(screen.getByRole('button', { name: /^join$/i }));
 
       const alert = await screen.findByRole('alert');
       expect(alert).toHaveTextContent(reason);
@@ -194,13 +192,13 @@ describe('joining a room', () => {
       expect(name).toBeEnabled();
       expect(name).toHaveValue('Ada');
       expect(avatar).toBeEnabled();
-      expect(avatar).toHaveAccessibleName(/doodle.*selected/i);
+      expect(avatar).toHaveAttribute('aria-checked', 'true');
 
       await user.clear(code);
       await user.type(code, 'wxyz');
       await user.clear(name);
       await user.type(name, 'Grace');
-      const retry = screen.getByRole('button', { name: /^join room$/i });
+      const retry = screen.getByRole('button', { name: /^join$/i });
       expect(retry).toBeEnabled();
       await user.click(retry);
 
@@ -227,13 +225,13 @@ describe('joining a room', () => {
     const user = userEvent.setup();
     renderJoinPage();
     await enterDetails(user, 'A1B2', 'Ada');
-    await user.click(screen.getByRole('button', { name: /^join room$/i }));
+    await user.click(screen.getByRole('button', { name: /^join$/i }));
 
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent(/full/i);
     expect(push).not.toHaveBeenCalled();
 
-    await user.click(screen.getByRole('button', { name: /^join room$/i }));
+    await user.click(screen.getByRole('button', { name: /^join$/i }));
     await waitFor(() =>
       expect(push).toHaveBeenCalledExactlyOnceWith('/room/A1B2')
     );
@@ -248,7 +246,7 @@ describe('joining a room', () => {
 
     expect(screen.getByRole('alert')).toBeVisible();
     expect(
-      screen.queryByRole('form', { name: /join room/i })
+      screen.queryByRole('form', { name: /^join$/i })
     ).not.toBeInTheDocument();
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
     const retry = screen.getByRole('button', { name: /try again/i });
@@ -262,7 +260,7 @@ describe('joining a room', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveAttribute('aria-busy', 'true');
     expect(
-      screen.queryByRole('form', { name: /join room/i })
+      screen.queryByRole('form', { name: /^join$/i })
     ).not.toBeInTheDocument();
 
     guestToken = 'renewed-guest-token';
@@ -270,9 +268,8 @@ describe('joining a room', () => {
     view.rerender(<JoinPage dependencies={dependencies} />);
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
     await enterDetails(user, 'ABCD', 'Ada');
-    await user.click(screen.getByRole('button', { name: /change avatar/i }));
-    await user.click(screen.getByRole('button', { name: 'Haiku' }));
-    await user.click(screen.getByRole('button', { name: /^join room$/i }));
+    await user.click(screen.getByRole('radio', { name: 'Vesper' }));
+    await user.click(screen.getByRole('button', { name: /^join$/i }));
 
     expect(joinRoom).toHaveBeenCalledExactlyOnceWith({
       code: 'ABCD',
@@ -292,12 +289,11 @@ describe('joining a room', () => {
     const user = userEvent.setup();
     renderJoinPage();
     const { code, name } = await enterDetails(user, 'ABCD', 'Ada');
-    const avatar = screen.getByRole('button', { name: /change avatar/i });
+    const avatar = screen.getByRole('radio', { name: 'Lattice' });
     await user.click(avatar);
-    await user.click(screen.getByRole('button', { name: 'Ode' }));
-    await user.dblClick(screen.getByRole('button', { name: /^join room$/i }));
+    await user.dblClick(screen.getByRole('button', { name: /^join$/i }));
 
-    const progress = screen.getByRole('button', { name: /joining room/i });
+    const progress = screen.getByRole('button', { name: /joining/i });
     expect(progress).toBeDisabled();
     expect(code).toBeDisabled();
     expect(name).toBeDisabled();
@@ -332,8 +328,9 @@ describe('joining a room', () => {
         </StrictMode>,
         { wrapper: ColorModeProvider }
       );
-      const avatar = await screen.findByRole('button', {
-        name: /change avatar.*ode.*selected/i,
+      const avatar = await screen.findByRole('radio', {
+        name: 'Lattice',
+        checked: true,
       });
       random.mockReturnValue(0);
       const { code, name } = await enterDetails(user, 'ABCD', 'Ada');
@@ -342,16 +339,16 @@ describe('joining a room', () => {
           <JoinPage dependencies={dependencies} />
         </StrictMode>
       );
-      expect(avatar).toHaveAccessibleName(/ode.*selected/i);
-      await user.click(screen.getByRole('button', { name: /^join room$/i }));
+      expect(avatar).toHaveAttribute('aria-checked', 'true');
+      await user.click(screen.getByRole('button', { name: /^join$/i }));
       await screen.findByRole('alert');
 
       await user.clear(code);
       await user.type(code, 'WXYZ');
       await user.clear(name);
       await user.type(name, 'Grace');
-      expect(avatar).toHaveAccessibleName(/ode.*selected/i);
-      await user.click(screen.getByRole('button', { name: /^join room$/i }));
+      expect(avatar).toHaveAttribute('aria-checked', 'true');
+      await user.click(screen.getByRole('button', { name: /^join$/i }));
       expect(joinRoom).toHaveBeenLastCalledWith({
         code: 'WXYZ',
         displayName: 'Grace',
@@ -363,8 +360,9 @@ describe('joining a room', () => {
 
       renderJoinPage();
       expect(
-        await screen.findByRole('button', {
-          name: /change avatar.*rhyme.*selected/i,
+        await screen.findByRole('radio', {
+          name: 'Loom',
+          checked: true,
         })
       ).toBeEnabled();
     } finally {
@@ -390,8 +388,8 @@ describe('joining a room', () => {
     try {
       container.innerHTML = renderToString(entry);
       document.body.appendChild(container);
-      const serverTrigger = within(container).getByRole('button', {
-        name: /change avatar/i,
+      const serverTrigger = within(container).getByRole('radio', {
+        name: 'Lattice',
       });
       random.mockReturnValue(0.99);
 
@@ -402,8 +400,9 @@ describe('joining a room', () => {
       });
 
       expect(
-        within(container).getByRole('button', {
-          name: /change avatar.*ode.*selected/i,
+        within(container).getByRole('radio', {
+          name: 'Lattice',
+          checked: true,
         })
       ).toBe(serverTrigger);
       expect(recoverableError).not.toHaveBeenCalled();

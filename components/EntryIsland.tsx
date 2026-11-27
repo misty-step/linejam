@@ -7,7 +7,7 @@ export function EntryIsland({
   kind,
   onClose,
 }: {
-  kind: 'home' | 'help' | 'help-content';
+  kind: 'help' | 'help-content';
   onClose?: () => void;
 }) {
   const host = useRef<HTMLDivElement>(null);

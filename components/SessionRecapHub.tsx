@@ -235,7 +235,7 @@ export function SessionRecapHub({
       {favoritePoem && sessionFavorites && (
         <section
           aria-labelledby="room-favorite-title"
-          className="space-y-2 rounded-2xl border border-primary bg-surface p-5"
+          className="space-y-2 rounded-[var(--radius-sheet)] border border-primary bg-surface p-5"
         >
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-primary">
             <h3
@@ -270,7 +270,7 @@ export function SessionRecapHub({
 
       <ol
         aria-label="Session poems"
-        className="overflow-hidden rounded-3xl bg-surface"
+        className="overflow-hidden rounded-[var(--radius-sheet)] bg-surface"
       >
         {sortedPoems.map((poem) => {
           const poemNumber = poem.indexInRoom + 1;

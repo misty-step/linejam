@@ -3,27 +3,6 @@ use gloo_events::{EventListener, EventListenerOptions};
 use leptos::prelude::*;
 use wasm_bindgen::prelude::*;
 
-#[component]
-fn Home() -> impl IntoView {
-    view! {
-        <section class="mx-auto w-full max-w-2xl px-6 py-8 sm:px-10 sm:py-14">
-            <h1 class="max-w-[12ch] break-words text-[clamp(2.5rem,9vw,4rem)] font-display font-medium leading-[1.08] text-[var(--color-text-primary)]">
-                "A little room for words."
-            </h1>
-            <p class="mt-5 max-w-md text-lg leading-relaxed text-[var(--color-text-secondary)] sm:text-xl">
-                "A poetry game for people who don’t have to be poets."
-            </p>
-            <p class="mt-3 text-base font-semibold text-[var(--color-text-primary)]">"Write a line. Pass it on."</p>
-            <div class="mt-6 flex items-center gap-2" aria-hidden="true"
-                inner_html=include_str!("../../../.ui-build/home-avatars.html")></div>
-            <nav aria-label="Play Linejam" class="mt-7 flex max-w-md flex-col gap-3">
-                <a href="/host" class="lj-button-primary inline-flex min-h-14 items-center justify-center rounded-[var(--radius-lg)] border px-6 py-3 text-lg font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-background)]">"Start a game"</a>
-                <a href="/join" class="inline-flex min-h-14 items-center justify-center rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] px-6 py-3 text-lg font-bold text-[var(--color-text-primary)] transition-colors hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-background)]">"Join a room"</a>
-            </nav>
-        </section>
-    }
-}
-
 struct Boundary {
     opener: Option<web_sys::HtmlElement>,
     overflow: String,
@@ -173,12 +152,12 @@ fn Help(mode: Mode, on_close: js_sys::Function) -> impl IntoView {
         return content().into_any();
     }
     view! {
-        <div class="lj-game-frame lj-viewport-offset fixed inset-x-0 z-50 flex items-center justify-center bg-black/50 p-4" role="presentation" on:click=move |_| close()>
+        <div class="lj-game-frame lj-viewport-offset fixed inset-x-0 z-50 flex items-center justify-center bg-[color-mix(in_srgb,var(--ink)_40%,transparent)] p-4" role="presentation" on:click=move |_| close()>
             <div class="flex max-h-full w-full max-w-md min-h-0 flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-lg"
                 role="dialog" aria-modal="true" aria-labelledby="help-title" on:click=|event| event.stop_propagation()>
                 <div class="flex shrink-0 items-center justify-between gap-3 border-b border-border-subtle px-4 py-2">
                     <h2 id="help-title" class="font-sans text-xl font-bold">"How to play"</h2>
-                    <button node_ref=first type="button" on:click=move |_| close() class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-text-secondary hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring" aria-label="Close help">
+                    <button node_ref=first type="button" on:click=move |_| close() class="flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--radius-control)] text-text-secondary hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring" aria-label="Close help">
                         <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"></path></svg>
                     </button>
                 </div>
@@ -195,7 +174,6 @@ pub fn mount_entry(
     on_close: js_sys::Function,
 ) -> js_sys::Function {
     let handle = match kind {
-        "home" => leptos::mount::mount_to(parent, || view! { <Home/> }.into_any()),
         "help" | "help-content" => {
             let mode = if kind == "help" {
                 Mode::Modal

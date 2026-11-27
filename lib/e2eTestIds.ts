@@ -1,4 +1,8 @@
 export const E2E_TEST_IDS = {
+  landingNameInput: 'landing-name-input',
+  landingNewRoomButton: 'landing-new-room-button',
+  landingRoomCodeInput: 'landing-room-code-input',
+  landingJoinButton: 'landing-join-button',
   hostNameInput: 'host-name-input',
   hostCreateRoomButton: 'host-create-room-button',
   hostScrollRegion: 'host-scroll-region',

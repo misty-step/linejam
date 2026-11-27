@@ -271,7 +271,7 @@ function RoomPageContent({
         </span>
         <button
           type="button"
-          className="min-h-11 w-full max-w-xs rounded-md border border-transparent bg-[var(--color-surface)] px-4 py-2 font-medium text-[var(--color-text-primary)] shadow-sm"
+          className="min-h-11 w-full max-w-xs rounded-md border border-transparent bg-[var(--color-surface)] px-4 py-2 font-medium text-[var(--color-text-primary)]"
           onClick={() => router.push('/join')}
         >
           Return to join

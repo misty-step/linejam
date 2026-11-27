@@ -81,24 +81,26 @@ describe('WaitingScreen', () => {
     const { container } = renderWaiting();
     // The moment is decorative; the roster below carries every name and status.
     const moment = container.querySelector('[aria-hidden="true"]');
-    expect(moment?.querySelector('svg')).toHaveAttribute(
+    // Bob chose Vesper (stored id 'haiku'); the emblem's name is its label.
+    expect(moment?.querySelector('[role="img"]')).toHaveAttribute(
       'aria-label',
-      "Bob's avatar"
+      'Vesper'
     );
   });
 
   it('keeps your character in the waiting moment while the roster is still loading', () => {
     progressQuery.mockReturnValue(undefined);
     const { container } = renderWaiting({
-      acknowledgement: 'Tucked into the poem.',
+      acknowledgement: 'Line tucked',
       viewer: { stableId: 'bob', displayName: 'Bob', avatarId: 'haiku' },
     });
 
-    expect(screen.getByText('Tucked into the poem.')).toBeInTheDocument();
+    expect(screen.getByText('Line tucked')).toBeInTheDocument();
     const moment = container.querySelector('[aria-hidden="true"]');
-    expect(moment?.querySelector('svg')).toHaveAttribute(
+    // Bob chose Vesper (stored id 'haiku'); the emblem's name is its label.
+    expect(moment?.querySelector('[role="img"]')).toHaveAttribute(
       'aria-label',
-      "Bob's avatar"
+      'Vesper'
     );
   });
 
@@ -180,10 +182,12 @@ describe('WaitingScreen', () => {
       screen.getByRole('heading', { name: /next game/i })
     ).toBeInTheDocument();
     expect(screen.getByText('Round 4 of 9')).toBeInTheDocument();
-    // A spectator's own character is outlined too, without Quill's lilac body.
-    const hero = container.querySelector('[aria-hidden="true"] svg');
-    expect(hero).toHaveAttribute('aria-label', "Late poet's avatar");
-    expect(hero?.innerHTML.toLowerCase()).not.toContain('#cbb5ff');
+    // A spectator keeps their own emblem (stored id 'quill' draws Clover),
+    // colored only through currentColor, never a per-player fill.
+    const hero = container.querySelector('[aria-hidden="true"] [role="img"]');
+    expect(hero).toHaveAttribute('aria-label', 'Clover');
+    expect(hero?.innerHTML).toContain('stroke="currentColor"');
+    expect(hero?.innerHTML).not.toMatch(/#[0-9a-f]{6}/i);
   });
 
   it('does not treat a late spectator as an unfinished writer', () => {

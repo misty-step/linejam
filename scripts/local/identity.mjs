@@ -15,7 +15,6 @@ export const sourceRoots = [
   'content',
   'patches',
   'scripts/local',
-  'scripts/ui',
   'crates',
   'Cargo.toml',
   'Cargo.lock',

@@ -45,7 +45,7 @@ const PAGES: PageCase[] = [
     path: '/',
     assertVisible: async (page) => {
       await expect(
-        page.getByRole('link', { name: /Start a game/i })
+        page.getByRole('button', { name: 'New room', exact: true })
       ).toBeVisible();
     },
   },

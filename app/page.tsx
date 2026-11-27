@@ -1,5 +1,5 @@
-import { EntryIsland } from '../components/EntryIsland';
+import { Landing } from '../components/Landing';
 
 export default function Home() {
-  return <EntryIsland kind="home" />;
+  return <Landing />;
 }

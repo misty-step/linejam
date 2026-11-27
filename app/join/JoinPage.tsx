@@ -9,6 +9,7 @@ import { api } from '../../convex/_generated/api';
 import { useUser } from '../../lib/auth';
 import { captureError } from '../../lib/error';
 import { E2E_TEST_IDS } from '../../lib/e2eTestIds';
+import { normalizeRoomCodeInput } from '../../lib/roomCode';
 import {
   hashRoomId,
   trackGameJoined,
@@ -24,7 +25,7 @@ import {
   type AvatarId,
 } from '../../lib/avatars';
 import { Brand } from '../../components/Brand';
-import { AvatarPicker } from '../../components/AvatarPicker';
+import { EmblemPicker } from '../../components/EmblemPicker';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -35,13 +36,6 @@ import {
 } from '../../components/ui/LoadingState';
 import { ColorModeControl } from '../../components/ColorModeControl';
 import { SoundControl } from '../../components/SoundControl';
-
-function normalizeRoomCode(value: string): string {
-  return value
-    .replace(/[^a-zA-Z0-9]/g, '')
-    .toUpperCase()
-    .slice(0, 4);
-}
 
 interface JoinPageRouter {
   push(href: string): void;
@@ -127,7 +121,7 @@ function JoinForm({ dependencies }: { dependencies: JoinPageDependencies }) {
   );
 
   const [code, setCode] = useState(() =>
-    normalizeRoomCode(searchParams.get('code') || '')
+    normalizeRoomCodeInput(searchParams.get('code') || '')
   );
   const [name, setName] = useState('');
   const [avatarId, setAvatarId] = useState<AvatarId>(AVATAR_IDS[0]);
@@ -151,7 +145,7 @@ function JoinForm({ dependencies }: { dependencies: JoinPageDependencies }) {
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const normalizedCode = normalizeRoomCode(code);
+    const normalizedCode = normalizeRoomCodeInput(code);
     const normalizedName = name.trim();
     if (!normalizedCode || !normalizedName) return;
 
@@ -207,14 +201,14 @@ function JoinForm({ dependencies }: { dependencies: JoinPageDependencies }) {
 
   return (
     <>
-      <h1 className="mb-4 text-3xl font-sans font-bold leading-tight text-[var(--color-text-primary)]">
-        Join room
+      <h1 className="mb-4 font-serif text-3xl font-medium leading-tight text-[var(--color-text-primary)]">
+        Join
       </h1>
 
       <form
         ref={focusInitialField}
         onSubmit={handleJoin}
-        aria-label="Join room"
+        aria-label="Join"
         className="space-y-4"
       >
         <div className="space-y-1.5">
@@ -230,7 +224,7 @@ function JoinForm({ dependencies }: { dependencies: JoinPageDependencies }) {
             data-testid={E2E_TEST_IDS.joinRoomCodeInput}
             placeholder="ABCD"
             value={code}
-            onChange={(e) => setCode(normalizeRoomCode(e.target.value))}
+            onChange={(e) => setCode(normalizeRoomCodeInput(e.target.value))}
             maxLength={7}
             required
             inputMode="text"
@@ -255,31 +249,29 @@ function JoinForm({ dependencies }: { dependencies: JoinPageDependencies }) {
             htmlFor="name"
             className="block text-sm font-semibold text-[var(--color-text-primary)]"
           >
-            Your pen name
+            Pen name
           </label>
-          <div className="flex items-center gap-3">
-            <Input
-              ref={nameInputRef}
-              id="name"
-              name="displayName"
-              data-testid={E2E_TEST_IDS.joinNameInput}
-              placeholder="e.g. Alex"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              autoCapitalize="words"
-              autoComplete="nickname"
-              enterKeyHint="go"
-              disabled={isSubmitting}
-              className="h-12 text-base"
-            />
-            <AvatarPicker
-              value={avatarId}
-              onChange={setAvatarId}
-              disabled={isSubmitting}
-            />
-          </div>
+          <Input
+            ref={nameInputRef}
+            id="name"
+            name="displayName"
+            data-testid={E2E_TEST_IDS.joinNameInput}
+            placeholder="e.g. Alex"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            autoCapitalize="words"
+            autoComplete="nickname"
+            enterKeyHint="go"
+            disabled={isSubmitting}
+            className="h-12 text-base"
+          />
         </div>
+        <EmblemPicker
+          value={avatarId}
+          onChange={setAvatarId}
+          disabled={isSubmitting}
+        />
 
         <div className="space-y-4">
           {error && (
@@ -295,7 +287,7 @@ function JoinForm({ dependencies }: { dependencies: JoinPageDependencies }) {
             className="min-h-12 w-full text-base"
             disabled={!name.trim() || !code.trim() || isSubmitting}
           >
-            {isSubmitting ? 'Joining room…' : 'Join room'}
+            {isSubmitting ? 'Joining…' : 'Join'}
           </Button>
         </div>
       </form>

@@ -8,28 +8,20 @@ import {
 } from '../hooks/useRoomQueryArgs';
 import { E2E_TEST_IDS } from '../lib/e2eTestIds';
 import { cn } from '../lib/utils';
-import { Avatar, type AvatarMood, type AvatarProp } from './ui/Avatar';
+import { Avatar } from './ui/Avatar';
 
-type PlayerState = { label: string; mood: AvatarMood; prop?: AvatarProp };
+type PlayerState = { label: string };
 type WaitingViewer = {
   stableId: string;
   displayName: string;
   avatarId?: AvatarId;
 };
 
-// The written status stays; the character's face and prop echo it.
-const TUCKED_IN: PlayerState = {
-  label: 'Submitted',
-  mood: 'tucked',
-  prop: 'note',
-};
-const WRITING: PlayerState = {
-  label: 'Writing',
-  mood: 'writing',
-  prop: 'pencil',
-};
-const AWAY: PlayerState = { label: 'Away', mood: 'away', prop: 'moon' };
-const WATCHING: PlayerState = { label: 'Watching', mood: 'watching' };
+// Presence is always written; the emblem only supplements the name.
+const TUCKED_IN: PlayerState = { label: 'Submitted' };
+const WRITING: PlayerState = { label: 'Writing' };
+const AWAY: PlayerState = { label: 'Away' };
+const WATCHING: PlayerState = { label: 'Watching' };
 
 type RoundProgressResult =
   FunctionReturnType<typeof api.game.getRoundProgress> | undefined;
@@ -95,7 +87,6 @@ export function WaitingScreen({
   const allSubmitted =
     activePlayers.length > 0 &&
     activePlayers.every((player) => player.submitted);
-  const allStableIds = players.map((player) => player.stableId);
   // Your own character holds your note while the round finishes.
   const viewer = players.find((player) => player.isViewer) ?? knownViewer;
   const heading = isLateJoiner
@@ -138,9 +129,7 @@ export function WaitingScreen({
                 displayName={viewer.displayName}
                 avatarId={viewer.avatarId}
                 size="hero"
-                mood={isLateJoiner ? 'watching' : 'tucked'}
-                prop={isLateJoiner ? undefined : 'note'}
-                outlined={isLateJoiner}
+                tone="accent"
                 className={cn(
                   'absolute top-0 left-[32px]',
                   acknowledgement && 'lj-waiting-settle'
@@ -192,11 +181,7 @@ export function WaitingScreen({
                     stableId={player.stableId}
                     displayName={player.displayName}
                     avatarId={player.avatarId}
-                    allStableIds={allStableIds}
                     size="lg"
-                    mood={state.mood}
-                    prop={state.prop}
-                    outlined={player.isSpectator}
                   />
                   <span className="mt-2 w-full text-center text-sm font-semibold leading-tight [overflow-wrap:anywhere]">
                     {player.displayName}

@@ -11,7 +11,7 @@ export function HostBadge({ className }: HostBadgeProps) {
       role="status"
       aria-label="Room host"
       className={cn(
-        'inline-flex items-center rounded-full bg-muted px-2 py-1 text-primary',
+        'inline-flex items-center rounded-[var(--radius-tag)] bg-muted px-2 py-1 text-primary',
         className
       )}
     >

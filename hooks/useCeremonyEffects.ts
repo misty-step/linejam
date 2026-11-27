@@ -26,6 +26,9 @@ export function useCeremonyEffects() {
   const punctuate = useCallback(() => {
     playSound('sparkle');
     if (isMuted || prefersReducedMotion) return;
+    // Haptics follow a trusted gesture only (PRODUCT.md [L1-7.9]); without
+    // one, browsers block the call and log an intervention error.
+    if (navigator.userActivation?.hasBeenActive === false) return;
     try {
       navigator.vibrate?.([16, 40, 22]);
     } catch {

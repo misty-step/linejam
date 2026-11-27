@@ -18,7 +18,7 @@ async function screenshot(page: Page, name: string) {
   await page.screenshot({ path: path.join(directory, name), fullPage: true });
 }
 
-test('Rust home retains canonical copy, artwork, links and phone themes', async ({
+test('landing salon spread offers pen name, emblems, New room and Join on phones', async ({
   page,
 }) => {
   const errors: string[] = [];
@@ -27,26 +27,22 @@ test('Rust home retains canonical copy, artwork, links and phone themes', async 
   for (const colorScheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
     await page.goto('/');
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText(
-      'A little room for words.'
-    );
-    await expect(
-      page.getByText('A poetry game for people who don’t have to be poets.')
-    ).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Linejam');
     await expect(page.locator('html')).toHaveClass(new RegExp(colorScheme));
-    const play = page.getByRole('navigation', { name: 'Play Linejam' });
+    await expect(page.getByRole('textbox', { name: 'Pen name' })).toBeVisible();
+    const emblems = page
+      .getByRole('radiogroup', { name: 'Emblem' })
+      .getByRole('radio');
+    await expect(emblems).toHaveCount(8);
     await expect(
-      play.getByRole('link', { name: 'Start a game' })
-    ).toHaveAttribute('href', '/host');
+      page.getByRole('button', { name: 'New room', exact: true })
+    ).toBeVisible();
     await expect(
-      play.getByRole('link', { name: 'Join a room' })
-    ).toHaveAttribute('href', '/join');
-    const avatars = page.locator('linejam-entry[view="home"] svg');
-    await expect(avatars).toHaveCount(4);
-    for (const avatar of await avatars.all()) {
-      await expect(avatar).toHaveAttribute('width', '56');
-      await expect(avatar).toHaveAttribute('height', '56');
-    }
+      page.getByRole('textbox', { name: 'Room code' })
+    ).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: 'Join', exact: true })
+    ).toBeVisible();
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth
@@ -54,11 +50,8 @@ test('Rust home retains canonical copy, artwork, links and phone themes', async 
     ).toBe(true);
     await screenshot(page, `home-320-${colorScheme}.png`);
   }
-  await page.getByRole('link', { name: 'Start a game' }).click();
-  await expect(page.getByRole('textbox', { name: /pen name/i })).toBeVisible();
-  await page.goBack();
-  await page.getByRole('link', { name: 'Join a room', exact: true }).click();
-  await expect(page.getByRole('textbox', { name: 'Room code' })).toBeVisible();
+  await page.getByRole('button', { name: 'New room', exact: true }).click();
+  await expect(page.getByText('Add a pen name')).toBeVisible();
   expect(errors).toEqual([]);
 });
 
@@ -117,7 +110,7 @@ for (const [kind, asset] of [
   test(`a refused ${kind} load is visible and retry loads the real Rust view`, async ({
     page,
   }) => {
-    const home = page.locator('linejam-entry[view="home"]');
+    const help = page.locator('linejam-entry[view="help"]');
     const reported: string[] = [];
     if (isSentryEnabled()) {
       // Production reporting is silent. Observe the real browser SDK's
@@ -142,17 +135,21 @@ for (const [kind, asset] of [
       route.abort('failed')
     );
     await page.goto('/');
-    await expect(home.getByRole('alert')).toContainText(
+    await page.getByRole('button', { name: 'More options' }).click();
+    await page.getByRole('button', { name: 'How to play' }).click();
+    await expect(help.getByRole('alert')).toContainText(
       'Could not load this view.'
     );
     await expect.poll(() => reported.length).toBe(1);
-    await expect(page.getByRole('heading', { level: 1 })).toHaveCount(0);
+    await expect(page.getByRole('dialog', { name: 'How to play' })).toHaveCount(
+      0
+    );
     await page.unroute(`**/entry-wasm/${asset}`);
     await page.getByRole('button', { name: 'Retry', exact: true }).click();
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText(
-      'A little room for words.'
-    );
-    await expect(home.getByRole('alert')).toHaveCount(0);
+    await expect(
+      page.getByRole('dialog', { name: 'How to play' })
+    ).toBeVisible();
+    await expect(help.getByRole('alert')).toHaveCount(0);
     expect(reported).toHaveLength(1);
   });
 }
@@ -168,9 +165,7 @@ test('a delayed detached help cannot lock the page; reattachment and disposal re
     await route.continue();
   });
   await page.goto('/');
-  await expect(page.locator('linejam-entry[view="home"]')).toContainText(
-    'Loading'
-  );
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
   await page.evaluate(() => {
     const element = document.createElement('linejam-entry');
     element.id = 'delayed-help';
@@ -183,7 +178,15 @@ test('a delayed detached help cannot lock the page; reattachment and disposal re
     document.body.append(holder);
   });
   release.resolve();
-  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        performance
+          .getEntriesByType('resource')
+          .some((entry) => entry.name.includes('/entry-wasm/'))
+      )
+    )
+    .toBe(true);
   await expect(page.getByRole('dialog')).toHaveCount(0);
   expect(await page.evaluate(() => document.body.style.overflow)).not.toBe(
     'hidden'

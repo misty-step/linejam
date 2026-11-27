@@ -170,7 +170,7 @@ describe('PoemDisplay component', () => {
 
       expect(screen.getByRole('button', { name: 'Share poem' })).toBeVisible();
       expect(screen.getByRole('button', { name: /Save image/i })).toBeVisible();
-      expect(screen.getByRole('button', { name: 'Done' })).toBeVisible();
+      expect(screen.getByRole('button', { name: 'Next poem' })).toBeVisible();
     });
 
     it('focuses the poem heading and announces one concise transition', () => {
@@ -205,7 +205,7 @@ describe('PoemDisplay component', () => {
 
     expect(
       screen.getByRole('button', { name: 'Share poem' })
-    ).toHaveAccessibleDescription(/public to anyone with the link/i);
+    ).toHaveAccessibleDescription('Anyone with this link can read this poem');
   });
 
   describe('actions', () => {
@@ -245,7 +245,7 @@ describe('PoemDisplay component', () => {
       );
 
       await act(async () => {
-        fireEvent.click(screen.getByRole('button', { name: /^Done$/i }));
+        fireEvent.click(screen.getByRole('button', { name: /^Next poem$/i }));
       });
       expect(mockOnDone).toHaveBeenCalledTimes(1);
     });

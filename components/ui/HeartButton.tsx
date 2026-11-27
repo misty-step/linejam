@@ -53,7 +53,7 @@ export function HeartButton({
       aria-pressed={isFavorited === true}
       aria-label={isFavorited ? 'Remove favorite' : 'Favorite this poem'}
       className={cn(
-        'inline-flex min-h-11 min-w-11 items-center justify-center rounded-full',
+        'inline-flex min-h-11 min-w-11 items-center justify-center rounded-[var(--radius-control)]',
         'transition-colors duration-[var(--duration-fast)]',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2',
         isFavorited

@@ -46,3 +46,9 @@ explorations/renewal/
 # Immutable owner-imported guidance
 .agents/skills/parlor/
 
+
+# Locked Active Folio assets and their byte-exact derivatives (DESIGN.md [D1-2])
+folio/assets/
+public/folio/
+lib/design/folio.generated.ts
+site/tokens.css

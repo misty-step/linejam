@@ -107,7 +107,7 @@ export function Lobby({
         data-testid={E2E_TEST_IDS.lobbyScrollRegion}
         className="lj-safe-inline min-h-0 flex-1 overflow-y-auto overflow-x-hidden py-3 [--lj-safe-inline-space:1rem]"
       >
-        <div className="mx-auto w-full max-w-xl space-y-6">
+        <div className="mx-auto grid w-full max-w-xl gap-6 md:max-w-[960px] md:grid-cols-2 md:items-start md:gap-10">
           <RoomInvite roomCode={room.code} />
           <section aria-labelledby="lobby-roster-heading" className="min-w-0">
             <div className="mb-1 flex flex-wrap items-baseline justify-between gap-2 px-1">
@@ -118,7 +118,7 @@ export function Lobby({
                 Players
               </h2>
               <p
-                className="text-sm text-text-secondary"
+                className="font-mono text-sm text-text-secondary"
                 aria-live="polite"
                 aria-atomic="true"
               >
@@ -139,14 +139,6 @@ export function Lobby({
                     avatarId={player.avatarId}
                     displayName={player.displayName}
                     size="md"
-                    mood={player.isAway ? 'away' : 'idle'}
-                    prop={
-                      player.userId === room.hostUserId
-                        ? 'crown'
-                        : player.isAway
-                          ? 'moon'
-                          : undefined
-                    }
                   />
                   <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1">
                     <span className="min-w-0 break-words text-base font-semibold text-text-primary [overflow-wrap:anywhere]">
@@ -167,7 +159,7 @@ export function Lobby({
         data-testid={E2E_TEST_IDS.lobbyActionZone}
         className="lj-safe-inline min-h-0 max-h-[50%] flex-[0_1_auto] overflow-y-auto bg-background pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] [--lj-safe-inline-space:1rem]"
       >
-        <div className="mx-auto w-full max-w-xl space-y-3">
+        <div className="mx-auto w-full max-w-xl space-y-3 md:max-w-[960px] md:pl-[calc(50%+1.25rem)]">
           {error && <Alert variant="error">{error}</Alert>}
           {isHost ? (
             <Button
@@ -182,7 +174,7 @@ export function Lobby({
               {starting
                 ? 'Starting…'
                 : canStart
-                  ? 'Start Linejam'
+                  ? 'Start game'
                   : `Need ${2 - players.length} more player${players.length === 1 ? '' : 's'}`}
             </Button>
           ) : (

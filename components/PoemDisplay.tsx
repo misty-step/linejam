@@ -51,7 +51,6 @@ export interface PoemDisplayProps {
   onDone?: () => void;
   alreadyRevealed?: boolean;
   readOnly?: boolean;
-  allStableIds?: string[];
   variant?: 'reveal' | 'archive';
   metadata?: PoemMetadata;
   roomId?: string;
@@ -72,7 +71,6 @@ export function PoemDisplay({
   lines,
   readOnly = false,
   onDone,
-  allStableIds,
   variant = 'reveal',
   metadata,
   roomId,
@@ -212,7 +210,7 @@ export function PoemDisplay({
             {metadata.backLabel ?? 'Back'}
           </Link>
         )}
-        <article className="poem-print-surface rounded-3xl bg-surface p-5 sm:p-8">
+        <article className="poem-print-surface rounded-[var(--radius-sheet)] bg-surface p-5 sm:p-8">
           <header className="mb-6 flex flex-wrap items-start justify-between gap-3">
             <div className="flex min-w-0 items-center gap-3">
               {metadata?.readerName && metadata.readerStableId && (
@@ -220,7 +218,6 @@ export function PoemDisplay({
                   stableId={metadata.readerStableId}
                   displayName={metadata.readerName}
                   avatarId={metadata.readerAvatarId}
-                  allStableIds={allStableIds}
                   size="md"
                 />
               )}
@@ -254,7 +251,7 @@ export function PoemDisplay({
                   onClick={metadata.onToggleFavorite}
                   data-sound="loading"
                   className={cn(
-                    'inline-flex min-h-11 min-w-11 items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring print:hidden',
+                    'inline-flex min-h-11 min-w-11 items-center justify-center rounded-[var(--radius-control)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring print:hidden',
                     metadata.isFavorited
                       ? 'text-primary'
                       : 'text-text-secondary hover:text-primary'
@@ -280,7 +277,7 @@ export function PoemDisplay({
                 key={index}
                 className="grid items-baseline gap-x-6 sm:grid-cols-[minmax(0,1fr)_minmax(5rem,0.3fr)]"
               >
-                <p className="min-w-0 whitespace-pre-wrap text-xl not-italic leading-relaxed [overflow-wrap:anywhere] sm:text-2xl">
+                <p className="min-w-0 whitespace-pre-wrap font-serif text-[1.25rem] not-italic leading-relaxed [overflow-wrap:anywhere] sm:text-[1.5625rem]">
                   {line.text}
                 </p>
                 {(line.authorName || line.authorStableId) && (
@@ -308,7 +305,7 @@ export function PoemDisplay({
                   size="lg"
                   className="min-h-12 flex-1 sm:flex-none sm:min-w-32"
                 >
-                  Done
+                  Next poem
                 </Button>
               )}
               {!readOnly && (
@@ -327,7 +324,7 @@ export function PoemDisplay({
                 id="poem-share-disclosure"
                 className="text-sm text-text-secondary"
               >
-                Sharing makes this poem public to anyone with the link.
+                Anyone with this link can read this poem
               </p>
               <div className="flex flex-wrap gap-2">
                 <Button

@@ -18,7 +18,7 @@ import {
   type AvatarId,
 } from '../../lib/avatars';
 import { Brand } from '../../components/Brand';
-import { AvatarPicker } from '../../components/AvatarPicker';
+import { EmblemPicker } from '../../components/EmblemPicker';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Alert } from '../../components/ui/Alert';
@@ -118,13 +118,13 @@ export default function HostPage() {
               <SoundControl />
             </div>
           </div>
-          <h1 className="mb-4 text-3xl font-sans font-bold leading-tight text-[var(--color-text-primary)]">
-            Create room
+          <h1 className="mb-4 font-serif text-3xl font-medium leading-tight text-[var(--color-text-primary)]">
+            New room
           </h1>
 
           <form
             onSubmit={handleCreate}
-            aria-label="Create room"
+            aria-label="New room"
             className="space-y-4"
           >
             <div className="space-y-1.5">
@@ -132,31 +132,29 @@ export default function HostPage() {
                 htmlFor="name"
                 className="block text-sm font-semibold text-[var(--color-text-primary)]"
               >
-                Your pen name
+                Pen name
               </label>
-              <div className="flex items-center gap-3">
-                <Input
-                  id="name"
-                  name="displayName"
-                  data-testid={E2E_TEST_IDS.hostNameInput}
-                  placeholder="e.g. Alex"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                  autoFocus
-                  autoCapitalize="words"
-                  autoComplete="nickname"
-                  enterKeyHint="go"
-                  disabled={isSubmitting}
-                  className="h-12 text-base"
-                />
-                <AvatarPicker
-                  value={avatarId}
-                  onChange={setAvatarId}
-                  disabled={isSubmitting}
-                />
-              </div>
+              <Input
+                id="name"
+                name="displayName"
+                data-testid={E2E_TEST_IDS.hostNameInput}
+                placeholder="e.g. Alex"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                autoFocus
+                autoCapitalize="words"
+                autoComplete="nickname"
+                enterKeyHint="go"
+                disabled={isSubmitting}
+                className="h-12 text-base"
+              />
             </div>
+            <EmblemPicker
+              value={avatarId}
+              onChange={setAvatarId}
+              disabled={isSubmitting}
+            />
 
             <div
               data-testid={E2E_TEST_IDS.hostActionZone}
@@ -178,7 +176,7 @@ export default function HostPage() {
                 className="min-h-12 w-full text-base"
                 disabled={!name.trim() || isSubmitting}
               >
-                {isSubmitting ? 'Creating room…' : 'Create room'}
+                {isSubmitting ? 'Opening room…' : 'New room'}
               </Button>
             </div>
           </form>

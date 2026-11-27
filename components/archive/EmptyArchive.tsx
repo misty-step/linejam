@@ -31,13 +31,13 @@ export function EmptyArchive({ variant = 'default' }: EmptyArchiveProps) {
           href="/host"
           className="inline-flex min-h-12 items-center justify-center rounded-[var(--radius-md)] bg-[var(--color-primary)] px-6 py-3 font-semibold text-[var(--color-text-inverse)] hover:bg-[var(--color-primary-hover)]"
         >
-          Start a game
+          New room
         </Link>
         <Link
           href="/join"
           className="inline-flex min-h-12 items-center justify-center rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-6 py-3 font-semibold text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)]"
         >
-          Join a room
+          Join
         </Link>
       </div>
     </div>

@@ -1,12 +1,11 @@
 /**
  * AuthorDots: Visual representation of poem contributors
  *
- * Renders colored dots for each unique author, using the established
- * avatar color system for consistency with PoemDisplay.
+ * Renders one quiet dot per unique author. Players never get per-player
+ * colors (DESIGN.md [D1-2.4]); the count is the information.
  */
 
 import { cn } from '@/lib/utils';
-import { getUniqueColor } from '@/lib/avatarColor';
 
 interface AuthorDotsProps {
   /** Stable IDs for all authors in the poem */
@@ -44,16 +43,13 @@ export function AuthorDots({
       role="group"
     >
       {visibleIds.map((stableId, index) => {
-        const color = getUniqueColor(stableId, uniqueIds);
-
         return (
           <div
             key={stableId}
-            className="rounded-full"
+            className="rounded-full bg-[var(--ink-muted)]"
             style={{
               width: `${config.dot}px`,
               height: `${config.dot}px`,
-              backgroundColor: color,
             }}
             title={`Contributor ${index + 1}`}
           />

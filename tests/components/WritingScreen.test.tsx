@@ -173,7 +173,7 @@ describe('WritingScreen component', () => {
     const textarea = screen.getByRole('textbox');
 
     await user.type(textarea, 'Verse');
-    await user.click(screen.getByRole('button', { name: /^Submit$/i }));
+    await user.click(screen.getByRole('button', { name: /^Tuck line$/i }));
 
     const disconnectedRetry = await screen.findByRole('button', {
       name: /waiting for connection/i,
@@ -185,7 +185,7 @@ describe('WritingScreen component', () => {
     expect(
       sessionStorage.getItem('linejam:writing-draft:ABCD:poem_123:0')
     ).toBe('Verse');
-    expect(screen.getByRole('button', { name: /^Submit$/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /^Tuck line$/i })).toBeDisabled();
     await user.click(disconnectedRetry);
     expect(mockSubmitLineMutation).toHaveBeenCalledTimes(1);
 
@@ -314,7 +314,7 @@ describe('WritingScreen component', () => {
     const textarea = screen.getByRole('textbox', {
       name: /round 5\. Target: 5 words\./i,
     });
-    const submit = screen.getByRole('button', { name: /^Submit$/i });
+    const submit = screen.getByRole('button', { name: /^Tuck line$/i });
     const guidance = screen.getByRole('status', { name: '' });
 
     expect(screen.getByText('Round 5 of 9')).toBeInTheDocument();
@@ -379,7 +379,7 @@ describe('WritingScreen component', () => {
       screen.getByRole('status', { name: '1 of 1 words' })
     ).toHaveTextContent('1 / 1');
     expect(textarea).toHaveAccessibleDescription(/1\s*\/\s*1\s*word/);
-    expect(screen.getByRole('button', { name: /^Submit$/i })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /^Tuck line$/i })).toBeEnabled();
   });
 
   it('warns near the character limit and stops input at 500 characters', async () => {
@@ -436,13 +436,13 @@ describe('WritingScreen component', () => {
     const textarea = screen.getByRole('textbox');
 
     await user.type(textarea, 'Draft');
-    await user.click(screen.getByRole('button', { name: /^Submit$/i }));
+    await user.click(screen.getByRole('button', { name: /^Tuck line$/i }));
     const retry = await screen.findByRole('button', { name: /Retry once/i });
     await user.type(textarea, 'Changed');
     expect(textarea).toHaveValue('Draft');
     expect(screen.getByRole('alert')).toBeInTheDocument();
     expect(retry).toBeEnabled();
-    expect(screen.getByRole('button', { name: /^Submit$/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /^Tuck line$/i })).toBeDisabled();
 
     act(() => window.dispatchEvent(new Event('offline')));
     expect(retry).toBeDisabled();
@@ -532,11 +532,11 @@ describe('WritingScreen component', () => {
       name: /round 8\. Target: 2 words\./i,
     });
     await user.type(textarea, '  Moon   rises  ');
-    await user.click(screen.getByRole('button', { name: /^Submit$/i }));
+    await user.click(screen.getByRole('button', { name: /^Tuck line$/i }));
 
     const waiting = await screen.findByTestId(E2E_TEST_IDS.waitingPhase);
-    // Your own character holds the note before the roster arrives.
-    expect(within(waiting).getByLabelText("Ada's avatar")).toBeInTheDocument();
+    // Your own emblem (stored id 'rhyme' draws Loom) shows before the roster arrives.
+    expect(within(waiting).getByLabelText('Loom')).toBeInTheDocument();
     expect(mockSubmitLineMutation).toHaveBeenCalledExactlyOnceWith({
       poemId: assignment.poemId,
       lineIndex: 7,
@@ -565,7 +565,7 @@ describe('WritingScreen component', () => {
     expect(screen.getByRole('status', { busy: true })).toBeInTheDocument();
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
     expect(
-      screen.queryByRole('button', { name: /^Submit$/i })
+      screen.queryByRole('button', { name: /^Tuck line$/i })
     ).not.toBeInTheDocument();
 
     rerender(
@@ -588,7 +588,7 @@ describe('WritingScreen component', () => {
     expect(screen.getByRole('status', { busy: true })).toBeInTheDocument();
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
     expect(
-      screen.queryByRole('button', { name: /^Submit$/i })
+      screen.queryByRole('button', { name: /^Tuck line$/i })
     ).not.toBeInTheDocument();
 
     mockUseQuery.mockImplementation((query: string) =>
@@ -642,7 +642,7 @@ describe('WritingScreen component', () => {
     expect(screen.getByText('Writing')).toBeInTheDocument();
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
     expect(
-      screen.queryByRole('button', { name: /^Submit$/i })
+      screen.queryByRole('button', { name: /^Tuck line$/i })
     ).not.toBeInTheDocument();
   });
 
@@ -675,7 +675,7 @@ describe('WritingScreen component', () => {
     expect(screen.getByText('Watching')).toBeInTheDocument();
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
     expect(
-      screen.queryByRole('button', { name: /^Submit$/i })
+      screen.queryByRole('button', { name: /^Tuck line$/i })
     ).not.toBeInTheDocument();
   });
 
@@ -716,7 +716,7 @@ describe('WritingScreen component', () => {
       const user = setupUser();
       renderWritingScreen(<WritingScreen roomCode="ABCD" />);
 
-      await user.click(screen.getByRole('button', { name: /^Submit$/i }));
+      await user.click(screen.getByRole('button', { name: /^Tuck line$/i }));
 
       expect(
         await screen.findByTestId(E2E_TEST_IDS.waitingPhase)

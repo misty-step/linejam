@@ -230,7 +230,6 @@ describe('PoemDetail', () => {
         poemId: 'poem1',
         guestToken: 'guest-token',
         alreadyRevealed: true,
-        allStableIds: ['user-ada', 'user-lin'],
         lines: [
           {
             text: 'first line',
@@ -283,7 +282,6 @@ describe('PoemDetail', () => {
       expect.objectContaining({
         poemId: 'poem2',
         guestToken: undefined,
-        allStableIds: ['public-ada'],
         metadata: expect.objectContaining({
           backHref: '/',
           firstLine: 'public first line',
@@ -308,7 +306,6 @@ describe('PoemDetail', () => {
     expect(mockPoemDisplay).toHaveBeenCalledWith(
       expect.objectContaining({
         guestToken: undefined,
-        allStableIds: [],
         lines: [],
         metadata: expect.objectContaining({
           firstLine: '',

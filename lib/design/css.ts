@@ -1,30 +1,15 @@
 import type { ColorMode } from './types';
 import { designTokens } from './tokens';
 
-const FONT_STACKS = {
-  '--font-dynapuff': "'DynaPuff', sans-serif",
-  '--font-nunito': "'Nunito Sans', system-ui, sans-serif",
-} as const;
-
 function declarations(mode: ColorMode, indent = '  '): string {
   return Object.entries(designTokens[mode])
     .map(([key, value]) => `${indent}--${key}: ${value};`)
     .join('\n');
 }
 
-function fontDeclarations(): string {
-  return Object.entries(FONT_STACKS)
-    .map(([key, value]) => `  ${key}: ${value};`)
-    .join('\n');
-}
-
 /** Serialize the typed token tables into the static site's CSS custom properties. */
 export function renderDesignTokensCss(): string {
   return `/* Generated from lib/design/tokens.ts. Do not edit. */
-
-:root {
-${fontDeclarations()}
-}
 
 :root,
 :root.light {

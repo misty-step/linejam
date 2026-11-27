@@ -52,9 +52,9 @@ const actionCopy = {
 } as const;
 
 const iconButton =
-  'inline-flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-full text-text-secondary transition-colors hover:bg-surface hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2';
+  'inline-flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-[var(--radius-control)] text-text-secondary transition-colors hover:bg-surface hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2';
 const menuItem =
-  'flex min-h-12 w-full items-center gap-3 rounded-xl px-3 py-3 text-left font-semibold hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring';
+  'flex min-h-12 w-full items-center gap-3 rounded-[var(--radius-control)] px-3 py-3 text-left font-semibold hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring';
 
 export function RoomChrome({ roomCode, isLobby, action }: RoomChromeProps) {
   const [panel, setPanel] = useState<
@@ -146,13 +146,25 @@ export function RoomChrome({ roomCode, isLobby, action }: RoomChromeProps) {
 
   return (
     <>
-      <header className="lj-safe-inline shrink-0 bg-background pt-[max(0.25rem,env(safe-area-inset-top))] [--lj-safe-inline-space:1rem]">
+      <header className="lj-safe-inline shrink-0 border-b border-[var(--hairline)] bg-[var(--bg)] pt-[max(0.25rem,env(safe-area-inset-top))] [--lj-safe-inline-space:1rem]">
         <div
           data-testid="room-chrome"
-          className="mx-auto flex w-full max-w-xl flex-wrap items-center justify-between gap-3 py-2"
+          className="mx-auto flex w-full max-w-xl flex-wrap items-center justify-between gap-x-3 gap-y-1 py-2 md:max-w-[1040px]"
         >
-          {isLobby ? (
+          <Link
+            href="/"
+            aria-label="Linejam home"
+            className="inline-flex min-h-11 shrink-0 items-center rounded-[var(--radius-control)]"
+          >
             <Brand className="text-[20px]" />
+          </Link>
+          {isLobby ? (
+            <span
+              className="inline-flex min-h-8 items-center rounded-[var(--radius-tag)] bg-[var(--surface-subtle)] px-2 font-mono text-sm font-medium tracking-[0.12em] text-[var(--ink)]"
+              aria-label={`Room ${formatRoomCode(roomCode)}`}
+            >
+              {roomCode}
+            </span>
           ) : (
             <button
               type="button"
@@ -164,9 +176,9 @@ export function RoomChrome({ roomCode, isLobby, action }: RoomChromeProps) {
               aria-haspopup="dialog"
               aria-expanded={panel === 'invite'}
               aria-controls={panel === 'invite' ? panelId : undefined}
-              className="min-h-11 min-w-0 rounded-lg py-2 text-left text-lg font-bold tracking-wide text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+              className="inline-flex min-h-11 min-w-11 items-center rounded-[var(--radius-tag)] bg-[var(--surface-subtle)] px-2 font-mono text-sm font-medium tracking-[0.12em] text-[var(--ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
             >
-              {formatRoomCode(roomCode)}
+              {roomCode}
             </button>
           )}
           <div className="ml-auto flex shrink-0 items-center gap-1">
@@ -193,7 +205,7 @@ export function RoomChrome({ roomCode, isLobby, action }: RoomChromeProps) {
       </header>
       {panel && (
         <div
-          className="lj-game-frame lj-viewport-offset lj-safe-frame fixed inset-0 z-50 flex items-center justify-center bg-text-primary/40"
+          className="lj-game-frame lj-viewport-offset lj-safe-frame fixed inset-0 z-50 flex items-center justify-center bg-[color-mix(in_srgb,var(--ink)_40%,transparent)]"
           role="presentation"
           onClick={(event) => {
             if (event.target === event.currentTarget) close();
@@ -205,7 +217,7 @@ export function RoomChrome({ roomCode, isLobby, action }: RoomChromeProps) {
             role="dialog"
             aria-modal="true"
             aria-labelledby={titleId}
-            className="flex max-h-full w-full min-w-0 max-w-md flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-[var(--shadow-lg)]"
+            className="flex max-h-full w-full min-w-0 max-w-md flex-col overflow-hidden rounded-[var(--radius-sheet)] border border-border bg-surface shadow-[var(--shadow-lg)]"
           >
             <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border-subtle px-4 py-2">
               <h2
