@@ -54,10 +54,11 @@ export function HeartButton({
       aria-label={isFavorited ? 'Remove favorite' : 'Favorite this poem'}
       className={cn(
         'inline-flex min-h-11 min-w-11 items-center justify-center rounded-[var(--radius-control)]',
-        'transition-colors duration-[var(--duration-fast)]',
+        'transition-colors duration-[var(--duration-micro)]',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2',
+        // The active heart is the only use of --heart (DESIGN.md [D1-3.2]).
         isFavorited
-          ? 'text-[var(--color-primary)]'
+          ? 'text-[var(--heart)]'
           : 'text-text-muted hover:text-text-secondary',
         className
       )}

@@ -120,9 +120,9 @@ export function WaitingScreen({
         <div>
           <div
             aria-hidden="true"
-            className="relative mx-auto mb-4 h-[112px] w-[176px]"
+            className="relative mx-auto mb-4 h-[96px] w-[144px]"
           >
-            <div className="lj-waiting-print absolute inset-x-[4px] top-[12px] bottom-[4px]" />
+            <div className="lj-waiting-print absolute inset-0" />
             {viewer && (
               <Avatar
                 stableId={viewer.stableId}
@@ -131,7 +131,7 @@ export function WaitingScreen({
                 size="hero"
                 tone="accent"
                 className={cn(
-                  'absolute top-0 left-[32px]',
+                  'absolute inset-0 m-auto',
                   acknowledgement && 'lj-waiting-settle'
                 )}
               />

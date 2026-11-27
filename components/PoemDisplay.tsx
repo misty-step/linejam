@@ -253,7 +253,7 @@ export function PoemDisplay({
                   className={cn(
                     'inline-flex min-h-11 min-w-11 items-center justify-center rounded-[var(--radius-control)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring print:hidden',
                     metadata.isFavorited
-                      ? 'text-primary'
+                      ? 'text-[var(--heart)]'
                       : 'text-text-secondary hover:text-primary'
                   )}
                   aria-label={

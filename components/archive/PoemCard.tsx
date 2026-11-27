@@ -106,7 +106,7 @@ export function PoemCard({
           onClick={handleFavoriteClick}
           data-sound="loading"
           disabled={isFavoriting}
-          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-[var(--radius-control)] text-[var(--color-primary)] hover:bg-[var(--color-muted)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-focus-ring)] disabled:opacity-50"
+          className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-[var(--radius-control)] ${localFavorited ? 'text-[var(--heart)]' : 'text-[var(--ink-secondary)]'} hover:bg-[var(--color-muted)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-focus-ring)] disabled:opacity-50`}
           aria-label={
             localFavorited ? 'Remove from favorites' : 'Add to favorites'
           }

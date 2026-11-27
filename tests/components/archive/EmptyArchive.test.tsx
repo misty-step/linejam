@@ -5,16 +5,16 @@ import { EmptyArchive } from '@/components/archive/EmptyArchive';
 
 describe('EmptyArchive component', () => {
   describe('default variant', () => {
-    it('renders Start a Game button with correct link', () => {
+    it('renders the New room link to /host', () => {
       render(<EmptyArchive />);
-      const startLink = screen.getByRole('link', { name: /start a game/i });
+      const startLink = screen.getByRole('link', { name: /^new room$/i });
       expect(startLink).toBeInTheDocument();
       expect(startLink).toHaveAttribute('href', '/host');
     });
 
-    it('renders Join a Room button with correct link', () => {
+    it('renders the Join link to /join', () => {
       render(<EmptyArchive />);
-      const joinLink = screen.getByRole('link', { name: /join a room/i });
+      const joinLink = screen.getByRole('link', { name: /^join$/i });
       expect(joinLink).toBeInTheDocument();
       expect(joinLink).toHaveAttribute('href', '/join');
     });
@@ -24,10 +24,10 @@ describe('EmptyArchive component', () => {
     it('does not render CTA buttons in filtered variant', () => {
       render(<EmptyArchive variant="filtered" />);
       expect(
-        screen.queryByRole('link', { name: /start a game/i })
+        screen.queryByRole('link', { name: /^new room$/i })
       ).not.toBeInTheDocument();
       expect(
-        screen.queryByRole('link', { name: /join a room/i })
+        screen.queryByRole('link', { name: /^join$/i })
       ).not.toBeInTheDocument();
     });
   });
