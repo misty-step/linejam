@@ -129,7 +129,10 @@ Detailed acceptance:
   round or an abandoned game cannot accept a new contribution.
 - Accepted lines are immutable. Repeated submission of the same assignment
   returns the already stored line instead of replacing it or appending a second
-  contribution. Waiting lasts until all assigned lines in that round exist;
+  contribution. Submit state is scoped to one assignment (game, line index): a
+  line still settling from one round never blocks the next round's submit, so
+  an Enter on the next line during a round transition is sent at once, not
+  dropped (`PRODUCT.md` `[L1-3.10]`). Waiting lasts until all assigned lines in that round exist;
   only then does the next round begin. A stale client must settle against the
   stored text, not label a different unsaved draft as accepted.
 - Unsubmitted drafts survive refresh in the same browser session when storage
@@ -246,6 +249,10 @@ Detailed acceptance:
   Eligibility is not a guaranteed deletion instant: deletion runs only where
   an operator has enabled it, and otherwise the sweep only reports.
 
+A signed-out reader of a shared poem sees the poem and its bylines only: no
+action footer, rule or spacing is rendered when no action is available
+(`[L1-3.11]`).
+
 No hidden unpublished text in spectator responses, metadata, images or previews.
 Knowing a room code, poem identifier or inactive share URL is not permission.
 
@@ -265,6 +272,45 @@ product without reading players' private work.
 - The browser loads no analytics or error SDK and makes no request to another
   origin. An unavailable log sink never prevents admission, writing, reveal,
   saving or sharing.
+
+#### Production observability and error triage (`PRODUCT.md` `[L1-8]`)
+
+As the operator, I want every production failure to reach Sentry tagged with
+the deployed release, without any player's private data and without a browser
+SDK.
+
+- Cloudflare Workers Observability stays enabled (`wrangler.jsonc`
+  `observability.enabled`). Every captured error also writes an anonymous
+  `{"event":"error_captured","kind":…,"type":…}` log line.
+- The browser listens for uncaught `error`, `unhandledrejection` and
+  `securitypolicyviolation` and sends at most one beacon per distinct error
+  (ten per page) to same-origin `POST /api/telemetry/error`, without
+  credentials. The beacon carries the kind, error type, message, stack, the
+  page as a route template (`/room/:id`) and, for CSP, the directive and the
+  blocked origin. The route needs no guest identity; it refuses cross-origin
+  posts (`403`), non-JSON (`415`), unknown kinds (`400`), bodies over 8 KiB
+  (`413`), and answers `429` past 30 beacons per minute per isolate.
+- The Worker forwards unhandled Worker and Durable Object exceptions (a `500`
+  answer, or a failing Durable Object alarm), `5xx` refusals and accepted
+  beacons to Sentry as one Envelope `POST` per event, asynchronously
+  (`ctx.waitUntil`), with no SDK. Each event is tagged `environment`,
+  `release` and one kind: `worker_exception`, `browser_error`,
+  `unhandled_rejection` or `csp_violation`.
+- Before an event leaves the Worker, every text field is scrubbed: query
+  strings and fragments, path identifiers, room codes, guest cookies, bearer
+  and token-shaped strings, and email addresses are removed; fields are
+  length-bounded. Request bodies, names and poem lines are never part of an
+  event.
+- Forwarding is active when `SENTRY_DSN` (or `NEXT_PUBLIC_SENTRY_DSN`) is bound
+  to a valid DSN. With none, it is a no-op and every request answers as before;
+  a malformed DSN is logged as `sentry_dsn_invalid`, and a failed delivery as
+  `sentry_forward_failed`, never failing the request.
+- `GET /api/health` answers `{ status: "ok", environment, release,
+sentryConfigured }`. `release` is the commit the Worker was built from
+  (`-dirty` when built from uncommitted changes; `LINEJAM_RELEASE` names it
+  explicitly). The answer never contains the DSN or any secret.
+- Sentry alert routing to Misty Step's auto-triage pipeline (`[L1-8.9]`) is
+  configured in Sentry, outside this repository.
 
 #### Party-scale recovery
 
@@ -296,6 +342,9 @@ checking a candidate does not require a hosted CI vendor or production access.
 - Verification uses generated local identities, loopback targets and throwaway
   storage, and refuses cloud credentials. It never imports, resets or migrates
   an existing deployment.
+- The walkthrough also proves, in the browser, that an Enter during a round
+  transition is not dropped, and that browser errors reach a loopback Sentry
+  sink scrubbed and tagged.
 - A failed step stops verification and returns nonzero. Output identifies the
   mode, each command and the source revision.
 - Local verification is not deployment, and not the live gate on

@@ -2,10 +2,10 @@
 > linejam@1.0.0 verify /home/user/work
 > node scripts/verify.mjs
 
-verify: mode=full revision=0b28b2de857136a3a7defcaa747e480ffb52dd4c
+verify: mode=full revision=68b1b6480eec24e25500ee8a052f5ca248134ffe
 
 ── build: node scripts/build.mjs
-build: 10 folio checksums verified → dist/public
+build: 10 folio checksums verified → dist/public · release 68b1b6480eec24e25500ee8a052f5ca248134ffe
 
 ── typecheck: pnpm typecheck
 
@@ -26,16 +26,16 @@ All matched files use Prettier code style!
  RUN  v5.1.2 /home/user/work
 
 
- Test Files  9 passed (9)
-      Tests  96 passed (96)
-   Start at  03:22:44
-   Duration  6.92s (tests 97%, transform 1%, import 1%, worker 1%)
+ Test Files  10 passed (10)
+      Tests  118 passed (118)
+   Start at  07:13:54
+   Duration  6.71s (tests 97%, transform 1%, import 1%, worker 1%)
 
-    Isolate  9 workers spawned · ~225ms startup each (spawn + environment, per file)
-             at least ~451ms faster with isolate: false — reuses workers across files instead of one per file
+    Isolate  10 workers spawned · ~217ms startup each (spawn + environment, per file)
+             at least ~506ms faster with isolate: false — reuses workers across files instead of one per file
 
 
-── walkthrough: xvfb-run -a node e2e/walkthrough.mjs
+── walkthrough: node e2e/walkthrough.mjs
 walkthrough: headed Chrome against http://127.0.0.1:8791 (wrangler dev, workerd + SQLite Durable Objects)
 ▶ desktop-light
   [desktop-light] landing: 5 canonical labels, 8 emblems, blank pen name refused
@@ -45,7 +45,7 @@ walkthrough: headed Chrome against http://127.0.0.1:8791 (wrangler dev, workerd 
   [desktop-light] host started the game with 2 players
   [desktop-light] round 2: over-count refused with "Use 2 words" (client and server); draft survived refresh
   [desktop-light] nine rounds written 1-2-3-4-5-4-3-2-1; each round showed only the immediately preceding line; waiting had no timer
-  [desktop-light] reading circle: guest revealed poem 1 — nine lines together with bylines; rail shows reading now / up next
+  [desktop-light] reading circle: host revealed poem 1 — nine lines together with bylines; rail shows reading now / up next
   [desktop-light] heart toggled: personal, counted for the room, and not a publication
   [desktop-light] share: disclosure shown, link published on copy, opened by a signed-out reader
   [desktop-light] revoke: the shared link now answers 404 and shows nothing
@@ -135,7 +135,7 @@ walkthrough: headed Chrome against http://127.0.0.1:8791 (wrangler dev, workerd 
   [phone-reduced] host started the game with 2 players
   [phone-reduced] round 2: over-count refused with "Use 2 words" (client and server); draft survived refresh
   [phone-reduced] nine rounds written 1-2-3-4-5-4-3-2-1; each round showed only the immediately preceding line; waiting had no timer
-  [phone-reduced] reading circle: host revealed poem 1 — nine lines together with bylines; rail shows reading now / up next
+  [phone-reduced] reading circle: guest revealed poem 1 — nine lines together with bylines; rail shows reading now / up next
   [phone-reduced] heart toggled: personal, counted for the room, and not a publication
   [phone-reduced] share: disclosure shown, link published on copy, opened by a signed-out reader
   [phone-reduced] revoke: the shared link now answers 404 and shows nothing
@@ -171,7 +171,7 @@ walkthrough: headed Chrome against http://127.0.0.1:8791 (wrangler dev, workerd 
   [small-dark] host started the game with 2 players
   [small-dark] round 2: over-count refused with "Use 2 words" (client and server); draft survived refresh
   [small-dark] nine rounds written 1-2-3-4-5-4-3-2-1; each round showed only the immediately preceding line; waiting had no timer
-  [small-dark] reading circle: host revealed poem 1 — nine lines together with bylines; rail shows reading now / up next
+  [small-dark] reading circle: guest revealed poem 1 — nine lines together with bylines; rail shows reading now / up next
   [small-dark] heart toggled: personal, counted for the room, and not a publication
   [small-dark] share: disclosure shown, link published on copy, opened by a signed-out reader
   [small-dark] revoke: the shared link now answers 404 and shows nothing
@@ -199,6 +199,10 @@ walkthrough: headed Chrome against http://127.0.0.1:8791 (wrangler dev, workerd 
   [small-reduced] host ended the stalled game (lobby, nothing archived) and closed the room; a new arrival is refused
   [small-reduced] /changelog, /releases, /releases.xml answer 404; no footer links
 ✔ small-reduced
+▶ rapid-submit
+✔ rapid-submit
+▶ telemetry
+✔ telemetry
 ▶ http-fallback
 ✔ http-fallback
 ▶ credential-recovery
@@ -207,5 +211,5 @@ walkthrough: headed Chrome against http://127.0.0.1:8791 (wrangler dev, workerd 
 9/9 runs passed · {"consoleErrors":0,"pageErrors":0,"cspViolations":0,"failedRequests":0,"externalRequests":0,"unexpected4xx5xx":0,"maxOverflowPx":0,"minPhoneTouchTargetPx":44,"requests":1476,"maxOverflowAt200PercentTextPx":0}
 evidence: /home/user/work/e2e/out (52 files)
 
-verify: 5 steps passed at 0b28b2de857136a3a7defcaa747e480ffb52dd4c
-exit=0
+verify: 5 steps passed at 68b1b6480eec24e25500ee8a052f5ca248134ffe
+VERIFY_EXIT=0

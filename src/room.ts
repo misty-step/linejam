@@ -25,6 +25,7 @@ import type {
 } from '../shared/types.ts';
 import type { Env } from './env.ts';
 import { Reject, attempt, attemptAsync, randomId, shuffle, type Result } from './http.ts';
+import { exceptionCapture, report } from './telemetry.ts';
 import { measure } from './measure.ts';
 
 /** An HTTP-only player (CLI, MCP, polling browser) counts as present this long after a call. */
@@ -343,6 +344,16 @@ export class RoomDO extends DurableObject<Env> {
   }
 
   override async alarm(): Promise<void> {
+    // [L1-8.4] A failing alarm is forwarded, then rethrown so the runtime retries it.
+    try {
+      await this.runAlarm();
+    } catch (error) {
+      await report(this.env, exceptionCapture(error, { route: 'alarm:room', status: 500 }));
+      throw error;
+    }
+  }
+
+  private async runAlarm(): Promise<void> {
     if (!this.exists()) return;
     const now = Date.now();
     const room = this.room();

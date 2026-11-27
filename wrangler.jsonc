@@ -36,6 +36,7 @@
   //   GUEST_TOKEN_SECRET  signs guest credentials; the Worker refuses to issue
   //                       or accept credentials without it.
   //   LINEJAM_ADMIN_KEY   enables the operator import route; unset = 401.
+  //   SENTRY_DSN          forwards scrubbed errors to Sentry; unset = no-op.
   "vars": { "LINEJAM_ENVIRONMENT": "local", "RETENTION_GC_ENABLED": "1" },
   "env": {
     "production": {

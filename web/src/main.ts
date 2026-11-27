@@ -1,3 +1,4 @@
+import './telemetry.ts';
 import {
   CODE_LENGTH,
   EMBLEMS,
@@ -13,7 +14,7 @@ import type { ArchiveEntry, PoemView, RecapView, RoomView, ShareAttempt } from '
 import { morph } from './morph.ts';
 import { ApiError, NetworkError, RoomLink, api } from './net.ts';
 import { cue, isMuted, setMuted } from './sound.ts';
-import type { Route, State, Theme } from './state.ts';
+import { lineBusyKey, type Route, type State, type Theme } from './state.ts';
 import { view } from './views.ts';
 
 const root = document.getElementById('app')!;
@@ -787,11 +788,20 @@ const actions: Record<string, (el: HTMLElement) => void | Promise<void>> = {
   'load-recap': () => loadRecap(),
 };
 
+/** True while the assignment on screen is still `busyKey`'s. */
+function onAssignment(busyKey: string): boolean {
+  const game = state.room?.game;
+  return Boolean(game?.assignment && lineBusyKey(game.id, game.assignment.lineIndex) === busyKey);
+}
+
 async function submitLine(): Promise<void> {
   const room = state.room;
-  const assignment = room?.game?.assignment;
+  const game = room?.game;
+  const assignment = game?.assignment;
   const input = document.getElementById('line-input') as HTMLTextAreaElement | null;
-  if (!room || !assignment || !input || state.busy.line) return;
+  if (!room || !game || !assignment || !input) return;
+  const busyKey = lineBusyKey(game.id, assignment.lineIndex);
+  if (state.busy[busyKey]) return;
   const problem = checkLine(input.value, assignment.lineIndex);
   if (problem) {
     state.lineError = problem.message;
@@ -802,7 +812,7 @@ async function submitLine(): Promise<void> {
   state.lineError = null;
   const key = draftKey();
   // Pending feedback at once; the acknowledgement only after the server accepts.
-  await busy('line', async () => {
+  await busy(busyKey, async () => {
     try {
       await api('POST', `/api/rooms/${room.code}/lines`, {
         poemId: assignment.poemId,
@@ -814,6 +824,8 @@ async function submitLine(): Promise<void> {
       accept(await api<RoomView>('GET', `/api/rooms/${room.code}`));
     } catch (error) {
       // The draft stays exactly as typed. A retry of an accepted line is harmless.
+      // A failure that settles after the round moved on belongs to no composer on screen.
+      if (!onAssignment(busyKey)) return;
       state.lineError = error instanceof NetworkError ? 'Not sent. Try again' : describe(error);
       nudge('compose');
     }

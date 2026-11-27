@@ -3,7 +3,7 @@ import type { CirclePoemView, PoemLine, RoomView } from '../../shared/types.ts';
 import { emblem, icons, mark } from './icons.ts';
 import { esc } from './morph.ts';
 import { qrSvg } from './qr.ts';
-import type { State } from './state.ts';
+import { lineBusyKey, type State } from './state.ts';
 
 export const DISCLOSURE = 'Anyone with this link can read this poem';
 export const RECAP_DISCLOSURE = 'Anyone with this link can read every poem';
@@ -197,6 +197,7 @@ function writing(state: State, room: RoomView): string {
     </section>`;
   } else {
     const over = state.tally > assignment.words;
+    const tucking = Boolean(state.busy[lineBusyKey(game.id, assignment.lineIndex)]);
     right = `<section class="sheet compose${nudge(state, 'compose')}" aria-label="Your line" data-key="compose-${game.id}-${round}">
       <form data-form="line" novalidate>
         <label class="label" for="line-input"><span class="mono">${assignment.words}</span> ${assignment.words === 1 ? 'word' : 'words'}</label>
@@ -204,7 +205,7 @@ function writing(state: State, room: RoomView): string {
         <p class="field-error" id="line-error" role="alert">${esc(state.lineError ?? '')}</p>
         <div class="compose-foot">
           <span class="tally${over ? ' is-over' : ''}" id="tally" aria-label="${state.tally} of ${assignment.words} words"><span class="tally-now" data-key="t${state.tally}">${state.tally}</span>/${assignment.words}</span>
-          <button class="btn btn-primary" type="submit" ${state.busy.line ? 'disabled' : ''}>${state.busy.line ? 'Tucking…' : 'Tuck line'}</button>
+          <button class="btn btn-primary" type="submit" ${tucking ? 'disabled' : ''}>${tucking ? 'Tucking…' : 'Tuck line'}</button>
         </div>
       </form>
     </section>`;
@@ -397,10 +398,10 @@ function poemPage(state: State): string {
     return message('Poem did not load', '', `<button class="btn btn-secondary" data-action="load-poem">Retry</button>`);
   const view = p.view;
   const canHeart = state.guest.status === 'ready';
-  return `<main class="screen poem-page" data-key="poem-page"><div class="column">
-    <article class="sheet poem-sheet" aria-label="Poem">
-      ${poemBody(view.lines)}
-      <div class="poem-actions">
+  // [L1-3.11] No available action, no footer: a signed-out reader sees the poem and bylines only.
+  const actions =
+    canHeart || view.participant
+      ? `<div class="poem-actions">
         ${canHeart ? heartButton(view.favorited, view.hearts, Boolean(state.busy.heart)) : ''}
         ${
           view.participant
@@ -410,7 +411,12 @@ function poemPage(state: State): string {
                ${view.revealed ? shareControl(state, view.id, view.share, { share: 'Share poem', disclosure: DISCLOSURE }) : ''}`
             : ''
         }
-      </div>
+      </div>`
+      : '';
+  return `<main class="screen poem-page" data-key="poem-page"><div class="column">
+    <article class="sheet poem-sheet" aria-label="Poem">
+      ${poemBody(view.lines)}
+      ${actions}
     </article>
   </div></main>`;
 }

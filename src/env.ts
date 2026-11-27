@@ -10,4 +10,8 @@ export interface Env {
   LINEJAM_ADMIN_KEY?: string;
   LINEJAM_ENVIRONMENT?: string;
   RETENTION_GC_ENABLED?: string;
+  /** Sentry DSN secret. Unbound = error forwarding is a no-op ([L1-8.7]). */
+  SENTRY_DSN?: string;
+  /** Accepted as a second name for the same DSN ([L1-8.4]). */
+  NEXT_PUBLIC_SENTRY_DSN?: string;
 }

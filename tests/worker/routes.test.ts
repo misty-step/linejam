@@ -43,7 +43,7 @@ describe('[L1-5.2] the Worker serves the UI directly', () => {
     expect((await raw('/nope', 'text/html')).status).toBe(404);
     expect((await raw('/host', 'text/html')).status).toBe(404);
     expect((await raw('/api/nope')).status).toBe(401);
-    expect((await call('GET', '/api/health')).body).toEqual({ status: 'ok', environment: 'local' });
+    expect((await call('GET', '/api/health')).body).toMatchObject({ status: 'ok', environment: 'local' });
   });
 });
 

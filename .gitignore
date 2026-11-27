@@ -1,6 +1,7 @@
 /node_modules
 /dist
 /web/src/generated
+/src/generated
 /.wrangler
 /worker-configuration.d.ts
 .dev.vars*
