@@ -1,0 +1,1350 @@
+/* Linejam — Contemporary Warm Salon / Tactile Stationery.
+   Every color, radius, easing and duration is a token from folio/assets/tokens.json
+   (generated into tokens.css). Only transform, opacity and color ever animate. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+h1,
+h2,
+p,
+ol,
+ul {
+  margin: 0;
+  padding: 0;
+}
+
+ol,
+ul {
+  list-style: none;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.mono,
+.count,
+.tally,
+.round,
+.code-badge,
+.code-big,
+.code-input,
+.cadence,
+.order-n,
+.heart-count {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ── inline marks ─────────────────────────────────────────── */
+
+.mark,
+.emblem {
+  display: inline-flex;
+  flex: none;
+  color: var(--ink);
+}
+
+.mark svg {
+  width: 20px;
+  height: 20px;
+}
+
+.emblem svg {
+  width: 24px;
+  height: 24px;
+}
+
+.emblem.is-you {
+  color: var(--accent);
+}
+
+.glyph {
+  width: 24px;
+  height: 24px;
+}
+
+/* ── top bar: opaque band, hairline rule ──────────────────── */
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  /* One line at normal text sizes; at 200% text the actions wrap instead of overflowing. */
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-height: 56px;
+  padding: 6px 16px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--hairline);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 4px;
+  margin-left: -4px;
+  color: var(--ink);
+  text-decoration: none;
+  border-radius: var(--radius-control);
+}
+
+.brand .mark {
+  color: var(--accent);
+}
+
+.wordmark {
+  font-family: var(--font-serif);
+  font-size: 1.3125rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.code-badge {
+  padding: 3px 8px;
+  border-radius: var(--radius-tag);
+  background: var(--surface-subtle);
+  color: var(--ink-secondary);
+  font-size: 0.875rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+}
+
+.icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--ink-secondary);
+  cursor: pointer;
+  transition:
+    transform var(--tap) var(--ease-out),
+    color var(--micro) var(--ease-out),
+    background-color var(--micro) var(--ease-out);
+}
+
+.icon-btn:hover {
+  color: var(--ink);
+  background: var(--surface-subtle);
+}
+
+.icon-btn:active {
+  transform: scale(0.975);
+}
+
+.menu-wrap {
+  position: relative;
+}
+
+.menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 20;
+  display: grid;
+  min-width: 208px;
+  padding: 6px;
+  background: var(--surface-elevated);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-sheet);
+  box-shadow: var(--shadow-float);
+  animation: rise var(--micro) var(--ease-out);
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--ink);
+  font-size: 1rem;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.menu-item:hover {
+  background: var(--surface-subtle);
+}
+
+.menu-item.is-danger {
+  color: var(--danger);
+}
+
+.link-status {
+  padding: 6px 16px;
+  background: var(--surface-subtle);
+  color: var(--ink-secondary);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+/* ── screens ──────────────────────────────────────────────── */
+
+.screen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 20px 16px 32px;
+  animation: screen-in var(--screen) var(--ease-out);
+}
+
+.spread {
+  display: grid;
+  gap: 16px;
+  width: 100%;
+  margin: 0 auto;
+  min-width: 0;
+}
+
+.spread > * {
+  min-width: 0;
+}
+
+.column {
+  display: grid;
+  gap: 16px;
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+  justify-items: start;
+}
+
+.column > .sheet,
+.column > .poem-list {
+  width: 100%;
+}
+
+.sheet {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+  padding: 20px;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sheet);
+}
+
+.col {
+  display: grid;
+  gap: 20px;
+  align-content: start;
+}
+
+.rule {
+  width: 100%;
+  height: 0;
+  margin: 0;
+  border: 0;
+  border-top: 1px solid var(--hairline);
+}
+
+.label,
+label {
+  display: block;
+  color: var(--ink-secondary);
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.title {
+  font-family: var(--font-serif);
+  font-size: 2rem;
+  font-weight: 500;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+
+.display {
+  font-family: var(--font-serif);
+  /* The vw ceiling keeps the wordmark inside a 320px screen at 200% text. */
+  font-size: min(clamp(3rem, 16vw, 4.5rem), 22vw);
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.025em;
+}
+
+.note {
+  min-height: 1.45em;
+  color: var(--ink-secondary);
+  font-size: 0.9375rem;
+}
+
+.note:empty,
+.action-status:empty,
+.field-error:empty {
+  display: none;
+}
+
+.action-status {
+  color: var(--accent);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  animation: rise var(--micro) var(--ease-out);
+}
+
+.action-status.is-error {
+  color: var(--danger);
+}
+
+/* ── controls ─────────────────────────────────────────────── */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 20px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  font-size: 1rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    transform var(--tap) var(--ease-out),
+    background-color var(--micro) var(--ease-out),
+    border-color var(--micro) var(--ease-out),
+    color var(--micro) var(--ease-out);
+}
+
+.btn:active:not(:disabled) {
+  transform: scale(0.975);
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.btn-secondary {
+  background: transparent;
+  border-color: var(--ink-muted);
+  color: var(--ink);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--surface-subtle);
+}
+
+.btn-quiet {
+  min-height: 44px;
+  padding: 0 12px;
+  background: transparent;
+  color: var(--accent);
+}
+
+.btn-quiet:hover:not(:disabled) {
+  background: var(--accent-soft);
+}
+
+.btn-quiet.is-danger {
+  color: var(--danger);
+}
+
+.btn-quiet.is-danger:hover:not(:disabled) {
+  background: var(--danger-soft);
+}
+
+.btn-danger {
+  background: var(--danger);
+  color: var(--surface);
+}
+
+.btn:disabled {
+  background: var(--surface-subtle);
+  border-color: var(--hairline-strong);
+  color: var(--ink-muted);
+  cursor: not-allowed;
+}
+
+.field {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.input {
+  width: 100%;
+  min-height: 52px;
+  padding: 0 14px;
+  background: var(--surface);
+  border: 1px solid var(--ink-muted);
+  border-radius: var(--radius-control);
+  font-size: 1.0625rem;
+}
+
+.input[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+
+.code-input {
+  font-size: 1.25rem;
+  font-weight: 500;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+}
+
+.field-error {
+  color: var(--danger);
+  font-size: 0.9375rem;
+  font-weight: 500;
+}
+
+.nudge {
+  animation: nudge var(--screen) var(--ease-out);
+}
+
+.tag {
+  flex: none;
+  padding: 2px 8px;
+  border-radius: var(--radius-tag);
+  background: var(--surface-subtle);
+  color: var(--ink-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* ── landing ──────────────────────────────────────────────── */
+
+.spread-landing {
+  max-width: 920px;
+  gap: 24px;
+}
+
+.emblems {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(44px, 1fr));
+  gap: 8px;
+}
+
+.emblem-option {
+  display: grid;
+  place-items: center;
+  min-width: 44px;
+  min-height: 48px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid var(--ink-muted);
+  border-radius: var(--radius-control);
+  cursor: pointer;
+  transition:
+    transform var(--micro) var(--ease-out),
+    border-color var(--micro) var(--ease-out);
+}
+
+.emblem-option .emblem {
+  transition: color var(--micro) var(--ease-out);
+}
+
+.emblem-option:active {
+  transform: scale(0.975);
+}
+
+.emblem-option[aria-checked='true'] {
+  border: 2px solid var(--accent);
+}
+
+.emblem-option[aria-checked='true'] .emblem {
+  color: var(--accent);
+}
+
+.col-actions {
+  gap: 14px;
+}
+
+.join {
+  display: grid;
+  gap: 14px;
+}
+
+.recovery {
+  display: grid;
+  gap: 10px;
+  color: var(--danger);
+  font-weight: 500;
+}
+
+/* ── lobby ────────────────────────────────────────────────── */
+
+.spread-lobby {
+  max-width: 960px;
+}
+
+.invite {
+  justify-items: center;
+  text-align: center;
+}
+
+.code-copy {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  min-height: 44px;
+  padding: 4px 16px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  cursor: pointer;
+  transition: transform var(--tap) var(--ease-out);
+}
+
+.code-copy:active {
+  transform: scale(0.975);
+}
+
+.code-big {
+  padding-left: 0.18em;
+  font-size: min(clamp(2.5rem, 14vw, 3.25rem), 15vw);
+  font-weight: 500;
+  line-height: 1.1;
+  letter-spacing: 0.18em;
+}
+
+.code-hint {
+  color: var(--accent);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.code-hint.is-error {
+  color: var(--danger);
+}
+
+.member.is-open {
+  display: none;
+}
+
+/* The line under Share invite is always there, so its result never moves the sheet. */
+.invite .action-status {
+  display: block;
+  min-height: 1.45em;
+}
+
+.qr-plate {
+  width: 216px;
+  max-width: 100%;
+  aspect-ratio: 1;
+  background: var(--qr-plate);
+  border-radius: var(--radius-control);
+  overflow: hidden;
+}
+
+.qr {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.qr-plate-fill {
+  fill: var(--qr-plate);
+}
+
+.qr-ink-fill {
+  fill: var(--qr-ink);
+}
+
+.invite .btn {
+  width: 100%;
+  max-width: 216px;
+}
+
+.sheet-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.count {
+  color: var(--ink-secondary);
+  font-size: 0.9375rem;
+}
+
+.roster,
+.progress {
+  display: grid;
+}
+
+.member {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  min-width: 0;
+  border-top: 1px solid var(--hairline);
+}
+
+.member:first-child {
+  border-top: 0;
+}
+
+.member-name {
+  flex: 0 1 auto;
+  min-width: 0;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.presence {
+  margin-left: auto;
+  flex: none;
+  color: var(--ink-muted);
+  font-size: 0.875rem;
+}
+
+.presence.is-done {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.players .btn {
+  width: 100%;
+}
+
+/* ── writing ──────────────────────────────────────────────── */
+
+.spread-writing {
+  max-width: 920px;
+}
+
+.round {
+  display: flex;
+  align-items: baseline;
+  font-size: 3rem;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.round-now {
+  display: inline-block;
+  color: var(--accent);
+  animation: rise var(--micro) var(--ease-out);
+}
+
+.round-of {
+  color: var(--ink-muted);
+  font-size: 1.5rem;
+}
+
+.cadence {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  gap: 2px;
+  padding: 3px;
+  background: var(--surface-subtle);
+  border-radius: var(--radius-control);
+}
+
+.cadence-step {
+  display: grid;
+  place-items: center;
+  min-height: 30px;
+  border-radius: var(--radius-tag);
+  color: var(--ink-secondary);
+  font-size: 0.9375rem;
+  transition:
+    background-color var(--micro) var(--ease-out),
+    color var(--micro) var(--ease-out);
+}
+
+.cadence-step.is-done {
+  color: var(--ink-muted);
+}
+
+.cadence-step.is-current {
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 500;
+}
+
+.previous {
+  display: grid;
+  gap: 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--hairline);
+  animation: rise var(--screen) var(--ease-out);
+}
+
+.previous-line,
+.my-line {
+  font-family: var(--font-serif);
+  font-size: 1.625rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+/* One sheet is the whole composer. Its boundary is the input boundary;
+   the textarea inside has no box of its own. */
+.compose {
+  border-color: var(--ink-muted);
+}
+
+.compose:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.compose form {
+  display: grid;
+  gap: 12px;
+}
+
+.line-input {
+  display: block;
+  width: 100%;
+  min-height: 132px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-family: var(--font-serif);
+  font-size: 1.625rem;
+  line-height: 1.25;
+  resize: none;
+}
+
+.line-input:focus-visible {
+  outline: none;
+}
+
+.compose-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--hairline);
+}
+
+.tally {
+  color: var(--ink-secondary);
+  font-size: 1.125rem;
+  font-weight: 500;
+  transition: color var(--micro) var(--ease-out);
+}
+
+.tally-now {
+  display: inline-block;
+  animation: tick var(--micro) var(--ease-out);
+}
+
+.tally.is-over {
+  color: var(--danger);
+}
+
+.tucked {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--accent);
+  font-weight: 600;
+  animation: rise var(--micro) var(--ease-out);
+}
+
+/* ── reveal ───────────────────────────────────────────────── */
+
+.spread-reveal {
+  max-width: 1040px;
+}
+
+.order {
+  display: grid;
+}
+
+.order-item {
+  border-top: 1px solid var(--hairline);
+}
+
+.order-item:first-child {
+  border-top: 0;
+}
+
+.order-button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 8px;
+  margin: 0 -8px;
+  width: calc(100% + 16px);
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--micro) var(--ease-out);
+}
+
+.order-button:hover:not(:disabled) {
+  background: var(--surface-subtle);
+}
+
+.order-button:disabled {
+  cursor: default;
+}
+
+.order-button[aria-current='true'] {
+  background: var(--accent-soft);
+}
+
+.order-n {
+  flex: none;
+  width: 1.5ch;
+  color: var(--ink-muted);
+}
+
+.order-reader {
+  flex: 0 1 auto;
+  min-width: 0;
+  color: var(--ink);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.order-state {
+  margin-left: auto;
+  flex: none;
+  color: var(--ink-muted);
+  font-size: 0.875rem;
+}
+
+.is-reading .order-state {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.is-next .order-state {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.is-waiting .order-reader {
+  color: var(--ink-secondary);
+}
+
+.circle-actions {
+  display: grid;
+  gap: 12px;
+}
+
+.up-next {
+  display: grid;
+  gap: 2px;
+}
+
+.up-next-name {
+  color: var(--ink);
+  font-family: var(--font-serif);
+  font-size: 1.625rem;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.poem-sheet {
+  gap: 24px;
+  padding: 24px 20px;
+  animation: rise var(--screen) var(--ease-out);
+}
+
+.poem-sheet.is-empty {
+  display: none;
+}
+
+.poem {
+  display: grid;
+  gap: 14px;
+}
+
+.verse {
+  font-family: var(--font-serif);
+  font-size: 1.3125rem;
+  line-height: 1.25;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.byline {
+  margin-top: 1px;
+  color: var(--ink-muted);
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+}
+
+.poem-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--hairline);
+}
+
+.heart {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 48px;
+  min-height: 48px;
+  padding: 0 12px;
+  border: 1px solid var(--ink-muted);
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--ink-secondary);
+  cursor: pointer;
+  transition:
+    transform var(--tap) var(--ease-out),
+    color var(--micro) var(--ease-out),
+    border-color var(--micro) var(--ease-out),
+    background-color var(--micro) var(--ease-out);
+}
+
+.heart:active {
+  transform: scale(0.975);
+}
+
+.heart.is-on {
+  border-color: var(--heart);
+  background: var(--heart-soft);
+  color: var(--heart);
+}
+
+.heart.is-on .glyph {
+  fill: currentColor;
+}
+
+.heart-count {
+  display: inline-block;
+  font-size: 1rem;
+  font-weight: 500;
+  animation: tick var(--micro) var(--ease-out);
+}
+
+.share {
+  display: flex;
+  flex: 1 1 220px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  min-width: 0;
+}
+
+.share:empty {
+  display: none;
+}
+
+.share-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 12px 0 0;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.disclosure {
+  flex-basis: 100%;
+  color: var(--ink-secondary);
+  font-size: 0.875rem;
+}
+
+.share .action-status {
+  flex-basis: 100%;
+}
+
+/* ── archive ──────────────────────────────────────────────── */
+
+.poem-list {
+  display: grid;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sheet);
+}
+
+.poem-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px 8px 20px;
+  border-top: 1px solid var(--hairline);
+}
+
+.poem-row:first-child {
+  border-top: 0;
+}
+
+.poem-row-link {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+  min-width: 0;
+  min-height: 48px;
+  align-content: center;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.poem-first {
+  font-family: var(--font-serif);
+  font-size: 1.3125rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.poem-meta {
+  color: var(--ink-muted);
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+}
+
+.poem-row .heart {
+  border-color: transparent;
+}
+
+/* ── dialogs: the only shadowed layer besides the menu ────── */
+
+.dialog {
+  width: min(420px, calc(100vw - 32px));
+  padding: 24px;
+  background: var(--surface-elevated);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-sheet);
+  box-shadow: var(--shadow-float);
+  color: var(--ink);
+}
+
+.dialog[open] {
+  display: grid;
+  gap: 16px;
+  animation: rise var(--screen) var(--ease-out);
+}
+
+.dialog::backdrop {
+  background: var(--scrim);
+}
+
+.dialog-title {
+  font-family: var(--font-serif);
+  font-size: 1.625rem;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.dialog-body {
+  color: var(--ink-secondary);
+}
+
+.dialog-body:empty {
+  display: none;
+}
+
+.dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.dialog-actions .btn {
+  flex: 1 1 140px;
+}
+
+.help {
+  display: grid;
+  gap: 12px;
+  color: var(--ink);
+}
+
+.help strong {
+  font-family: var(--font-serif);
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+/* ── motion: one token set ────────────────────────────────── */
+
+@keyframes screen-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+@keyframes tick {
+  from {
+    opacity: 0.35;
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes nudge {
+  25% {
+    transform: translateX(-4px);
+  }
+  75% {
+    transform: translateX(4px);
+  }
+}
+
+@keyframes crossfade {
+  from {
+    opacity: 0;
+  }
+}
+
+/* ── 320px: the top bar keeps one line ────────────────────── */
+
+@media (max-width: 360px) {
+  .topbar {
+    gap: 4px;
+    padding: 6px 8px;
+  }
+
+  .brand {
+    gap: 6px;
+  }
+
+  .wordmark {
+    font-size: 1.1875rem;
+  }
+
+  .code-badge {
+    padding: 3px 6px;
+    font-size: 0.8125rem;
+    letter-spacing: 0.04em;
+  }
+}
+
+/* ── desktop: balanced two-column spreads on the desk band ── */
+
+@media (min-width: 860px) {
+  .topbar {
+    padding: 6px 24px;
+  }
+
+  .screen {
+    justify-content: center;
+    padding: 32px 32px 48px;
+    background: var(--bg-desk);
+  }
+
+  .spread {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 40px;
+    align-items: start;
+  }
+
+  .sheet {
+    padding: 28px;
+  }
+
+  .spread-landing {
+    gap: 56px;
+    align-items: center;
+  }
+
+  /* Two sheets of equal height: the roster is a ruled ledger of all eight seats. */
+  .spread-lobby {
+    align-items: stretch;
+  }
+
+  .member.is-open {
+    display: flex;
+  }
+
+  .players {
+    grid-template-rows: auto 1fr auto;
+  }
+
+  .players .roster {
+    grid-auto-rows: minmax(48px, 1fr);
+  }
+
+  .display {
+    font-size: 5rem;
+  }
+
+  .emblems {
+    grid-template-columns: repeat(8, minmax(44px, 1fr));
+  }
+
+  .spread-writing {
+    gap: 56px;
+  }
+
+  .round {
+    font-size: 3.5rem;
+  }
+
+  .line-input {
+    min-height: 168px;
+  }
+
+  /* Rail and its actions on the left, the poem down the right. */
+  .spread-reveal {
+    grid-template-columns: minmax(0, 340px) minmax(0, 1fr);
+    grid-template-areas:
+      'rail poem'
+      'actions poem';
+    grid-template-rows: auto 1fr;
+    row-gap: 20px;
+  }
+
+  .spread-reveal .rail {
+    grid-area: rail;
+  }
+
+  .spread-reveal .poem-sheet {
+    grid-area: poem;
+  }
+
+  .spread-reveal .circle-actions {
+    grid-area: actions;
+  }
+
+  .poem-sheet {
+    padding: 36px 40px 28px;
+  }
+
+  /* Desktop: the verse runs down the left edge; each byline sits on its line, at the right. */
+  .poem-line {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: baseline;
+    gap: 24px;
+  }
+
+  .verse {
+    font-size: 1.5625rem;
+  }
+
+  .byline {
+    margin-top: 0;
+    text-align: right;
+  }
+
+  .poem {
+    gap: 14px;
+  }
+
+  .column {
+    max-width: 680px;
+  }
+}
+
+/* ── reduced motion: no movement; an opacity crossfade at most ── */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-property: color, background-color, border-color, opacity !important;
+    transition-duration: 120ms !important;
+  }
+
+  .screen,
+  .poem-sheet,
+  .previous,
+  .dialog[open],
+  .menu {
+    animation: crossfade 120ms linear;
+  }
+
+  .action-status,
+  .tucked,
+  .round-now,
+  .tally-now,
+  .heart-count,
+  .nudge {
+    animation: none;
+  }
+
+  .btn:active:not(:disabled),
+  .icon-btn:active,
+  .emblem-option:active,
+  .code-copy:active,
+  .heart:active {
+    transform: none;
+  }
+}

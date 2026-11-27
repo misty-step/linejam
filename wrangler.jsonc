@@ -1,87 +1,56 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "linejam",
-  "account_id": "b069014f6a46558ea9146fb6c4ff8f6c",
-  // cloudflare/worker.ts routes /backend/* to the Convex-compatible Durable
-  // Object (cloudflare/backend.ts) and everything else to the OpenNext build.
-  "main": "cloudflare/worker.ts",
-  "alias": { "open-next-worker": "./.open-next/worker.js" },
-  "compatibility_date": "2026-09-20",
-  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  // The top level is the local Worker (`pnpm dev`, tests). Production is `env.production`.
+  "name": "linejam-local",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-11-01",
   "workers_dev": false,
   "preview_urls": false,
   "send_metrics": false,
   "observability": { "enabled": true },
+  // One build produces everything the Worker serves: checksum-verified folio
+  // assets, token CSS, self-hosted fonts, raster icons and the client bundle.
+  "build": { "command": "node scripts/build.mjs" },
   "assets": {
-    "directory": ".open-next/assets",
+    "directory": "dist/public",
     "binding": "ASSETS",
+    "run_worker_first": true,
+    "html_handling": "none",
+    "not_found_handling": "none",
   },
-  // One SQLite Durable Object holds the whole backend. A new deployment starts
-  // with writes frozen until an operator imports data or unfreezes it.
   "durable_objects": {
-    "bindings": [{ "name": "LINEJAM_BACKEND", "class_name": "LinejamBackend" }],
+    "bindings": [
+      { "name": "ROOM", "class_name": "RoomDO" },
+      { "name": "ARCHIVE", "class_name": "ArchiveDO" },
+      // Sealed legacy store. See src/legacy-vault.ts.
+      { "name": "LEGACY_VAULT", "class_name": "LinejamBackend" },
+    ],
   },
   "migrations": [
+    // The pre-recompile backend object. Its tag stays so a deploy over the
+    // existing Worker neither re-creates nor deletes the stored player data.
     { "tag": "linejam-backend-v1", "new_sqlite_classes": ["LinejamBackend"] },
+    { "tag": "cleanroom-v1", "new_sqlite_classes": ["RoomDO", "ArchiveDO"] },
   ],
+  // Secrets, bound with `wrangler secret put` (never committed):
+  //   GUEST_TOKEN_SECRET  signs guest credentials; the Worker refuses to issue
+  //                       or accept credentials without it.
+  //   LINEJAM_ADMIN_KEY   enables the operator import route; unset = 401.
+  "vars": { "LINEJAM_ENVIRONMENT": "local", "RETENTION_GC_ENABLED": "1" },
   "env": {
-    // Staging: workers.dev URL only. No routes, no custom domains.
-    // Backends are development-scoped (dev Convex deployment + Clerk dev
-    // instance + dev GUEST_TOKEN_SECRET), so staging proves the OpenNext
-    // runtime without touching production contracts.
-    // Build: pnpm build:cf     Deploy: pnpm deploy:cf:staging
-    "staging": {
-      "name": "linejam-staging",
-      "workers_dev": true,
-      "durable_objects": {
-        "bindings": [
-          { "name": "LINEJAM_BACKEND", "class_name": "LinejamBackend" },
-        ],
-      },
-      "vars": {
-        "NEXT_PUBLIC_CONVEX_URL": "https://exuberant-bloodhound-885.convex.cloud",
-        "NEXT_PUBLIC_SENTRY_ENABLED": "1",
-        "SENTRY_ORG": "misty-step",
-        "SENTRY_PROJECT": "linejam",
-        "LINEJAM_DEPLOY_ENVIRONMENT": "development",
-      },
-      // Key values are never committed (gitleaks flags Clerk key material).
-      // NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY and the server secrets
-      // (GUEST_TOKEN_SECRET, CLERK_SECRET_KEY) are bound at deploy with
-      // `wrangler secret put <NAME> --env staging` from the approved store.
-    },
-    // Production home: linejam.mistystep.io in the active mistystep.io zone.
-    // Deploy: pnpm deploy:cf:production (after secrets are bound)
     "production": {
       "name": "linejam",
-      "workers_dev": false,
       "routes": [{ "pattern": "linejam.mistystep.io", "custom_domain": true }],
       "durable_objects": {
         "bindings": [
-          { "name": "LINEJAM_BACKEND", "class_name": "LinejamBackend" },
+          { "name": "ROOM", "class_name": "RoomDO" },
+          { "name": "ARCHIVE", "class_name": "ArchiveDO" },
+          { "name": "LEGACY_VAULT", "class_name": "LinejamBackend" },
         ],
       },
-      "vars": {
-        // The web client and server talk to the Durable Object backend at
-        // /backend (cloudflare/backend.ts). Convex amiable-bulldog-848 stays
-        // paused and intact as the rollback target (ADR-0011, decision 7).
-        "NEXT_PUBLIC_CONVEX_URL": "https://linejam.mistystep.io/backend",
-        "NEXT_PUBLIC_SENTRY_ENABLED": "1",
-        "SENTRY_ORG": "misty-step",
-        "SENTRY_PROJECT": "linejam",
-        "LINEJAM_DEPLOY_ENVIRONMENT": "production",
-        // Convex runtime env for the Durable Object backend. Values match
-        // amiable-bulldog-848's (config/convex-env-manifest.json). It leaves
-        // RETENTION_GC_ENABLED unset, so this does too: retention stays dry-run.
-        "CONVEX_CLOUD_URL": "https://linejam.mistystep.io/backend",
-        "CONVEX_SITE_URL": "https://linejam.mistystep.io/backend/http",
-        "CLERK_JWT_ISSUER_DOMAIN": "https://clerk.linejam.mistystep.io",
-        "LINEJAM_SENTRY_ENABLED": "true",
-        "SENTRY_ENVIRONMENT": "production",
-      },
-      // NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY (Clerk live key) and all server
-      // secrets are bound at deploy with `wrangler secret put <NAME>
-      // --env production` from the approved store; never committed.
+      // Retention deletion stays dry-run in production until an operator
+      // enables it on purpose; the sweep still reports what is eligible.
+      "vars": { "LINEJAM_ENVIRONMENT": "production", "RETENTION_GC_ENABLED": "0" },
     },
   },
 }

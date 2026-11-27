@@ -1,0 +1,211 @@
+
+> linejam@1.0.0 verify /home/user/work
+> node scripts/verify.mjs
+
+verify: mode=full revision=0b28b2de857136a3a7defcaa747e480ffb52dd4c
+
+── build: node scripts/build.mjs
+build: 10 folio checksums verified → dist/public
+
+── typecheck: pnpm typecheck
+
+> linejam@1.0.0 typecheck /home/user/work
+> tsc -p tsconfig.json && tsc -p web/tsconfig.json && tsc -p cli/tsconfig.json
+
+
+── format: pnpm format:check
+
+> linejam@1.0.0 format:check /home/user/work
+> prettier --check .
+
+Checking formatting...
+All matched files use Prettier code style!
+
+── tests: pnpm exec vitest run
+
+ RUN  v5.1.2 /home/user/work
+
+
+ Test Files  9 passed (9)
+      Tests  96 passed (96)
+   Start at  03:22:44
+   Duration  6.92s (tests 97%, transform 1%, import 1%, worker 1%)
+
+    Isolate  9 workers spawned · ~225ms startup each (spawn + environment, per file)
+             at least ~451ms faster with isolate: false — reuses workers across files instead of one per file
+
+
+── walkthrough: xvfb-run -a node e2e/walkthrough.mjs
+walkthrough: headed Chrome against http://127.0.0.1:8791 (wrangler dev, workerd + SQLite Durable Objects)
+▶ desktop-light
+  [desktop-light] landing: 5 canonical labels, 8 emblems, blank pen name refused
+  [desktop-light] room ···· created (4-char Parlor-alphabet code)
+  [desktop-light] lobby: start disabled at 1 player; QR decodes to the live join URL; copy + share invite
+  [desktop-light] guest joined via the QR URL; both rosters live; guest waits for host
+  [desktop-light] host started the game with 2 players
+  [desktop-light] round 2: over-count refused with "Use 2 words" (client and server); draft survived refresh
+  [desktop-light] nine rounds written 1-2-3-4-5-4-3-2-1; each round showed only the immediately preceding line; waiting had no timer
+  [desktop-light] reading circle: guest revealed poem 1 — nine lines together with bylines; rail shows reading now / up next
+  [desktop-light] heart toggled: personal, counted for the room, and not a publication
+  [desktop-light] share: disclosure shown, link published on copy, opened by a signed-out reader
+  [desktop-light] revoke: the shared link now answers 404 and shows nothing
+  [desktop-light] next poem → recap (replay, most hearts) → Play again started game 2; earlier poems intact
+  [desktop-light] theme toggle persists across reload; End game asks first; Escape is the safe exit and focus returns
+  [desktop-light] Your poems: both poems listed privately; Copy text and Save image stay private; the seat is kept
+  [desktop-light] host ended the stalled game (lobby, nothing archived) and closed the room; a new arrival is refused
+  [desktop-light] /changelog, /releases, /releases.xml answer 404; no footer links
+✔ desktop-light
+▶ desktop-dark
+  [desktop-dark] landing: 5 canonical labels, 8 emblems, blank pen name refused
+  [desktop-dark] room ···· created (4-char Parlor-alphabet code)
+  [desktop-dark] lobby: start disabled at 1 player; QR decodes to the live join URL; copy + share invite
+  [desktop-dark] guest joined via the QR URL; both rosters live; guest waits for host
+  [desktop-dark] host started the game with 2 players
+  [desktop-dark] round 2: over-count refused with "Use 2 words" (client and server); draft survived refresh
+  [desktop-dark] nine rounds written 1-2-3-4-5-4-3-2-1; each round showed only the immediately preceding line; waiting had no timer
+  [desktop-dark] reading circle: guest revealed poem 1 — nine lines together with bylines; rail shows reading now / up next
+  [desktop-dark] heart toggled: personal, counted for the room, and not a publication
+  [desktop-dark] share: disclosure shown, link published on copy, opened by a signed-out reader
+  [desktop-dark] revoke: the shared link now answers 404 and shows nothing
+  [desktop-dark] next poem → recap (replay, most hearts) → Play again started game 2; earlier poems intact
+  [desktop-dark] theme toggle persists across reload; End game asks first; Escape is the safe exit and focus returns
+  [desktop-dark] Your poems: both poems listed privately; Copy text and Save image stay private; the seat is kept
+  [desktop-dark] host ended the stalled game (lobby, nothing archived) and closed the room; a new arrival is refused
+  [desktop-dark] /changelog, /releases, /releases.xml answer 404; no footer links
+✔ desktop-dark
+▶ desktop-reduced
+  [desktop-reduced] landing: 5 canonical labels, 8 emblems, blank pen name refused
+  [desktop-reduced] room ···· created (4-char Parlor-alphabet code)
+  [desktop-reduced] lobby: start disabled at 1 player; QR decodes to the live join URL; copy + share invite
+  [desktop-reduced] guest joined via the QR URL; both rosters live; guest waits for host
+  [desktop-reduced] host started the game with 2 players
+  [desktop-reduced] round 2: over-count refused with "Use 2 words" (client and server); draft survived refresh
+  [desktop-reduced] nine rounds written 1-2-3-4-5-4-3-2-1; each round showed only the immediately preceding line; waiting had no timer
+  [desktop-reduced] reading circle: guest revealed poem 1 — nine lines together with bylines; rail shows reading now / up next
+  [desktop-reduced] heart toggled: personal, counted for the room, and not a publication
+  [desktop-reduced] share: disclosure shown, link published on copy, opened by a signed-out reader
+  [desktop-reduced] revoke: the shared link now answers 404 and shows nothing
+  [desktop-reduced] next poem → recap (replay, most hearts) → Play again started game 2; earlier poems intact
+  [desktop-reduced] theme toggle persists across reload; End game asks first; Escape is the safe exit and focus returns
+  [desktop-reduced] Your poems: both poems listed privately; Copy text and Save image stay private; the seat is kept
+  [desktop-reduced] host ended the stalled game (lobby, nothing archived) and closed the room; a new arrival is refused
+  [desktop-reduced] /changelog, /releases, /releases.xml answer 404; no footer links
+✔ desktop-reduced
+▶ phone-light
+  [phone-light] landing: 5 canonical labels, 8 emblems, blank pen name refused
+  [phone-light] room ···· created (4-char Parlor-alphabet code)
+  [phone-light] lobby: start disabled at 1 player; QR decodes to the live join URL; copy + share invite
+  [phone-light] guest joined via the QR URL; both rosters live; guest waits for host
+  [phone-light] host started the game with 2 players
+  [phone-light] round 2: over-count refused with "Use 2 words" (client and server); draft survived refresh
+  [phone-light] nine rounds written 1-2-3-4-5-4-3-2-1; each round showed only the immediately preceding line; waiting had no timer
+  [phone-light] reading circle: host revealed poem 1 — nine lines together with bylines; rail shows reading now / up next
+  [phone-light] heart toggled: personal, counted for the room, and not a publication
+  [phone-light] share: disclosure shown, link published on copy, opened by a signed-out reader
+  [phone-light] revoke: the shared link now answers 404 and shows nothing
+  [phone-light] next poem → recap (replay, most hearts) → Play again started game 2; earlier poems intact
+  [phone-light] theme toggle persists across reload; End game asks first; Escape is the safe exit and focus returns
+  [phone-light] Your poems: both poems listed privately; Copy text and Save image stay private; the seat is kept
+  [phone-light] host ended the stalled game (lobby, nothing archived) and closed the room; a new arrival is refused
+  [phone-light] /changelog, /releases, /releases.xml answer 404; no footer links
+✔ phone-light
+▶ phone-dark
+  [phone-dark] landing: 5 canonical labels, 8 emblems, blank pen name refused
+  [phone-dark] room ···· created (4-char Parlor-alphabet code)
+  [phone-dark] lobby: start disabled at 1 player; QR decodes to the live join URL; copy + share invite
+  [phone-dark] guest joined via the QR URL; both rosters live; guest waits for host
+  [phone-dark] host started the game with 2 players
+  [phone-dark] round 2: over-count refused with "Use 2 words" (client and server); draft survived refresh
+  [phone-dark] nine rounds written 1-2-3-4-5-4-3-2-1; each round showed only the immediately preceding line; waiting had no timer
+  [phone-dark] reading circle: guest revealed poem 1 — nine lines together with bylines; rail shows reading now / up next
+  [phone-dark] heart toggled: personal, counted for the room, and not a publication
+  [phone-dark] share: disclosure shown, link published on copy, opened by a signed-out reader
+  [phone-dark] revoke: the shared link now answers 404 and shows nothing
+  [phone-dark] next poem → recap (replay, most hearts) → Play again started game 2; earlier poems intact
+  [phone-dark] theme toggle persists across reload; End game asks first; Escape is the safe exit and focus returns
+  [phone-dark] Your poems: both poems listed privately; Copy text and Save image stay private; the seat is kept
+  [phone-dark] host ended the stalled game (lobby, nothing archived) and closed the room; a new arrival is refused
+  [phone-dark] /changelog, /releases, /releases.xml answer 404; no footer links
+✔ phone-dark
+▶ phone-reduced
+  [phone-reduced] landing: 5 canonical labels, 8 emblems, blank pen name refused
+  [phone-reduced] room ···· created (4-char Parlor-alphabet code)
+  [phone-reduced] lobby: start disabled at 1 player; QR decodes to the live join URL; copy + share invite
+  [phone-reduced] guest joined via the QR URL; both rosters live; guest waits for host
+  [phone-reduced] host started the game with 2 players
+  [phone-reduced] round 2: over-count refused with "Use 2 words" (client and server); draft survived refresh
+  [phone-reduced] nine rounds written 1-2-3-4-5-4-3-2-1; each round showed only the immediately preceding line; waiting had no timer
+  [phone-reduced] reading circle: host revealed poem 1 — nine lines together with bylines; rail shows reading now / up next
+  [phone-reduced] heart toggled: personal, counted for the room, and not a publication
+  [phone-reduced] share: disclosure shown, link published on copy, opened by a signed-out reader
+  [phone-reduced] revoke: the shared link now answers 404 and shows nothing
+  [phone-reduced] next poem → recap (replay, most hearts) → Play again started game 2; earlier poems intact
+  [phone-reduced] theme toggle persists across reload; End game asks first; Escape is the safe exit and focus returns
+  [phone-reduced] Your poems: both poems listed privately; Copy text and Save image stay private; the seat is kept
+  [phone-reduced] host ended the stalled game (lobby, nothing archived) and closed the room; a new arrival is refused
+  [phone-reduced] /changelog, /releases, /releases.xml answer 404; no footer links
+✔ phone-reduced
+▶ small-light
+  [small-light] landing: 5 canonical labels, 8 emblems, blank pen name refused
+  [small-light] room ···· created (4-char Parlor-alphabet code)
+  [small-light] lobby: start disabled at 1 player; QR decodes to the live join URL; copy + share invite
+  [small-light] guest joined via the QR URL; both rosters live; guest waits for host
+  [small-light] host started the game with 2 players
+  [small-light] round 2: over-count refused with "Use 2 words" (client and server); draft survived refresh
+  [small-light] nine rounds written 1-2-3-4-5-4-3-2-1; each round showed only the immediately preceding line; waiting had no timer
+  [small-light] reading circle: guest revealed poem 1 — nine lines together with bylines; rail shows reading now / up next
+  [small-light] heart toggled: personal, counted for the room, and not a publication
+  [small-light] share: disclosure shown, link published on copy, opened by a signed-out reader
+  [small-light] revoke: the shared link now answers 404 and shows nothing
+  [small-light] next poem → recap (replay, most hearts) → Play again started game 2; earlier poems intact
+  [small-light] theme toggle persists across reload; End game asks first; Escape is the safe exit and focus returns
+  [small-light] Your poems: both poems listed privately; Copy text and Save image stay private; the seat is kept
+  [small-light] host ended the stalled game (lobby, nothing archived) and closed the room; a new arrival is refused
+  [small-light] /changelog, /releases, /releases.xml answer 404; no footer links
+✔ small-light
+▶ small-dark
+  [small-dark] landing: 5 canonical labels, 8 emblems, blank pen name refused
+  [small-dark] room ···· created (4-char Parlor-alphabet code)
+  [small-dark] lobby: start disabled at 1 player; QR decodes to the live join URL; copy + share invite
+  [small-dark] guest joined via the QR URL; both rosters live; guest waits for host
+  [small-dark] host started the game with 2 players
+  [small-dark] round 2: over-count refused with "Use 2 words" (client and server); draft survived refresh
+  [small-dark] nine rounds written 1-2-3-4-5-4-3-2-1; each round showed only the immediately preceding line; waiting had no timer
+  [small-dark] reading circle: host revealed poem 1 — nine lines together with bylines; rail shows reading now / up next
+  [small-dark] heart toggled: personal, counted for the room, and not a publication
+  [small-dark] share: disclosure shown, link published on copy, opened by a signed-out reader
+  [small-dark] revoke: the shared link now answers 404 and shows nothing
+  [small-dark] next poem → recap (replay, most hearts) → Play again started game 2; earlier poems intact
+  [small-dark] theme toggle persists across reload; End game asks first; Escape is the safe exit and focus returns
+  [small-dark] Your poems: both poems listed privately; Copy text and Save image stay private; the seat is kept
+  [small-dark] host ended the stalled game (lobby, nothing archived) and closed the room; a new arrival is refused
+  [small-dark] /changelog, /releases, /releases.xml answer 404; no footer links
+✔ small-dark
+▶ small-reduced
+  [small-reduced] landing: 5 canonical labels, 8 emblems, blank pen name refused
+  [small-reduced] room ···· created (4-char Parlor-alphabet code)
+  [small-reduced] lobby: start disabled at 1 player; QR decodes to the live join URL; copy + share invite
+  [small-reduced] guest joined via the QR URL; both rosters live; guest waits for host
+  [small-reduced] host started the game with 2 players
+  [small-reduced] round 2: over-count refused with "Use 2 words" (client and server); draft survived refresh
+  [small-reduced] nine rounds written 1-2-3-4-5-4-3-2-1; each round showed only the immediately preceding line; waiting had no timer
+  [small-reduced] reading circle: host revealed poem 1 — nine lines together with bylines; rail shows reading now / up next
+  [small-reduced] heart toggled: personal, counted for the room, and not a publication
+  [small-reduced] share: disclosure shown, link published on copy, opened by a signed-out reader
+  [small-reduced] revoke: the shared link now answers 404 and shows nothing
+  [small-reduced] next poem → recap (replay, most hearts) → Play again started game 2; earlier poems intact
+  [small-reduced] theme toggle persists across reload; End game asks first; Escape is the safe exit and focus returns
+  [small-reduced] Your poems: both poems listed privately; Copy text and Save image stay private; the seat is kept
+  [small-reduced] host ended the stalled game (lobby, nothing archived) and closed the room; a new arrival is refused
+  [small-reduced] /changelog, /releases, /releases.xml answer 404; no footer links
+✔ small-reduced
+▶ http-fallback
+✔ http-fallback
+▶ credential-recovery
+✔ credential-recovery
+
+9/9 runs passed · {"consoleErrors":0,"pageErrors":0,"cspViolations":0,"failedRequests":0,"externalRequests":0,"unexpected4xx5xx":0,"maxOverflowPx":0,"minPhoneTouchTargetPx":44,"requests":1476,"maxOverflowAt200PercentTextPx":0}
+evidence: /home/user/work/e2e/out (52 files)
+
+verify: 5 steps passed at 0b28b2de857136a3a7defcaa747e480ffb52dd4c
+exit=0

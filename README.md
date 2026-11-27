@@ -1,82 +1,78 @@
 # Linejam
 
-A pass-the-poem party game for friends in the same room. Play at
-[linejam.mistystep.io](https://linejam.mistystep.io)—no install or account required.
+A pass-the-poem party game for two to eight friends in the same room. Play at
+[linejam.mistystep.io](https://linejam.mistystep.io) — no install, no account.
 
 Each player writes one line per round, seeing only the line before theirs.
-Nine rounds follow `1, 2, 3, 4, 5, 4, 3, 2, 1` words. Then everyone reads the
-complete poems aloud. Saving stays private; publishing a link is explicit and
+Nine rounds follow `1, 2, 3, 4, 5, 4, 3, 2, 1` words. Then the room reads the
+finished poems aloud. Saving stays private; publishing a link is explicit and
 reversible.
 
-## Run locally
+## One runtime
+
+Linejam is one Cloudflare Worker with Durable Objects (SQLite storage):
+
+- `RoomDO` — one object per room. Its SQLite database is the only authority for
+  that room's members, presence, games, assignments and accepted lines. Live
+  updates reach every client over hibernating WebSockets, with an HTTP
+  fallback on the same state route.
+- `ArchiveDO` — completed poems, who may read them, favorites, share links and
+  retention.
+- The Worker serves the static UI itself. There is no framework runtime, no
+  separate frontend server and no second backend.
+
+[docs/architecture.md](docs/architecture.md) has the details.
+
+## Run it
+
+Needs Node `>= 22.18` and pnpm. No cloud credentials, no dotenv file.
 
 ```sh
-node scripts/local/cli.mjs dev
+pnpm install
+pnpm dev          # http://127.0.0.1:8787 — real workerd + SQLite Durable Objects
 ```
 
-Open `http://127.0.0.1:3333` in separate browser profiles for distinct players.
-The real Next.js/Convex stack needs Node and local Docker, not cloud credentials
-or a host dotenv file. Ctrl-C stops the owned stack and preserves its data.
-See [local development](docs/local-development.md) for prerequisites, QA and reset.
+Open it in two browser profiles (or one normal and one private window) to be
+two players. `pnpm dev` generates a local-only secret in `.dev.vars` on first
+run.
 
-## Verify a candidate
-
-With the Node runtime required by `package.json`, its exact pnpm pin, the Rust
-toolchain in `rust-toolchain.toml` and both frozen lockfiles installed, run this
-in a clean candidate checkout on Mirrodin:
+## Verify a change
 
 ```sh
-pnpm check --mode fast
-pnpm check --mode full
+pnpm verify        # build, types, formatting, tests, headed two-player walkthrough
+pnpm verify --fast # everything except the browser walkthrough
 ```
 
-Omitting `--mode` runs full verification. Fast mode runs source quality and unit
-checks; full adds formatting, coverage, Cloudflare backend tests, a Worker build,
-route/image checks, the existing rendered guest lifecycle, party recovery and
-native telemetry fault/recovery in workerd with a fresh SQLite Durable Object.
-Full mode needs the lockfile's Playwright Chromium
-(`pnpm exec playwright install chromium`), its system libraries and `ffmpeg`.
-The caller owns compute isolation; fleet runs stay inside `gha-runners.slice`.
+`pnpm verify` runs entirely on this machine and refuses cloud credentials:
 
-No production credential or dotenv file is needed. The check refuses live
-credentials and uses a loopback-only backend and generated local identities.
-Retain the command's source-bound output on the native executor. Browser
-evidence is in `.qa/worker/qa/evidence`; Rust entry screenshots are alongside it
-in `.qa/worker/qa/entry-ui`. Private raw logs stay on that executor.
-A local pass is not a deployment, hosted Clerk verification or a PostHog usage result.
-This command prepares the native release path; it does not yet replace the
-existing deployer or authorize a second promotion path.
+| Step        | What it proves                                                                                                                                                                   |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| build       | every file in `folio/assets/` matches `checksums.json`; tokens, fonts, icons and the client bundle are generated from sources of truth                                           |
+| tests       | the Worker and both Durable Objects inside workerd (Miniflare); the CLI and MCP server as child processes against a live `wrangler dev`                                          |
+| walkthrough | headed Chrome, two concurrent players, a full nine-round game through reveal, heart, share and revoke, at `1440×900`, `390×844` and `320×568`, in Light, Dark and reduced motion |
 
-The candidate native train composes that same command with a secret-free
-production build and proof of the actual deploy input:
+The walkthrough needs Google Chrome, `ffmpeg` and (without a display) `xvfb`;
+evidence lands in `e2e/out/`. See [docs/testing.md](docs/testing.md).
+
+## Scripted players
+
+The CLI and the MCP server call the same Worker HTTP API as the browser, with
+the same guest credential and the same rules.
 
 ```sh
-pnpm release:check --mode fast --public-config /path/to/production-public.json
+export LINEJAM_URL=http://127.0.0.1:8787
+pnpm cli --help
+pnpm mcp           # MCP server on stdio
 ```
 
-The JSON contains only `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`,
-`NEXT_PUBLIC_POSTHOG_KEY` and `NEXT_PUBLIC_SENTRY_DSN`, as already published to
-browsers. No runtime or provider credential belongs in it. The command produces
-`.release/` and `.qa/release/` (production-configured phone screenshots and its
-receipt). [ADR 0013](docs/adr/0013-native-application-train.md) describes the
-native controller, trust boundary and activation work still required.
+See [docs/agent-faces.md](docs/agent-faces.md).
 
 ## Project guide
 
-- [Product brief and current direction](project.md)
-- [Identity and interactions](DESIGN.md)
-- [Reference specification and user stories](SPEC.md) and [feature map](features/README.md)
-- [Architecture](docs/ARCHITECTURE.md) and Parlor membership boundary
-- [Contributing](CONTRIBUTING.md) and [testing](docs/testing.md)
-- [CLI/MCP and browser acceptance](docs/agent-faces.md)
-- [Production deployment](docs/deployment.md) and [CI/operations authority](docs/ops/observability-ci.md)
-- [Sharing privacy](docs/sharing-privacy.md), [retention](docs/ops/data-retention.md),
-  [schema migrations](docs/convex-migrations.md), and [security](SECURITY.md)
+- [PRODUCT.md](PRODUCT.md) — what Linejam is and must do (the Active Folio)
+- [DESIGN.md](DESIGN.md) and [`folio/assets/`](folio/assets) — the locked visual identity
+- [SPEC.md](SPEC.md) — detailed observable acceptance, and the [feature map](features/README.md)
+- [docs/architecture.md](docs/architecture.md), [docs/operations.md](docs/operations.md), [docs/testing.md](docs/testing.md)
+- [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md)
 
-Commands and dependency versions live in `package.json`. Parlor is the vendored
-room-membership integration pinned in
-[`vendor/parlor/UPSTREAM.json`](vendor/parlor/UPSTREAM.json); see
-[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md#parlor-boundary) for membership detail.
-
-[Changelog](https://linejam.mistystep.io/changelog) ·
-[MIT license](LICENSE)
+Release history lives in [GitHub Releases](https://github.com/misty-step/linejam/releases).

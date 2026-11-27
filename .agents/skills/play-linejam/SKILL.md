@@ -1,59 +1,35 @@
 ---
 name: play-linejam
-description: Verify a complete Linejam multiplayer game through the rendered human UI, with isolated players, room closure, and a sanitized evidence receipt. Use for commissioned multiplayer browser QA, not backend setup or isolated rendering checks.
+description: Play a complete multiplayer Linejam game in real browsers against a local Worker. Use when complete rendered multiplayer acceptance is commissioned; for routine changes use verify-linejam.
 ---
 
 # Play Linejam
 
-Use this skill when acceptance requires real players completing a multiplayer
-game through the rendered UI. It does not authorize remote writes or replace a
-focused browser check for unrelated UI changes. CLI/MCP game mutations cannot
-stand in for player interactions.
+The complete rendered multiplayer journey is automated in
+`e2e/walkthrough.mjs`: Host and Guest in two concurrent headed Chrome
+contexts, plus a signed-out reader for the shared link.
 
-## Prepare the real target
+```bash
+xvfb-run -a node e2e/walkthrough.mjs                    # all nine runs
+xvfb-run -a node e2e/walkthrough.mjs --only desktop-light
+```
 
-For an isolated guest game, use the existing
-[local runtime guide](../../../docs/local-development.md). It owns prerequisites,
-fresh source synchronization, readiness, port/project isolation, evidence, and
-teardown. Do not copy a worktree's dotenv files, use `pnpm build` (a deployment
-wrapper), or select a shared Convex backend to make local play work.
+It starts its own `wrangler dev` on loopback with throwaway storage and stops
+it afterwards. It refuses any non-loopback target.
 
-Choose the smallest surface:
+## To play by hand
 
-- `node scripts/local/cli.mjs qa --project <owned-project>` prepares the real
-  local Next/Convex stack and runs the existing deterministic browser lifecycle,
-  including rematch. It does not replace this skill's closure/rejection exercise.
-- `node scripts/local/cli.mjs up --project <owned-project>` prepares a target
-  for interactive play. After `up` proves current readiness, use `status` for
-  that same project to inspect the receipt and set `LINEJAM_PLAY_BASE_URL` to
-  its loopback **web** origin. `status` reports the last successful readiness
-  receipt, not a new health proof. Distinct players need isolated sessions.
-- Use [change-scoped checks](../../../docs/testing.md) for non-game changes;
-  do not launch a complete multiplayer exercise just to validate documentation.
+```bash
+pnpm dev    # http://127.0.0.1:8787
+```
 
-Both `up` and `qa` leave services running. The invoking coordinator owns
-`node scripts/local/cli.mjs down --project <owned-project>` after browser and
-room cleanup, including on failure. `down` preserves data and evidence; use the
-guide's explicitly confirmed `reset` only for disposable state owned by this run.
-Local guest play does not establish Clerk sign-in or hosted-deployment health.
+Use two browser profiles (or a normal and a private window): each is a
+different guest. One creates a room; the other opens the join link or scans
+the QR. Play nine rounds, read the poems, heart one, share it, open the link
+signed out, revoke it.
 
-## Exercise and inspect
+## What a pass may claim
 
-Read the contract for the work being performed:
-
-- [Coordinator](skill://play-linejam/coordinator.md): target authority,
-  preflight, concurrent player orchestration, bounded lifecycle, ordered room
-  closure and fresh-session rejection, unconditional teardown, and evidence
-  inspection.
-- [Player](skill://play-linejam/player.md): isolated browser sessions and exact
-  host, guest, and verifier UI protocol using the pinned `agent-browser`.
-- [Result schema](skill://play-linejam/result.schema.json): closed aggregate and
-  per-player receipt contract. Persist through `pnpm qa:play-linejam:result`,
-  never by writing a pass claim directly.
-
-The coordinator runs `pnpm qa:play-linejam:check` before opening sessions.
-Passing preflight only checks package/schema readiness; it is not gameplay
-evidence. A completed run still requires all nine rounds, reveal, observed
-closure and join rejection, session cleanup, and inspected, non-empty run-local
-visual artifacts. Structured receipts must not contain room codes, guest
-tokens, poem text, or raw UI/console errors.
+Only what was observed: the screens reached, the lines accepted, the reveal,
+the share and its revocation, and `e2e/out/walkthrough.json`. It is not a
+deployment check and not physical-phone qualification.

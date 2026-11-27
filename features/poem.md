@@ -1,12 +1,9 @@
-# Poem
+# Poem (US-002)
 
-Stories: US-002
-Source: app/room/[code]/**, convex/game.ts, convex/schema.ts, convex/lib/assignmentMatrix.ts, convex/lib/assignPoemReaders.ts, convex/lib/gameRules.ts, convex/lib/sessionLifecycle.ts, components/WritingScreen.tsx, components/WaitingScreen.tsx, components/RevealPhase.tsx, components/PoemDisplay.tsx, lib/writingDraft.ts
+Nine rounds, the limited view, calm waiting, the reading circle.
 
-Acceptance: [SPEC.md — US-002](../SPEC.md#us-002-live-write-nine-lines-and-reveal-the-whole-poems).
-
-## Driving it
-
-Convex owns assignment, accepted submission, and completion; the room UI owns writing and reveal. `qa/walk --stories "US-002"` walks a fresh isolated web/backend game, checking observed round content and final reveal. Existing browser and Convex tests remain independent owner checks.
-
-A local game cannot establish hosted deployment alignment or physical-device quality.
+- Rules: `shared/rules.ts` (`ROUND_WORDS`, `checkLine`, `writerSeat`, `poemForSeat`, `readerSeat`)
+- Room: `src/room.ts` — `submit`, `assignmentFor`, `reveal`, `circleView`, `endGame`, `toLobby`
+- UI: `web/src/views.ts` (`writing`, `reveal`), drafts and submit in `web/src/main.ts`
+- Tests: `tests/worker/game.test.ts`, `tests/worker/room.test.ts`, `tests/faces/design.test.ts`
+- Walkthrough: nine rounds → reading circle → recap → Play again

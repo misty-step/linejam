@@ -1,0 +1,2 @@
+{"_id": "s1", "_creationTime": 1757000990000, "poemId": "p_done_a", "slug": "legacy-slug-7f3k9q2m", "userId": "u_wren", "active": true, "activatedAt": 1757000990000}
+{"_id": "s2", "_creationTime": 1757000995000, "poemId": "p_done_b", "slug": "legacy-revoked-slug", "userId": "u_sol", "active": false, "revokedAt": 1757000999000}
