@@ -1,0 +1,398 @@
+$ export LINEJAM_URL=http://127.0.0.1:8795   # local wrangler dev: workerd + SQLite Durable Objects
+
+$ linejam room create Ada --emblem orrery
+[stdout]
+{
+  "code": "ROOM",
+  "version": 1,
+  "phase": "lobby",
+  "capacity": 8,
+  "you": {
+    "seat": 0,
+    "penName": "Ada",
+    "emblem": "orrery",
+    "isHost": true
+  },
+  "members": [
+    {
+      "seat": 0,
+      "penName": "Ada",
+      "emblem": "orrery",
+      "isHost": true,
+      "isYou": true,
+      "presence": "present"
+    }
+  ],
+  "startBlocker": "need_players",
+  "game": null
+}
+[stderr]
+{"minted":{"guestId":"<redacted>","guestToken":"<guest-token redacted>"}}
+[exit 0]
+
+$ linejam room join ROOM Bea --emblem vesper
+[stdout]
+{
+  "code": "ROOM",
+  "version": 2,
+  "phase": "lobby",
+  "capacity": 8,
+  "you": {
+    "seat": 1,
+    "penName": "Bea",
+    "emblem": "vesper",
+    "isHost": false
+  },
+  "members": [
+    {
+      "seat": 0,
+      "penName": "Ada",
+      "emblem": "orrery",
+      "isHost": true,
+      "isYou": false,
+      "presence": "present"
+    },
+    {
+      "seat": 1,
+      "penName": "Bea",
+      "emblem": "vesper",
+      "isHost": false,
+      "isYou": true,
+      "presence": "present"
+    }
+  ],
+  "startBlocker": "not_host",
+  "game": null
+}
+[stderr]
+{"minted":{"guestId":"<redacted>","guestToken":"<guest-token redacted>"}}
+[exit 0]
+
+$ linejam room join ZZZZ Nobody
+[stderr]
+{"minted":{"guestId":"<redacted>","guestToken":"<guest-token redacted>"}}
+{"error":{"code":"room_not_found","message":"Room code not found","status":404}}
+[exit 1]
+
+$ linejam game start ROOM --guest-token <bea>
+[stderr]
+{"error":{"code":"not_host","message":"Only the host can do this","status":403}}
+[exit 1]
+
+$ linejam game start ROOM --guest-token <ada>
+[stdout]
+{
+  "code": "ROOM",
+  "version": 3,
+  "phase": "writing",
+  "capacity": 8,
+  "you": {
+    "seat": 0,
+    "penName": "Ada",
+    "emblem": "orrery",
+    "isHost": true
+  },
+  "members": [
+    {
+      "seat": 0,
+      "penName": "Ada",
+      "emblem": "orrery",
+      "isHost": true,
+      "isYou": true,
+      "presence": "present"
+    },
+    {
+      "seat": 1,
+      "penName": "Bea",
+      "emblem": "vesper",
+      "isHost": false,
+      "isYou": false,
+      "presence": "present"
+    }
+  ],
+  "startBlocker": "game_active",
+  "game": {
+    "id": "g_ed6ec592089de57035b6f4c9",
+    "cycle": 1,
+    "status": "writing",
+    "round": 0,
+    "role": "writer",
+    "writers": [
+      {
+        "seat": 0,
+        "penName": "Ada",
+        "emblem": "orrery",
+        "isYou": true,
+        "presence": "present",
+        "submitted": false
+      },
+      {
+        "seat": 1,
+        "penName": "Bea",
+        "emblem": "vesper",
+        "isYou": false,
+        "presence": "present",
+        "submitted": false
+      }
+    ],
+    "assignment": {
+      "poemId": "p_788ceb015e590a7adddbe739",
+      "lineIndex": 0,
+      "words": 1,
+      "previous": null,
+      "submitted": null
+    },
+    "circle": null
+  }
+}
+[exit 0]
+
+$ linejam game assignment ROOM --guest-token <ada>
+[stdout]
+{
+  "phase": "writing",
+  "round": 0,
+  "assignment": {
+    "poemId": "p_788ceb015e590a7adddbe739",
+    "lineIndex": 0,
+    "words": 1,
+    "previous": null,
+    "submitted": null
+  }
+}
+[exit 0]
+
+$ linejam game submit-line ROOM p_788ceb015e590a7adddbe739 0 Lanterns --guest-token <ada>
+[stdout]
+{
+  "poemId": "p_788ceb015e590a7adddbe739",
+  "lineIndex": 0,
+  "text": "Lanterns",
+  "created": true
+}
+[exit 0]
+
+$ linejam game assignment ROOM --guest-token <bea>
+[stdout]
+{
+  "phase": "writing",
+  "round": 0,
+  "assignment": {
+    "poemId": "p_f55b1a02d4cb4b875d427f65",
+    "lineIndex": 0,
+    "words": 1,
+    "previous": null,
+    "submitted": null
+  }
+}
+[exit 0]
+
+$ linejam game submit-line ROOM p_f55b1a02d4cb4b875d427f65 0 Morning --guest-token <bea>
+[stdout]
+{
+  "poemId": "p_f55b1a02d4cb4b875d427f65",
+  "lineIndex": 0,
+  "text": "Morning",
+  "created": true
+}
+[exit 0]
+
+$ linejam game assignment ROOM --guest-token <ada>
+[stdout]
+{
+  "phase": "writing",
+  "round": 1,
+  "assignment": {
+    "poemId": "p_f55b1a02d4cb4b875d427f65",
+    "lineIndex": 1,
+    "words": 2,
+    "previous": "Morning",
+    "submitted": null
+  }
+}
+[exit 0]
+
+$ linejam game submit-line ROOM p_f55b1a02d4cb4b875d427f65 1 "three words here" --guest-token <ada>
+[stderr]
+{"error":{"code":"wrong_word_count","message":"Use 2 words","status":422}}
+[exit 1]
+
+$ linejam game submit-line ROOM p_f55b1a02d4cb4b875d427f65 1 drift upstream --guest-token <ada>
+[stdout]
+{
+  "poemId": "p_f55b1a02d4cb4b875d427f65",
+  "lineIndex": 1,
+  "text": "drift upstream",
+  "created": true
+}
+[exit 0]
+
+# round 2 (2 words): bea read the assignment and submitted — accepted
+
+# round 3 (3 words): ada read the assignment and submitted — accepted
+
+# round 3 (3 words): bea read the assignment and submitted — accepted
+
+# round 4 (4 words): ada read the assignment and submitted — accepted
+
+# round 4 (4 words): bea read the assignment and submitted — accepted
+
+# round 5 (5 words): ada read the assignment and submitted — accepted
+
+# round 5 (5 words): bea read the assignment and submitted — accepted
+
+# round 6 (4 words): ada read the assignment and submitted — accepted
+
+# round 6 (4 words): bea read the assignment and submitted — accepted
+
+# round 7 (3 words): ada read the assignment and submitted — accepted
+
+# round 7 (3 words): bea read the assignment and submitted — accepted
+
+# round 8 (2 words): ada read the assignment and submitted — accepted
+
+# round 8 (2 words): bea read the assignment and submitted — accepted
+
+# round 9 (1 word): ada read the assignment and submitted — accepted
+
+# round 9 (1 word): bea read the assignment and submitted — accepted
+
+# bea (the assigned reader) revealed poem 1 — exit 0
+
+# ada (the assigned reader) revealed poem 2 — exit 0
+
+$ linejam poems list --guest-token <ada>
+[stdout]
+[
+  {
+    "id": "p_788ceb015e590a7adddbe739",
+    "completedAt": 1795749999277,
+    "firstLine": "Lanterns",
+    "writers": [
+      "Ada",
+      "Bea"
+    ],
+    "favorited": false,
+    "shared": false
+  },
+  {
+    "id": "p_f55b1a02d4cb4b875d427f65",
+    "completedAt": 1795749999277,
+    "firstLine": "Morning",
+    "writers": [
+      "Ada",
+      "Bea"
+    ],
+    "favorited": false,
+    "shared": false
+  }
+]
+[exit 0]
+
+$ linejam poems get p_788ceb015e590a7adddbe739 --guest-token <bea>
+[stdout]
+{
+  "id": "p_788ceb015e590a7adddbe739",
+  "gameId": "g_ed6ec592089de57035b6f4c9",
+  "completedAt": 1795749999277,
+  "lines": [
+    {
+      "text": "Lanterns",
+      "by": "Ada"
+    },
+    {
+      "text": "spills over",
+      "by": "Bea"
+    },
+    {
+      "text": "past sleeping orchards",
+      "by": "Ada"
+    },
+    {
+      "text": "crumbs keep their secrets",
+      "by": "Bea"
+    },
+    {
+      "text": "every name it ever carried",
+      "by": "Ada"
+    },
+    {
+      "text": "something about the tide",
+      "by": "Bea"
+    },
+    {
+      "text": "in small hours",
+      "by": "Ada"
+    },
+    {
+      "text": "for us",
+      "by": "Bea"
+    },
+    {
+      "text": "gone",
+      "by": "Ada"
+    }
+  ],
+  "hearts": 0,
+  "favorited": false,
+  "participant": true,
+  "revealed": true,
+  "share": {
+    "active": false,
+    "path": null
+  }
+}
+[exit 0]
+
+$ linejam favorites toggle p_788ceb015e590a7adddbe739 --guest-token <ada>
+[stdout]
+{
+  "poemId": "p_788ceb015e590a7adddbe739",
+  "favorited": true,
+  "hearts": 1
+}
+[exit 0]
+
+$ linejam favorites list --guest-token <ada>
+[stdout]
+[
+  {
+    "id": "p_788ceb015e590a7adddbe739",
+    "favoritedAt": 1795749999948,
+    "available": true,
+    "firstLine": "Lanterns"
+  }
+]
+[exit 0]
+
+$ linejam guest mint
+[stdout]
+{
+  "guestId":"<redacted>"
+}
+[stderr]
+{"minted":{"guestId":"<redacted>","guestToken":"<guest-token redacted>"}}
+[exit 0]
+
+$ linejam poems get p_788ceb015e590a7adddbe739 --guest-token <eve>
+[stderr]
+{"error":{"code":"poem_not_found","message":"Poem not found","status":404}}
+[exit 1]
+
+
+$ linejam-mcp   # JSON-RPC 2.0 over stdio
+→ {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"evidence","version":"1"}}}
+← {"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-06-18","capabilities":{"tools":{}},"serverInfo":{"name":"linejam-mcp","version":"1.0.0"}}}
+→ {"jsonrpc":"2.0","id":2,"method":"tools/list"}
+← 12 tools: linejam_mint_guest, linejam_create_room, linejam_join_room, linejam_room_state, linejam_start_game, linejam_current_assignment, linejam_submit_line, linejam_reveal_poem, linejam_list_poems, linejam_get_poem, linejam_toggle_favorite, linejam_list_favorites
+→ tools/call linejam_mint_guest {}
+← result: {"guestId":"<redacted>","guestToken":"<redacted>"}
+→ tools/call linejam_create_room {"guestToken":"<redacted>","penName":"Cy","emblem":"prism"}
+← result: room ···· created, phase lobby, host Cy
+→ {"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"linejam_start_game","arguments":{"guestToken":"<redacted>","code":"GGM4"}}}
+← {"jsonrpc":"2.0","id":5,"result":{"isError":true,"content":[{"type":"text","text":"{\"error\":{\"code\":\"need_players\",\"message\":\"Need 2 players\",\"status\":409}}"}]}}
+→ {"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"linejam_create_room","arguments":{"penName":"NoToken"}}}
+← {"jsonrpc":"2.0","id":6,"error":{"code":-32602,"message":"Missing required argument: guestToken"}}
+→ {"jsonrpc":"2.0","id":7,"method":"rooms/explode"}
+← {"jsonrpc":"2.0","id":7,"error":{"code":-32601,"message":"Method not found: rooms/explode"}}
+
