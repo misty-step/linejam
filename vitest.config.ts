@@ -1,75 +1,38 @@
+import { cloudflareTest } from '@cloudflare/vitest-plugin';
 import { defineConfig } from 'vitest/config';
-import react from '@vitejs/plugin-react';
-import path from 'path';
-import { normalizePath } from 'vite';
 
-const rootCoverageExclude = (directory: string) =>
-  normalizePath(path.join(__dirname, directory, '**'));
-
+// Two projects, zero cloud credentials:
+//   worker — runs inside workerd (Miniflare) against the real Worker and both
+//            Durable Objects with their SQLite storage.
+//   faces  — runs in Node and drives the CLI and MCP server as child
+//            processes against a live local `wrangler dev`.
 export default defineConfig({
-  plugins: [react()],
   test: {
-    pool: 'threads', // Threads avoids forks pool teardown hang on Node 22
-    globals: true,
-    environment: 'node', // Default to node; DOM tests use // @vitest-environment happy-dom
-    setupFiles: './tests/setup.ts',
-
-    // Explicit timeouts prevent hanging (scry pattern)
-    testTimeout: 10000,
-    hookTimeout: 10000,
-    teardownTimeout: 1000, // Force quick exit on cleanup stall
-
-    // Sequential execution avoids Node 22 forks teardown race
-    maxWorkers: 1,
-    include: ['**/*.{test,spec}.{js,ts,jsx,tsx}'],
-    exclude: [
-      '**/node_modules/**',
-      '**/dist/**',
-      '**/vendor/**',
-      '**/.next/**',
-      '**/tests/e2e/**',
-      '**/.worktrees/**', // Exclude git worktrees - they have their own test environments
-      '**/.qa/**', // Disposable runtime copies and evidence are not source tests.
-      '**/.agents/**',
-      '**/.claude/**',
-      '**/.codex/**',
-      '**/.pi/**',
-      '**/.spellbook/**', // Harness config, not app code
-    ],
-    coverage: {
-      provider: 'v8',
-      reporter: ['text', 'json', 'html', 'lcov', 'json-summary'],
-      exclude: [
-        '**/node_modules/**',
-        '**/dist/**',
-        '**/.next/**',
-        '**/tests/**',
-        '**/*.config.{js,ts}',
-        '**/*.d.ts',
-        '**/convex/migrations.ts', // One-time migration scripts, not runtime code
-        rootCoverageExclude('vendor'),
-        rootCoverageExclude('.agents'),
-        rootCoverageExclude('.claude'),
-        rootCoverageExclude('.codex'),
-        rootCoverageExclude('.pi'),
-        rootCoverageExclude('.qa'),
-        rootCoverageExclude('.spellbook'),
-      ],
-      thresholds: {
-        lines: 85,
-        functions: 85,
-        branches: 85,
-        statements: 85,
+    projects: [
+      {
+        plugins: [
+          cloudflareTest({
+            wrangler: { configPath: './wrangler.jsonc' },
+            miniflare: {
+              bindings: {
+                GUEST_TOKEN_SECRET: 'local-test-guest-secret-0123456789abcdef',
+                LINEJAM_ADMIN_KEY: 'local-test-admin-key-0123456789abcdef',
+                RETENTION_GC_ENABLED: '1',
+              },
+            },
+          }),
+        ],
+        test: { name: 'worker', include: ['tests/worker/**/*.test.ts'] },
       },
-    },
-  },
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './'),
-      'server-only': path.resolve(
-        __dirname,
-        './node_modules/server-only/empty.js'
-      ),
-    },
+      {
+        test: {
+          name: 'faces',
+          include: ['tests/faces/**/*.test.ts'],
+          globalSetup: ['tests/faces/server.ts'],
+          testTimeout: 60_000,
+          hookTimeout: 120_000,
+        },
+      },
+    ],
   },
 });
