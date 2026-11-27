@@ -42,7 +42,7 @@ function describe(value: unknown): { type: string; message: string; stack?: stri
 
 window.addEventListener('error', (event) => {
   // Resource load failures do not bubble to window; this is a script error.
-  const error = describe(event.error ?? event.message);
+  const error = event.error instanceof Error ? describe(event.error) : { type: 'Error', message: event.message };
   beacon({ kind: 'browser_error', ...error, message: event.message || error.message });
 });
 
