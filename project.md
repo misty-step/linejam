@@ -14,9 +14,10 @@ a clear whole-poem reveal, and artifacts worth keeping.
   Refresh, reconnect, late joins and host departure must preserve game integrity.
 - Private saving and explicit, reversible publication are different actions.
   No hidden poem text leaks to spectators or unauthorized viewers.
-- The violet/lavender identity, DynaPuff wordmark and Nunito Sans interface stay.
-  Improve the cast, composition and use of accents rather than start another
-  identity exploration. `DESIGN.md` owns the details; tokens live in source.
+- The identity is the Contemporary Warm Salon / Tactile Stationery folio
+  (`DESIGN.md`, `PRODUCT.md` [L1-7.1]); it supersedes the former lavender /
+  DynaPuff / Nunito Sans freeze. Tokens and the brand mark and cast emblems are
+  the locked files under `folio/assets/`.
 - Phones, large text, keyboards, screen readers, both color modes and reduced
   motion are part of the experience, not optional finishing work.
 - No generated player contributions, extra game modes, competitive rankings,

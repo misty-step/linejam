@@ -9,7 +9,8 @@ Linejam is a phone-first party game where two to eight people pass poems around,
 Phaedrus's family and friends can make something funny and surprising together, with no account setup getting in the way of a party.
 
 Nine rounds use 1, 2, 3, 4, 5, 4, 3, 2, 1 words. A room can host repeated games.
-A pen name and avatar identify someone to the room, not to an account system.
+A pen name and emblem (the player's avatar) identify someone to the room, not to
+an account system.
 
 This is the reference specification for observable behavior. `live` means
 implemented in the current product, not independently verified in every
@@ -17,8 +18,17 @@ production deployment. `next` and `later` are reserved for owner-approved work;
 none is asserted here. Priorities, open questions and decisions in flight belong
 to Powder, not this document. Architecture and technical decisions belong in
 [architecture](docs/ARCHITECTURE.md) and repository ADRs; product identity belongs
-in [DESIGN.md](DESIGN.md). [README.md](README.md) owns the application,
+in [DESIGN.md](DESIGN.md) and the locked `folio/assets/**` files.
+[PRODUCT.md](PRODUCT.md) is the Active Folio: where this document describes the
+legacy runtime, PRODUCT.md wins. [README.md](README.md) owns the application,
 documentation and marketing links.
+
+Every screen follows the Warm Salon identity in DESIGN.md: tokens are generated
+from `folio/assets/tokens.json`, the brand mark and the eight emblems are the
+locked SVGs (checked against `folio/assets/checksums.json` by
+`node scripts/design/folio-assets.mjs --check` and `tests/lib/design/folio.test.ts`),
+and the self-hosted Newsreader, Plus Jakarta Sans and IBM Plex Mono faces load
+without any external font or asset request.
 
 The four stable story IDs describe end-to-end journeys. Their numbered criteria
 preserve the existing automated walk checkpoints; the detailed acceptance below
@@ -44,11 +54,16 @@ Criteria:
 
 Detailed acceptance:
 
-- Home offers starting a game and joining a room. Creation requires a nonblank
-  pen name and offers a choice of illustrated avatar. A fresh entry attempt
-  starts with an avatar selection; players can change it before submitting.
+- Home is one entry surface: `Pen name`, the eight-emblem `Emblem` picker,
+  `New room`, then `Room code` and `Join` (DESIGN.md [D1-4.4]). Creation and
+  joining require a nonblank pen name; a blank one is refused at that field
+  with `Add a pen name`. A fresh entry attempt preselects a random emblem
+  (Loom, Vesper, Prism, Clover, Orrery, Arch, Pinwheel or Lattice, each named
+  by its accessible label); players can change it before submitting and
+  duplicates are allowed. Stored avatar ids keep their meaning: each maps by
+  index to the folio emblem, so earlier rooms and archives keep their players.
   Names are trimmed, and the room roster shows each player's chosen name and
-  avatar, marking the host separately. A new room begins in its lobby.
+  emblem, marking the host separately. A new room begins in its lobby.
 - An invitation has a four-character code, a copy-code action, a shareable join
   link and a scannable QR code. Following the link prefills the join code, not
   the person's pen name. Typed codes are uppercased and stripped of non-letter/
@@ -124,9 +139,11 @@ Detailed acceptance:
   1–2–3–4–5–4–3–2–1 words, with no selectable alternate modes or generated writers.
 - Round one has no preceding line. Later rounds expose only the immediately
   preceding line of the assigned poem, never its full unfinished history. The
-  composer displays round progress, the target word count, the current count and
-  clear submit/waiting feedback. Other writers' progress indicates who has
-  submitted without revealing their text.
+  composer displays round progress (`Round n of 9`), the target word count, the
+  current count and clear submit/waiting feedback: the preceding line is labeled
+  `Previous`, the submit control is `Tuck line`, and the server acknowledgement
+  is `Line tucked`. Waiting has no countdown, timer or auto-submit. Other
+  writers' progress indicates who has submitted without revealing their text.
 - Words are nonempty whitespace-separated groups: punctuation attached to a
   word is not another word. Leading/trailing whitespace is ignored, and pasted
   tabs or newlines collapse into spaces. A line longer than 500 characters or
@@ -147,7 +164,8 @@ Detailed acceptance:
   reveal a private assigned poem or see unrevealed poem previews.
 - Completion enters a reading circle with assigned readers and reading order.
   Opening a poem shows all nine lines together with bylines, not a line-by-line
-  animation or a different poem. Other room members see it after reveal.
+  animation or a different poem; `Next poem` returns to the reading circle.
+  Other room members see it after reveal.
   The order marks reading now, up next and read, and supports replaying poems.
   The assigned reader has reveal authority; if absent, a present host or eligible
   participant can step in. Retained game participants can reveal in a closed
@@ -238,7 +256,8 @@ Detailed acceptance:
   must not change public visibility. A person who downloads or copies an artifact
   can retain that copy outside Linejam.
 - A poem is private by default, including older poems with no publication choice.
-  Share controls disclose that anyone with the link can read it. A participant
+  Share controls disclose `Anyone with this link can read this poem` before a
+  link is published. A participant
   can share only a completed, revealed poem. A fresh poem-share attempt issues
   an unpredictable pending link, which exposes no text before successful copy
   or native-share completion. Cancellation, clipboard failure or timeout leaves

@@ -63,6 +63,9 @@ test('Rust help traps focus, closes by every action and restores scroll and open
   await page.setViewportSize({ width: 320, height: 740 });
   await page.goto('/');
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  // The landing is React; the Rust island loads only for help. Connect the
+  // detached help after the element is defined so its WASM load is in flight.
+  await page.evaluate(() => customElements.whenDefined('linejam-entry'));
   await page.evaluate(() => {
     document.body.style.overflow = 'clip';
     document.documentElement.style.fontSize = '125%';
@@ -166,6 +169,9 @@ test('a delayed detached help cannot lock the page; reattachment and disposal re
   });
   await page.goto('/');
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  // The landing is React; the Rust island loads only for help. Connect the
+  // detached help after the element is defined so its WASM load is in flight.
+  await page.evaluate(() => customElements.whenDefined('linejam-entry'));
   await page.evaluate(() => {
     const element = document.createElement('linejam-entry');
     element.id = 'delayed-help';
