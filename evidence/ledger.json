@@ -1,0 +1,383 @@
+{
+  "schemaVersion": 1,
+  "repository": "misty-step/linejam",
+  "intent": {
+    "commitRange": "faa14e86ff7e10cf118ca4cfd825e465fbf24c43..8b5825a46673493de9f7b7cc48032e0b4e78519b",
+    "intentFiles": ["PRODUCT.md", "DESIGN.md", "folio/assets/**"],
+    "pullRequest": "https://github.com/misty-step/linejam/pull/660"
+  },
+  "verifiedSha": "3655d92d93d2717c407d5a3ac01637aa40e1051f",
+  "verifiedAt": "2026-11-27T01:49:26Z",
+  "criticVerdict": "pending",
+  "runtime": "local wrangler/workerd (OpenNext Worker + LinejamBackend SQLite Durable Object), zero cloud credentials, headed Chrome on the sandbox X display",
+  "entries": [
+    {
+      "requirementId": "D1-1",
+      "status": "verified",
+      "verifiedSha": "3655d92d93d2717c407d5a3ac01637aa40e1051f",
+      "verifiedAt": "2026-11-27T01:49:26Z",
+      "criticVerdict": "pending",
+      "evidence": [
+        {
+          "localPath": "~/chief-evidence/media/01-landing-desktop-light.png",
+          "mediaType": "image/png",
+          "artifactUrl": null
+        },
+        {
+          "localPath": "~/chief-evidence/media/01-landing-mobile-dark.png",
+          "mediaType": "image/png",
+          "artifactUrl": null
+        },
+        {
+          "localPath": "~/chief-evidence/media/walkthrough-desktop-1440x900-light.webm",
+          "mediaType": "video/webm",
+          "artifactUrl": null
+        },
+        {
+          "localPath": "~/chief-evidence/media/walkthrough-mobile-390x844-dark-reduced-motion.webm",
+          "mediaType": "video/webm",
+          "artifactUrl": null
+        },
+        {
+          "localPath": "~/chief-evidence/media/walk-report.json",
+          "mediaType": "application/json",
+          "artifactUrl": null
+        }
+      ],
+      "notes": "Warm Salon palette from folio tokens in Light and Dark; no pill/stadium buttons, no glows, one soft shadow on floating layers; banned families absent from computed styles on all 24 audited screens."
+    },
+    {
+      "requirementId": "D1-2",
+      "status": "verified",
+      "verifiedSha": "3655d92d93d2717c407d5a3ac01637aa40e1051f",
+      "verifiedAt": "2026-11-27T01:49:26Z",
+      "criticVerdict": "pending",
+      "evidence": [
+        {
+          "localPath": "~/chief-evidence/media/walk-report.json",
+          "mediaType": "application/json",
+          "artifactUrl": null
+        },
+        {
+          "localPath": "~/chief-evidence/media/02-landing-filled-desktop-light.png",
+          "mediaType": "image/png",
+          "artifactUrl": null
+        }
+      ],
+      "notes": "checksums.json verified by scripts/design/folio-assets.mjs --check and tests/lib/design/folio.test.ts; all 10 served /folio/* files byte-match SHA-256 on the running Worker; mark and 8 emblems inlined verbatim; favicon/apple-touch/icon-192/512/maskable rendered mechanically from mark.svg."
+    },
+    {
+      "requirementId": "D1-3",
+      "status": "verified",
+      "verifiedSha": "3655d92d93d2717c407d5a3ac01637aa40e1051f",
+      "verifiedAt": "2026-11-27T01:49:26Z",
+      "criticVerdict": "pending",
+      "evidence": [
+        {
+          "localPath": "~/chief-evidence/media/16-recap-desktop-dark-after-toggle.png",
+          "mediaType": "image/png",
+          "artifactUrl": null
+        },
+        {
+          "localPath": "~/chief-evidence/media/10-poem-desktop-light.png",
+          "mediaType": "image/png",
+          "artifactUrl": null
+        },
+        {
+          "localPath": "~/chief-evidence/media/walkthrough-desktop-1440x900-light.webm",
+          "mediaType": "video/webm",
+          "artifactUrl": null
+        },
+        {
+          "localPath": "~/chief-evidence/media/walkthrough-mobile-390x844-dark-reduced-motion.webm",
+          "mediaType": "video/webm",
+          "artifactUrl": null
+        },
+        {
+          "localPath": "~/chief-evidence/media/walk-report.json",
+          "mediaType": "application/json",
+          "artifactUrl": null
+        }
+      ],
+      "notes": "Canonical --bg..--heart-soft properties generated from tokens.json; System default plus persistent Light/Dark toggle (reload check); opaque --bg top bars with 1px --hairline rule, no backdrop-filter; active heart uses --heart."
+    },
+    {
+      "requirementId": "D1-4",
+      "status": "verified",
+      "verifiedSha": "3655d92d93d2717c407d5a3ac01637aa40e1051f",
+      "verifiedAt": "2026-11-27T01:49:26Z",
+      "criticVerdict": "pending",
+      "evidence": [
+        {
+          "localPath": "~/chief-evidence/media/01-landing-desktop-light.png",
+          "mediaType": "image/png",
+          "artifactUrl": null
+        },
+        {
+          "localPath": "~/chief-evidence/media/05-lobby-two-players-desktop-light.png",
+          "mediaType": "image/png",
+          "artifactUrl": null
+        },
+        {
+          "localPath": "~/chief-evidence/media/07-writing-round2-host.png",
+          "mediaType": "image/png",
+          "artifactUrl": null
+        },
+        {
+          "localPath": "~/chief-evidence/media/17-landing-320-light.png",
+          "mediaType": "image/png",
+          "artifactUrl": null
+        },
+        {
+          "localPath": "~/chief-evidence/media/walkthrough-desktop-1440x900-light.webm",
+          "mediaType": "video/webm",
+          "artifactUrl": null
+        },
+        {
+          "localPath": "~/chief-evidence/media/walkthrough-mobile-390x844-dark-reduced-motion.webm",
+          "mediaType": "video/webm",
+          "artifactUrl": null
+        },
+        {
+          "localPath": "~/chief-evidence/media/walk-report.json",
+          "mediaType": "application/json",
+          "artifactUrl": null
+        }
+      ],
+      "notes": "Self-hosted Newsreader/Plus Jakarta Sans/IBM Plex Mono woff2 loaded with 0 external requests; 12/8/6px radii; 0px overflow at 1440, 390 and 320; all targets >=44px and inputs >=16px; two-column landing, lobby and writing spreads on desktop. Reveal keeps the existing single-column folio sheet (no separate order rail beside the poem) \u2014 partial for D1-4.4 Reveal."
+    },
+    {
+      "requirementId": "D1-5",
+      "status": "verified",
+      "verifiedSha": "3655d92d93d2717c407d5a3ac01637aa40e1051f",
+      "verifiedAt": "2026-11-27T01:49:26Z",
+      "criticVerdict": "pending",
+      "evidence": [
+        {
+          "localPath": "~/chief-evidence/media/02-landing-filled-desktop-light.png",
+          "mediaType": "image/png",
+          "artifactUrl": null
+        },
+        {
+          "localPath": "~/chief-evidence/media/04-join-error-mobile-dark.png",
+          "mediaType": "image/png",
+          "artifactUrl": null
+        },
+        {
+          "localPath": "~/chief-evidence/media/10-poem-desktop-light.png",
+          "mediaType": "image/png",
+          "artifactUrl": null
+        }
+      ],
+      "notes": "Canonical labels shipped: Pen name, Emblem, New room, Room code, Join, Share invite, Start game, Previous, Tuck line, Line tucked, Next poem, Play again; share disclosure exact. Some legacy secondary copy remains (e.g. 'Room code not found. Please check the code and try again.')."
+    },
+    {
+      "requirementId": "D1-6",
+      "status": "verified",
+      "verifiedSha": "3655d92d93d2717c407d5a3ac01637aa40e1051f",
+      "verifiedAt": "2026-11-27T01:49:26Z",
+      "criticVerdict": "pending",
+      "evidence": [
+        {
+          "localPath": "~/chief-evidence/media/walkthrough-mobile-390x844-dark-reduced-motion.webm",
+          "mediaType": "video/webm",
+          "artifactUrl": null
+        }
+      ],
+      "notes": "Motion tokens 90/160/220ms and ease-out from tokens.json; tap scale(0.975); <=4px nudge; reduced-motion removes movement (mobile run used prefers-reduced-motion: reduce)."
+    },
+    {
+      "requirementId": "D1-7",
+      "status": "verified",
+      "verifiedSha": "3655d92d93d2717c407d5a3ac01637aa40e1051f",
+      "verifiedAt": "2026-11-27T01:49:26Z",
+      "criticVerdict": "pending",
+      "evidence": [
+        {
+          "localPath": "~/chief-evidence/media/05-lobby-two-players-desktop-light.png",
+          "mediaType": "image/png",
+          "artifactUrl": null
+        },
+        {
+          "localPath": "~/chief-evidence/media/walkthrough-desktop-1440x900-light.webm",
+          "mediaType": "video/webm",
+          "artifactUrl": null
+        },
+        {
+          "localPath": "~/chief-evidence/media/walkthrough-mobile-390x844-dark-reduced-motion.webm",
+          "mediaType": "video/webm",
+          "artifactUrl": null
+        },
+        {
+          "localPath": "~/chief-evidence/media/walk-report.json",
+          "mediaType": "application/json",
+          "artifactUrl": null
+        }
+      ],
+      "notes": "Top bar: mark+Linejam home, mono room code badge in lobby/game, theme, sound, options menu; dynamic QR 216px desktop with #1b1916 on #ffffff; headed Chrome at 1440x900 and 390x844 in Light, Dark and reduced motion with 0 console/page/CSP errors and byte-exact canonical assets."
+    },
+    {
+      "requirementId": "L1-1",
+      "status": "verified",
+      "verifiedSha": "3655d92d93d2717c407d5a3ac01637aa40e1051f",
+      "verifiedAt": "2026-11-27T01:49:26Z",
+      "criticVerdict": "pending",
+      "evidence": [
+        {
+          "localPath": "~/chief-evidence/media/walkthrough-desktop-1440x900-light.webm",
+          "mediaType": "video/webm",
+          "artifactUrl": null
+        },
+        {
+          "localPath": "~/chief-evidence/media/walkthrough-mobile-390x844-dark-reduced-motion.webm",
+          "mediaType": "video/webm",
+          "artifactUrl": null
+        },
+        {
+          "localPath": "~/chief-evidence/media/walk-report.json",
+          "mediaType": "application/json",
+          "artifactUrl": null
+        }
+      ],
+      "notes": "Two-player nine-round 1-2-3-4-5-4-3-2-1 game on the real Worker + SQLite Durable Object; over-count line cannot be tucked; repo gate test:worker-routes --game (15/15) also passed."
+    },
+    {
+      "requirementId": "L1-2",
+      "status": "partially-verified",
+      "verifiedSha": "3655d92d93d2717c407d5a3ac01637aa40e1051f",
+      "verifiedAt": "2026-11-27T01:49:26Z",
+      "criticVerdict": "pending",
+      "evidence": [
+        {
+          "localPath": "~/chief-evidence/media/04-join-error-mobile-dark.png",
+          "mediaType": "image/png",
+          "artifactUrl": null
+        },
+        {
+          "localPath": "~/chief-evidence/media/07b-late-spectator-mobile-light.png",
+          "mediaType": "image/png",
+          "artifactUrl": null
+        },
+        {
+          "localPath": "~/chief-evidence/media/walkthrough-desktop-1440x900-light.webm",
+          "mediaType": "video/webm",
+          "artifactUrl": null
+        },
+        {
+          "localPath": "~/chief-evidence/media/walkthrough-mobile-390x844-dark-reduced-motion.webm",
+          "mediaType": "video/webm",
+          "artifactUrl": null
+        },
+        {
+          "localPath": "~/chief-evidence/media/walk-report.json",
+          "mediaType": "application/json",
+          "artifactUrl": null
+        }
+      ],
+      "notes": "Guest entry with pen name + emblem, code normalization, unknown-code error at control, host-only start needing 2 players, late spectator with no hidden text. Host transfer, capacity 9th-player refusal and close-room were not exercised in this run (covered by existing game-flow e2e: closed invitation refusal)."
+    },
+    {
+      "requirementId": "L1-3",
+      "status": "verified",
+      "verifiedSha": "3655d92d93d2717c407d5a3ac01637aa40e1051f",
+      "verifiedAt": "2026-11-27T01:49:26Z",
+      "criticVerdict": "pending",
+      "evidence": [
+        {
+          "localPath": "~/chief-evidence/media/08-waiting-desktop-light.png",
+          "mediaType": "image/png",
+          "artifactUrl": null
+        },
+        {
+          "localPath": "~/chief-evidence/media/09-reading-circle-desktop-light.png",
+          "mediaType": "image/png",
+          "artifactUrl": null
+        },
+        {
+          "localPath": "~/chief-evidence/media/13-poem-mobile-dark.png",
+          "mediaType": "image/png",
+          "artifactUrl": null
+        },
+        {
+          "localPath": "~/chief-evidence/media/14-recap-desktop-light.png",
+          "mediaType": "image/png",
+          "artifactUrl": null
+        }
+      ],
+      "notes": "Timer-free writing with live mono tally and Line tucked acknowledgement; waiting shows submitted/writing without text; reading circle with reading now/up next; whole nine-line poem at once with bylines; recap offers Play again."
+    },
+    {
+      "requirementId": "L1-4",
+      "status": "verified",
+      "verifiedSha": "3655d92d93d2717c407d5a3ac01637aa40e1051f",
+      "verifiedAt": "2026-11-27T01:49:26Z",
+      "criticVerdict": "pending",
+      "evidence": [
+        {
+          "localPath": "~/chief-evidence/media/10-poem-desktop-light.png",
+          "mediaType": "image/png",
+          "artifactUrl": null
+        },
+        {
+          "localPath": "~/chief-evidence/media/11-public-poem-mobile-light.png",
+          "mediaType": "image/png",
+          "artifactUrl": null
+        },
+        {
+          "localPath": "~/chief-evidence/media/12-revoked-mobile-light.png",
+          "mediaType": "image/png",
+          "artifactUrl": null
+        },
+        {
+          "localPath": "~/chief-evidence/media/15-archive-desktop-light.png",
+          "mediaType": "image/png",
+          "artifactUrl": null
+        }
+      ],
+      "notes": "Private heart/favorite, archive lists the poems, explicit share with disclosure, stranger reads the public link, revoke makes the link resolve to 'Poem not found'."
+    },
+    {
+      "requirementId": "L1-5",
+      "status": "not-verified",
+      "verifiedSha": null,
+      "verifiedAt": null,
+      "criticVerdict": "pending",
+      "evidence": [],
+      "notes": "NOT DONE. The clean-room recompile (retire Next.js/OpenNext, Convex, Rust/WASM incl. crates/entry-ui, Dagger; single Worker + per-room Durable Objects with WebSocket hibernation; retire /changelog,/releases,/releases.xml) is a multi-slice rebuild and was not attempted in this reconciliation. This change runs on the existing OpenNext Worker + LinejamBackend SQLite Durable Object."
+    },
+    {
+      "requirementId": "L1-6",
+      "status": "not-verified",
+      "verifiedSha": null,
+      "verifiedAt": null,
+      "criticVerdict": "pending",
+      "evidence": [],
+      "notes": "CLI and MCP were not changed or exercised in this slice."
+    },
+    {
+      "requirementId": "L1-7",
+      "status": "partially-verified",
+      "verifiedSha": "3655d92d93d2717c407d5a3ac01637aa40e1051f",
+      "verifiedAt": "2026-11-27T01:49:26Z",
+      "criticVerdict": "pending",
+      "evidence": [
+        {
+          "localPath": "~/chief-evidence/media/walkthrough-desktop-1440x900-light.webm",
+          "mediaType": "video/webm",
+          "artifactUrl": null
+        },
+        {
+          "localPath": "~/chief-evidence/media/walkthrough-mobile-390x844-dark-reduced-motion.webm",
+          "mediaType": "video/webm",
+          "artifactUrl": null
+        },
+        {
+          "localPath": "~/chief-evidence/media/walk-report.json",
+          "mediaType": "application/json",
+          "artifactUrl": null
+        }
+      ],
+      "notes": "Identity authority, canonical copy, motion tokens and reduced-motion fallback, 44px targets, 16px inputs, 320/390 widths with 0px overflow, Light/Dark/System, haptics gated on a trusted gesture. Not exercised: 200% text, virtual keyboard open, screen-reader pass."
+    }
+  ]
+}
