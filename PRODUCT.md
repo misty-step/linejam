@@ -130,6 +130,10 @@ rankings.
 - **[L1-3.2]** Submitting gives immediate pending feedback, then an acknowledgement
   only after the server accepts the line. Rejections and uncertain submits show
   recovery without losing the draft.
+- **[L1-3.10]** Submit state (`submitLine`) is scoped to one assignment,
+  `(gameId, lineIndex)`. A line still settling from one round never blocks the
+  next: under rapid concurrent submissions across a round transition, an Enter
+  keypress on the next round's line is never dropped.
 
 ### Waiting
 
@@ -160,6 +164,9 @@ rankings.
   recap may highlight the most-hearted poem, with ties broken by poem order and
   nothing highlighted when there are no hearts. It appreciates poems; it never
   ranks players.
+- **[L1-3.11]** An action footer with no available action is not rendered. A
+  signed-out reader of a shared poem sees the poem and its bylines only — no
+  empty footer, rule or leftover spacing.
 
 ## [L1-4] Private archive and explicit, reversible sharing
 
@@ -283,6 +290,57 @@ rankings.
   persists. Sound never replaces visible feedback, and unavailable audio never
   blocks play.
 
+## [L1-8] Production observability and automated incident triage
+
+Observability is zero-SDK and privacy-preserving, with zero external browser
+requests.
+
+### Worker observability
+
+- **[L1-8.1]** Cloudflare Workers Observability stays enabled
+  (`observability.enabled = true` in `wrangler.jsonc`). The Worker emits
+  structured, anonymous operational logs — never names, guest tokens, room
+  codes, share tokens or poem text.
+
+### Server and browser error capture to Sentry
+
+- **[L1-8.2]** The browser loads no third-party SDK and makes no request to
+  another origin. `connect-src 'self'` stays strict.
+- **[L1-8.3]** The browser UI captures uncaught `error`, `unhandledrejection` and
+  `securitypolicyviolation` events and posts a scrubbed diagnostic beacon to
+  same-origin `POST /api/telemetry/error`.
+- **[L1-8.4]** The Worker forwards unhandled server and Durable Object exceptions
+  (`5xx`) and rate-limited, scrubbed browser error beacons to Sentry. Forwarding
+  is asynchronous (`ctx.waitUntil`) and uses a lean, zero-dependency Sentry
+  Envelope HTTP `POST`. It is active whenever `SENTRY_DSN` or
+  `NEXT_PUBLIC_SENTRY_DSN` is bound.
+- **[L1-8.5]** Every forwarded event is tagged with `environment`, `release` (the
+  deployed commit/version identity returned by `/api/health`) and one error
+  kind: `worker_exception`, `browser_error`, `unhandled_rejection` or
+  `csp_violation`.
+
+### Privacy and secret gate
+
+- **[L1-8.6]** Payloads are scrubbed before they leave the Worker: no query
+  strings, share slugs, room codes, guest cookies or tokens, or poem lines. The
+  limits in `[L1-4.10]` apply to every forwarded event.
+- **[L1-8.7]** With no DSN secret configured (local development and tests),
+  forwarding is a clean no-op and no request fails because of it.
+
+### Health and release identity
+
+- **[L1-8.8]** `GET /api/health` returns
+  `{ status: "ok", environment, release, sentryConfigured }`, where
+  `sentryConfigured` is a boolean. It never exposes a secret value or a DSN
+  string. Live gates and uptime checks use it to verify the deployed version
+  and the observability wiring deterministically.
+
+### Auto-triage readiness
+
+- **[L1-8.9]** Production alerts from the Sentry project `linejam` route
+  automatically to Misty Step's Sentry Auto-Triage pipeline (`supercortex`
+  `tools/sentry-triage`).
+
 ## Not Linejam
 
 - No required accounts, ads, social-network identity or growth mechanics.
@@ -314,4 +372,5 @@ not by tests or a green CI run alone.
   cloud credentials (`[L1-5.3]`).
 - **[V-4]** After deploy, a live gate on
   [https://linejam.mistystep.io/](https://linejam.mistystep.io/) confirms the
-  serving revision and a real player entry journey.
+  serving revision and a real player entry journey. `GET /api/health` reports
+  the deployed `release` and `sentryConfigured: true` (`[L1-8.8]`).
