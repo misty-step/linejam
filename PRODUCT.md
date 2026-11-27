@@ -17,11 +17,12 @@ rankings.
 - [`SPEC.md`](SPEC.md) keeps the detailed observable acceptance for the
   journeys below; where it agrees with this document it remains authoritative
   detail, and where it describes the legacy runtime this document wins.
-- [`DESIGN.md`](DESIGN.md), together with any locked canonical files under
-  `folio/assets/`, owns visual identity, typography, palette, cast artwork and
-  component craft (see `[L1-7.1]`).
-- Items tagged **Owner decision — ratify before merge** are open. Until the
-  owner ratifies otherwise, the stated standing default is the requirement.
+- [`DESIGN.md`](DESIGN.md), together with the locked canonical files under
+  `folio/assets/` (manifest
+  [`folio/assets/checksums.json`](folio/assets/checksums.json)), owns visual
+  identity, typography, palette, cast emblems and component craft (see
+  `[L1-7.1]`).
+- Every owner decision in this document is ratified. There are no open holds.
 
 ## Vocabulary
 
@@ -30,7 +31,8 @@ rankings.
 - **Poem:** nine accepted lines joined by the game's assignments.
 - **Writer:** a player frozen into the current game when it starts.
 - **Spectator:** a room member who arrived after the game started.
-- **Pen name and avatar:** how a person appears to the room; never a credential.
+- **Pen name and emblem:** how a person appears to the room (the emblem is the
+  player's avatar); never a credential.
 - **Reading circle:** the ordered reveal of complete poems with assigned readers.
 
 ---
@@ -65,12 +67,13 @@ rankings.
 
 ### Entry and identity
 
-- **[L1-2.1]** A person enters with a pen name and a chosen character avatar; no
-  account is required. Pen names are trimmed and must be nonblank. A random
-  supported avatar is preselected and can be changed before submitting.
-  Duplicate avatars are allowed.
-- **[L1-2.2]** The roster shows each player's pen name and avatar, marks the
-  host distinctly, and never relies on the avatar alone to tell people apart.
+- **[L1-2.1]** A person enters with a pen name and a chosen cast emblem (their
+  avatar, one of the eight in `DESIGN.md` `[D1-2]`); no account is required. Pen
+  names are trimmed and must be nonblank. A random supported emblem is
+  preselected and can be changed before submitting. Duplicate emblems are
+  allowed.
+- **[L1-2.2]** The roster shows each player's pen name and emblem, marks the
+  host distinctly, and never relies on the emblem alone to tell people apart.
 - **[L1-2.3]** Guest identity is a signed server-issued credential. It survives
   refresh and reconnect while the browser session remains valid. Session setup
   or renewal failure shows recovery instead of silently creating a different
@@ -133,42 +136,30 @@ rankings.
 - **[L1-3.3]** Waiting is a calm pause. It shows who has submitted without leaking
   any text, without ranking or ordering players by speed, and without hurrying
   anyone. Nothing is auto-submitted.
-- **[L1-3.4]** Waiting has no hurry timer (standing default; see owner decision
-  (b) below).
+- **[L1-3.4]** The writing pause is timer-free: there is no countdown, no hurry
+  timer or fuse of any kind, no auto-submit and nothing that hurries a player.
+  The round advances only by `[L1-1.7]`.
 
 ### Reveal and reading circle
 
 - **[L1-3.5]** Completion opens a reading circle with an assigned reader and a
   reading order. Each entry is marked `reading now`, `up next` or `read`, and
   the room announces the next reader.
-- **[L1-3.6]** Opening a poem shows all nine lines at once with per-line bylines
-  (standing default; see owner decision (a) below). A line keeps the pen name
-  used when it was written.
+- **[L1-3.6]** Opening a poem shows the whole nine-line poem together, cleanly,
+  with write-time bylines on every line. There is no forced line-by-line
+  trickle or entrance flourish that withholds lines; any opening transition
+  respects `prefers-reduced-motion` (`[L1-7.4]`). A line keeps the pen name used
+  when it was written.
 - **[L1-3.7]** The assigned reader has reveal authority. If that reader is absent,
   a present host or eligible participant can step in. Repeating a reveal is
   harmless.
 - **[L1-3.8]** After all poems are revealed, the recap offers replay, play again
   and back to lobby. A new game never overwrites earlier poems.
-- **[L1-3.9]** Appreciation is a personal heart on a whole poem (standing default;
-  see owner decision (c) below). The recap may highlight the most-hearted poem,
-  with ties broken by poem order and nothing highlighted when there are no
-  hearts. It appreciates poems; it never ranks players.
-
-### Owner decisions — ratify before merge
-
-These three UX nuances came out of Design Exploration Round 1. They are ratified
-together with the Round 2 design pick. Until the owner flips one, the
-"Standing default" column is the requirement.
-
-| #   | Decision        | Standing default (matches `SPEC.md`) | Alternative under consideration          |
-| --- | --------------- | ------------------------------------ | ---------------------------------------- |
-| (a) | Reveal entrance | Whole poem opens at once             | Brief entrance flourish before full poem |
-| (b) | Round pacing    | No timer of any kind                 | Optional, non-blocking soft fuse         |
-| (c) | Appreciation    | Poem-level hearts only               | Anonymous per-line laughs                |
-
-Any alternative that is adopted must still keep every line readable at once
-after the flourish, never auto-submit or block a writer, and never attribute or
-rank reactions by player.
+- **[L1-3.9]** Appreciation is poem-level only: a personal heart on a whole poem.
+  There are no per-line reactions, per-line rankings or player leaderboards. The
+  recap may highlight the most-hearted poem, with ties broken by poem order and
+  nothing highlighted when there are no hearts. It appreciates poems; it never
+  ranks players.
 
 ## [L1-4] Private archive and explicit, reversible sharing
 
@@ -204,28 +195,38 @@ rank reactions by player.
 
 ## [L1-5] Clean-room recompile and runtime simplicity
 
-- **[L1-5.1]** Linejam is being recompiled cleanly for `linejam.mistystep.io`. The
-  legacy multi-runtime stack (Next.js on OpenNext, Rust/WASM crates, and drift
-  across several backends and room frameworks) is replaced by one lean,
-  self-contained stack with a single authoritative owner of real-time room
-  state.
-- **[L1-5.2]** The target is one runtime with authoritative per-room state and
-  embedded storage — for example Cloudflare Workers with Durable Objects
-  (SQLite), or Go with SQLite. **Owner decision — ratify before merge:** the
-  concrete stack is chosen by the owner before this Folio merges.
+- **[L1-5.1]** Linejam is recompiled cleanly for
+  [https://linejam.mistystep.io/](https://linejam.mistystep.io/). The legacy
+  multi-runtime stack — Next.js on OpenNext, Convex, the Rust/WASM crates
+  (including `crates/entry-ui`) and the Dagger multi-runtime pipeline — is
+  retired and replaced by one lean, self-contained runtime with a single
+  authoritative owner of real-time room state.
+- **[L1-5.2]** The single target runtime is **Cloudflare Workers with Durable
+  Objects (SQLite storage)**:
+  - each room is one Durable Object whose embedded SQLite database is the
+    authoritative state for that room;
+  - live room updates reach every client in real time over WebSockets, using
+    Durable Object WebSocket hibernation;
+  - the Worker serves the static UI assets directly; there is no separate
+    frontend server or framework runtime.
 - **[L1-5.3]** The application builds, runs and passes its end-to-end
-  verification in a fresh, disposable sandbox with zero cloud credentials. Local
-  verification uses generated identities and refuses production credentials.
+  verification in a fresh, disposable sandbox with zero cloud credentials, using
+  local `wrangler` / Miniflare. Local verification uses generated identities and
+  refuses production credentials.
 - **[L1-5.4]** The recompile preserves every rule in `[L1-1]`–`[L1-4]` and
   `[L1-6]`–`[L1-7]`. Existing guest credentials, accepted poems, published links
   and archives are migrated or honored; no player data is invented, reset or
   silently dropped.
+- **[L1-5.5]** The web release feeds described by legacy `SPEC.md` `US-004`
+  (`/changelog`, `/releases` and `/releases.xml`) are retired in the clean-room
+  Worker. Release history lives in GitHub Releases.
 
 ## [L1-6] CLI and MCP parity
 
 - **[L1-6.1]** Scripted players have a command-line interface and an MCP server
-  covering room creation and joining, room state, game start, assignment reads,
-  line submission, completed-poem reads and favorites.
+  covering guest bootstrap (MCP's `mint-guest` action), room creation and
+  joining, room state, game start, assignment reads, line submission,
+  completed-poem reads and favorites.
 - **[L1-6.2]** Both interfaces obey exactly the same identity, membership,
   word-count and privacy rules as the browser. There are no privileged
   automation shortcuts.
@@ -241,10 +242,13 @@ rank reactions by player.
 
 ### Visual identity authority
 
-- **[L1-7.1]** `DESIGN.md`, together with the locked canonical files under
-  `folio/assets/` chosen in Design Exploration Round 2, owns visual identity,
-  typography, palette, cast artwork and component craft. This supersedes the
-  lavender / DynaPuff identity freeze recorded in `project.md`.
+- **[L1-7.1]** The locked visual identity is **Contemporary Warm Salon / Tactile
+  Stationery**. [`DESIGN.md`](DESIGN.md) owns it — typography, palette, color
+  modes, cast emblems, motion and component craft — together with the canonical
+  files under `folio/assets/`, whose exact bytes are pinned by the SHA-256
+  manifest [`folio/assets/checksums.json`](folio/assets/checksums.json). This
+  explicitly supersedes the lavender / DynaPuff identity freeze recorded in
+  legacy `project.md`.
 
 ### Zero narrator copy
 
@@ -257,8 +261,9 @@ rank reactions by player.
 ### Universal subtle motion
 
 - **[L1-7.3]** Every action, loading, waiting and error state, and screen
-  transition moves deliberately in `120–280ms`, animating only `transform` and
-  `opacity`, and never delays input.
+  transition moves deliberately using the single motion token set in
+  `DESIGN.md` `[D1-6]` (`90ms` tap, `160ms` micro feedback, `220ms` screens),
+  animating only `transform`, `opacity` and color, and never delays input.
 - **[L1-7.4]** Under `prefers-reduced-motion: reduce`, every motion has a complete
   static or crossfade fallback, and no information depends on motion.
 
@@ -282,7 +287,13 @@ rank reactions by player.
 
 - No required accounts, ads, social-network identity or growth mechanics.
 - No AI-generated or fabricated lines, extra game modes or ornamental prompts.
-- No competitive player rankings, scores, streaks or hurry pressure.
+- No competitive player rankings, leaderboards, per-line rankings, scores,
+  streaks, countdowns or hurry pressure.
+- No web release feeds: legacy `SPEC.md` `US-004` (`/changelog`, `/releases`,
+  `/releases.xml`) is retired in the clean-room Worker; release history lives in
+  GitHub Releases.
+- No second runtime: no Next.js, OpenNext, Convex, Rust/WASM or Dagger
+  multi-runtime layer alongside the Worker.
 - No hidden poem text in spectator views, metadata, images or previews.
 
 ---
