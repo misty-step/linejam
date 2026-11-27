@@ -2,6 +2,7 @@ import { DurableObject } from 'cloudflare:workers';
 import type { ArchiveEntry, FavoriteEntry, PoemLine, PoemView, RecapView, ShareAttempt } from '../shared/types.ts';
 import type { Env } from './env.ts';
 import { Reject, attempt, attemptAsync, type Result } from './http.ts';
+import { exceptionCapture, report } from './telemetry.ts';
 import { measure } from './measure.ts';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -629,6 +630,16 @@ export class ArchiveDO extends DurableObject<Env> {
   }
 
   override async alarm(): Promise<void> {
+    // [L1-8.4] A failing alarm is forwarded, then rethrown so the runtime retries it.
+    try {
+      await this.runAlarm();
+    } catch (error) {
+      await report(this.env, exceptionCapture(error, { route: 'alarm:archive', status: 500 }));
+      throw error;
+    }
+  }
+
+  private async runAlarm(): Promise<void> {
     const report = this.sweep();
     console.log(JSON.stringify({ app: 'linejam', event: 'retention_sweep', ...report }));
     await this.ctx.storage.setAlarm(Date.now() + SWEEP_INTERVAL_MS);

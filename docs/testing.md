@@ -11,7 +11,7 @@ target that is not loopback.
 | --------------------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `pnpm exec vitest run --project worker` | workerd (Miniflare), real DO SQLite       | room codes, capacity, entry, the 9-round matrix, word validation, immutable/idempotent lines, spectators, presence, host succession, hibernation, reading circle, archive privacy, sharing, retention, import, identity, routes, canonical assets |
 | `pnpm exec vitest run --project faces`  | Node, against a live `wrangler dev`       | the CLI and MCP server as child processes (full games, rejections, protocol errors), the legacy import end to end, stylesheet/token/copy rules, the one-runtime check                                                                             |
-| `xvfb-run -a node e2e/walkthrough.mjs`  | headed Google Chrome, live `wrangler dev` | the real two-player journey, 9 viewport × mode runs, plus the HTTP-fallback scenario                                                                                                                                                              |
+| `xvfb-run -a node e2e/walkthrough.mjs`  | headed Google Chrome, live `wrangler dev` | the real two-player journey, 9 viewport × mode runs, plus the rapid-submit, error-capture, HTTP-fallback and credential-recovery scenarios                                                                                                        |
 
 `pnpm test` builds first, then runs both vitest projects.
 
@@ -31,6 +31,18 @@ Each of the nine runs fails on any console, page or CSP error, any failed or
 unexpected 4xx/5xx request, any external request, any horizontal overflow
 (also at 200% text), any phone touch target under 44×44, any input under 16px,
 any token or canonical-asset mismatch.
+
+Beside the nine runs:
+
+- **rapid-submit** (`[L1-3.10]`): the guest's round-1 submit is held unsettled
+  while the round advances over the socket; an Enter on the round-2 line must
+  be sent within two seconds and stored.
+- **telemetry** (`[L1-8]`): a second `wrangler dev` with a loopback
+  `SENTRY_DSN`; the browser raises an uncaught error, an unhandled rejection
+  and a CSP violation, and the loopback sink must receive exactly those three
+  scrubbed envelopes, tagged with the release `/api/health` reports.
+
+Run one with `--only rapid-submit` or `--only telemetry`.
 
 `e2e/out/walkthrough.json` is the machine-readable result; screenshots and two
 `.mp4` recordings sit beside it.

@@ -6,6 +6,7 @@ PRODUCT.md
 DESIGN.md
 evidence
 web/src/generated
+src/generated
 .agents
 .codex
 .cursor

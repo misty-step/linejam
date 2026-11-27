@@ -11,6 +11,16 @@ import {
 } from './auth.ts';
 import type { Env } from './env.ts';
 import { Reject, failure, json, randomInt, unwrap, type Result } from './http.ts';
+import {
+  BEACON_MAX_BYTES,
+  RELEASE,
+  beaconAllowed,
+  beaconCapture,
+  environment,
+  exceptionCapture,
+  report,
+  sentryConfigured,
+} from './telemetry.ts';
 
 export { ArchiveDO } from './archive.ts';
 export { LinejamBackend } from './legacy-vault.ts';
@@ -75,7 +85,30 @@ function send<T>(result: Result<T>, status = 200): Response {
   return json(unwrap(result), status);
 }
 
-async function api(request: Request, env: Env, url: URL): Promise<Response> {
+/** [L1-8.3] A same-origin diagnostic beacon from the browser UI. No identity needed. */
+async function telemetry(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+  if (!(request.headers.get('content-type') ?? '').includes('application/json')) {
+    throw new Reject(415, 'bad_request', 'Expected application/json');
+  }
+  const raw = await request.text();
+  if (raw.length > BEACON_MAX_BYTES) throw new Reject(413, 'too_large', 'Beacon too large');
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Reject(400, 'bad_request', 'Malformed JSON');
+  }
+  const capture =
+    typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
+      ? beaconCapture(parsed as Record<string, unknown>)
+      : null;
+  if (!capture) throw new Reject(400, 'bad_request', 'Not an error beacon');
+  if (!beaconAllowed(Date.now())) throw new Reject(429, 'rate_limited', 'Too many error reports');
+  ctx.waitUntil(report(env, capture));
+  return new Response(null, { status: 204, headers: { 'cache-control': 'no-store' } });
+}
+
+async function api(request: Request, env: Env, url: URL, ctx: ExecutionContext): Promise<Response> {
   const now = Date.now();
   const method = request.method;
   const path = url.pathname.slice('/api'.length);
@@ -85,7 +118,13 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
 
   if (is('GET', 'health')) {
     requireSecret(env.GUEST_TOKEN_SECRET);
-    return json({ status: 'ok', environment: env.LINEJAM_ENVIRONMENT ?? 'unknown' });
+    // [L1-8.8] The release identity and whether error forwarding is wired; never a secret or DSN.
+    return json({
+      status: 'ok',
+      environment: environment(env),
+      release: RELEASE,
+      sentryConfigured: sentryConfigured(env),
+    });
   }
 
   // A cross-site page cannot drive a player's session.
@@ -93,6 +132,8 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     const origin = request.headers.get('origin');
     if (origin && origin !== url.origin) throw new Reject(403, 'cross_origin', 'Cross-origin request refused');
   }
+
+  if (is('POST', 'telemetry', 'error')) return telemetry(request, env, ctx);
 
   const archive = () => env.ARCHIVE.get(env.ARCHIVE.idFromName('archive'));
   const room = (code: string) => env.ROOM.get(env.ROOM.idFromName(code));
@@ -282,24 +323,28 @@ async function page(request: Request, env: Env, url: URL): Promise<Response> {
 }
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
     try {
       if (url.pathname === '/api' || url.pathname.startsWith('/api/')) {
-        return secured(await api(request, env, url));
+        return secured(await api(request, env, url, ctx));
       }
       if (request.method !== 'GET' && request.method !== 'HEAD') {
         return secured(new Response('Method not allowed', { status: 405 }));
       }
       return secured(await page(request, env, url));
     } catch (error) {
+      // [L1-8.4] Server failures (an unhandled exception here or in a Durable
+      // Object, or a 5xx refusal) are forwarded asynchronously; the answer is not delayed.
+      const at = { route: url.pathname, method: request.method };
       if (error instanceof Reject) {
-        const response = failure(error);
-        return secured(response);
+        if (error.status >= 500) {
+          const capture = exceptionCapture(error, { ...at, status: error.status });
+          ctx.waitUntil(report(env, { ...capture, type: `Reject:${error.code}` }));
+        }
+        return secured(failure(error));
       }
-      console.error(
-        JSON.stringify({ app: 'linejam', event: 'unhandled_error', name: (error as Error)?.name ?? 'Error' })
-      );
+      ctx.waitUntil(report(env, exceptionCapture(error, { ...at, status: 500 })));
       return secured(json({ error: { code: 'internal', message: 'Something went wrong. Try again' } }, 500));
     }
   },

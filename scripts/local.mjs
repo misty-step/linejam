@@ -48,9 +48,10 @@ export function localEnv() {
 
 /**
  * Start `wrangler dev` on loopback with throwaway Durable Object storage.
+ * `vars` adds bindings (`--var NAME:value`), e.g. a loopback `SENTRY_DSN`.
  * Resolves once the Worker answers /api/health.
  */
-export async function startLocalWorker({ port, quiet = true } = {}) {
+export async function startLocalWorker({ port, quiet = true, vars = {} } = {}) {
   ensureLocalSecrets();
   const persist = mkdtempSync(join(tmpdir(), 'linejam-local-'));
   const child = spawn(
@@ -64,6 +65,7 @@ export async function startLocalWorker({ port, quiet = true } = {}) {
       '--persist-to',
       persist,
       '--show-interactive-dev-session=false',
+      ...Object.entries(vars).flatMap(([name, value]) => ['--var', `${name}:${value}`]),
     ],
     { cwd: root, env: localEnv(), stdio: ['ignore', 'pipe', 'pipe'] }
   );

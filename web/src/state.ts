@@ -45,3 +45,8 @@ export interface State {
   flash: Record<string, { text: string; kind: 'ok' | 'error' } | undefined>;
   nudge: string | null;
 }
+
+/** [L1-3.10] Submit state belongs to one assignment, so a settling line never blocks the next round's. */
+export function lineBusyKey(gameId: string, lineIndex: number): string {
+  return `line:${gameId}:${lineIndex}`;
+}

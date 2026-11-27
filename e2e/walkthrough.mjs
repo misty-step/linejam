@@ -9,6 +9,7 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { createServer } from 'node:http';
 import { join } from 'node:path';
 import jsQR from 'jsqr';
 import { chromium } from 'playwright';
@@ -1029,6 +1030,20 @@ async function runConfig(browser, origin, viewportName, modeName) {
         .count()) === 0,
       `${config}: a link reader has owner controls`
     );
+    // [L1-3.11] No available action, no footer: no empty rule or spacing under the last line.
+    const readerFooter = await reader.evaluate(() => {
+      const sheet = document.querySelector('.poem-sheet');
+      const last = sheet.querySelector('.poem-line:last-child');
+      return {
+        footers: document.querySelectorAll('.poem-actions').length,
+        trailing: Math.round(sheet.getBoundingClientRect().bottom - last.getBoundingClientRect().bottom),
+        padding: parseFloat(getComputedStyle(sheet).paddingBottom),
+      };
+    });
+    check(
+      readerFooter.footers === 0 && readerFooter.trailing <= readerFooter.padding + 1,
+      `${config}: a signed-out reader sees an empty action footer: ${JSON.stringify(readerFooter)}`
+    );
     await audit(reader, 'shared', viewportName, readerLedger);
     if (modeName === 'light' && viewportName !== 'small') await shot(reader, config, 'shared-link', ledger.screenshots);
     // The link opens that poem only.
@@ -1436,6 +1451,206 @@ async function recoveryScenario(browser, origin) {
   return report;
 }
 
+/**
+ * [L1-3.10] Submit state is scoped to one assignment. The guest's round-1
+ * line is accepted and the round advances over the socket while that submit
+ * is still settling (its follow-up state read is held back). An Enter on the
+ * round-2 line must be sent at once, not dropped.
+ */
+async function rapidSubmitScenario(browser, origin) {
+  const report = { result: 'fail', heldReads: 0, inFlightAtEnter: 0, round2SentMs: null, errors: [] };
+  const hostContext = await browser.newContext({ viewport: VIEWPORTS.desktop });
+  const guestContext = await browser.newContext({ viewport: VIEWPORTS.desktop });
+  const host = await hostContext.newPage();
+  const guest = await guestContext.newPage();
+  try {
+    for (const page of [host, guest]) {
+      page.on('pageerror', (error) => report.errors.push(error.message));
+      page.on('console', (message) => message.type() === 'error' && report.errors.push(message.text()));
+    }
+    await host.goto(origin + '/');
+    await host.locator('#pen-name').fill('Marlowe');
+    await host.locator('[data-action="create"]:not([disabled])').click();
+    await host.waitForURL(/\/room\//);
+    const code = new URL(host.url()).pathname.split('/').pop();
+    await guest.goto(`${origin}/join?code=${code}`);
+    await guest.locator('#pen-name').fill('Ines');
+    await guest.locator('[data-form="join"] button[type="submit"]:not([disabled])').click();
+    await guest.waitForURL(/\/room\//);
+    await host.locator('[data-action="start"]:not([disabled])').click();
+    await host.locator('#line-input').waitFor();
+    await guest.locator('#line-input').waitFor();
+
+    await host.locator('#line-input').fill('Dawn');
+    await host.locator('#line-input').press('Enter');
+    await host.locator('.tucked:has-text("Line tucked")').waitFor();
+
+    // Hold back the guest's room-state reads: the round-1 submit cannot settle.
+    let hold = false;
+    let inFlight = 0;
+    await guest.route(
+      (url) => url.pathname === `/api/rooms/${code}`,
+      async (route) => {
+        if (!hold || route.request().method() !== 'GET') return route.continue();
+        report.heldReads++;
+        inFlight++;
+        await new Promise((resolve) => setTimeout(resolve, 4000));
+        inFlight--;
+        await route.continue().catch(() => undefined);
+      }
+    );
+    hold = true;
+    await guest.locator('#line-input').fill('Moss');
+    await guest.locator('#line-input').press('Enter');
+    // The round advances over the socket while the round-1 submit is still settling.
+    await guest.locator('.round[aria-label="Round 2 of 9"]').waitFor({ timeout: 3000 });
+    await guest.locator('#line-input').fill('cold river');
+    report.inFlightAtEnter = inFlight;
+    check(report.inFlightAtEnter > 0, 'rapid-submit: the round-1 submit had already settled; race not exercised');
+    const enterAt = Date.now();
+    const sent = guest.waitForRequest(
+      (request) =>
+        request.method() === 'POST' &&
+        request.url().endsWith(`/api/rooms/${code}/lines`) &&
+        request.postDataJSON()?.lineIndex === 1,
+      { timeout: 2000 }
+    );
+    await guest.locator('#line-input').press('Enter');
+    await sent.catch(() => {
+      throw new Failure('rapid-submit: Enter on the round-2 line was dropped while round 1 was settling');
+    });
+    report.round2SentMs = Date.now() - enterAt;
+    await guest.locator('.tucked:has-text("Line tucked")').waitFor({ timeout: 10_000 });
+    const assignment = await guest.evaluate(
+      async (c) => (await (await fetch(`/api/rooms/${c}/assignment`)).json()).assignment,
+      code
+    );
+    check(
+      assignment.lineIndex === 1 && assignment.submitted === 'cold river',
+      `rapid-submit: round 2 stored ${JSON.stringify(assignment)}`
+    );
+    check(report.errors.length === 0, `rapid-submit: errors ${report.errors.join(' | ')}`);
+    report.result = 'pass';
+  } catch (error) {
+    report.error = error.message;
+    await host.screenshot({ path: join(out, 'rapid-submit-failure-host.png') }).catch(() => undefined);
+    await guest.screenshot({ path: join(out, 'rapid-submit-failure-guest.png') }).catch(() => undefined);
+  }
+  await hostContext.close();
+  await guestContext.close();
+  return report;
+}
+
+/**
+ * [L1-8.2]–[L1-8.8] Error capture on the real path: a second local Worker with
+ * a loopback Sentry DSN. Headed Chrome raises an uncaught error, an unhandled
+ * rejection and a CSP violation; each becomes a same-origin beacon, and the
+ * Worker forwards each as one scrubbed, tagged Sentry envelope.
+ */
+async function telemetryScenario(browser, origin) {
+  const report = { result: 'fail', beacons: [], envelopes: [], external: [], health: null, plainHealth: null };
+  const received = [];
+  const sink = createServer((request, response) => {
+    let body = '';
+    request.on('data', (chunk) => (body += chunk));
+    request.on('end', () => {
+      received.push({ path: request.url, auth: request.headers['x-sentry-auth'] ?? '', body });
+      response.writeHead(200, { 'content-type': 'application/json' }).end('{}');
+    });
+  });
+  await new Promise((resolve) => sink.listen(0, '127.0.0.1', resolve));
+  const sinkPort = sink.address().port;
+  const wired = await startLocalWorker({
+    port: port + 1,
+    vars: { SENTRY_DSN: `http://e2ekey@127.0.0.1:${sinkPort}/7` },
+  });
+  const context = await browser.newContext({ viewport: VIEWPORTS.phone });
+  try {
+    report.plainHealth = await (await fetch(`${origin}/api/health`)).json();
+    report.health = await (await fetch(`${wired.url}/api/health`)).json();
+    check(
+      report.plainHealth.sentryConfigured === false && report.health.sentryConfigured === true,
+      `telemetry: sentryConfigured ${JSON.stringify([report.plainHealth, report.health])}`
+    );
+    check(
+      typeof report.health.release === 'string' && report.health.release === report.plainHealth.release,
+      'telemetry: health does not report one release identity'
+    );
+    check(!JSON.stringify(report.health).includes('e2ekey'), 'telemetry: health exposes the DSN');
+
+    const page = await context.newPage();
+    page.on('request', (request) => {
+      const url = request.url();
+      if (url.startsWith(wired.url) && url.endsWith('/api/telemetry/error'))
+        report.beacons.push({ body: request.postDataJSON(), cookie: Boolean(request.headers().cookie) });
+    });
+    page.on('response', (response) => {
+      if (!response.url().startsWith(wired.url) && !/^(data|blob):/.test(response.url()))
+        report.external.push(response.url());
+    });
+    // A page with an identifier and a share slug in the URL: neither may leave the Worker.
+    await page.goto(`${wired.url}/poem/p_0123456789abcdef01234567?share=secret-share-slug-0123456789abcdef`);
+    await page.locator('#app').waitFor();
+    const beaconResponses = [];
+    page.on('response', (response) => {
+      if (response.url().endsWith('/api/telemetry/error')) beaconResponses.push(response.status());
+    });
+    await page.evaluate(() => {
+      setTimeout(() => {
+        throw new TypeError('probe room K7QM failed for ada@example.com');
+      });
+      Promise.reject(new Error('probe rejection /poem/p_0123456789abcdef01234567?share=leak'));
+      const img = document.createElement('img');
+      img.src = 'https://cdn.example.test/probe.png';
+      document.body.append(img);
+    });
+    const deadline = Date.now() + 10_000;
+    while (received.length < 3 && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 100));
+
+    report.envelopes = received.map(({ path, auth, body }) => {
+      const [, , event] = body
+        .trimEnd()
+        .split('\n')
+        .map((line) => JSON.parse(line));
+      return { path, auth: auth.replace(/sentry_key=[^,]+/, 'sentry_key=…'), event, raw: body };
+    });
+    const kinds = report.envelopes.map((e) => e.event.tags.kind).sort();
+    check(
+      JSON.stringify(kinds) === JSON.stringify(['browser_error', 'csp_violation', 'unhandled_rejection']),
+      `telemetry: forwarded kinds ${JSON.stringify(kinds)}`
+    );
+    for (const { path, auth, event, raw } of report.envelopes) {
+      check(path === '/api/7/envelope/', `telemetry: envelope sent to ${path}`);
+      check(auth.startsWith('Sentry sentry_version=7'), 'telemetry: no Sentry auth header');
+      check(
+        event.environment === 'local' && event.release === report.health.release && event.tags.route === '/poem/:id',
+        `telemetry: event tags ${JSON.stringify(event.tags)}`
+      );
+      for (const leak of ['K7QM', 'ada@example.com', 'secret-share-slug', 'share=leak', 'p_0123456789abcdef01234567'])
+        check(!raw.includes(leak), `telemetry: "${leak}" left the Worker`);
+    }
+    check(report.beacons.length === 3, `telemetry: ${report.beacons.length} beacons, expected 3`);
+    check(
+      report.beacons.every((b) => !b.cookie && b.body.route === '/poem/:id'),
+      'telemetry: a beacon carried a cookie or the raw path'
+    );
+    check(
+      beaconResponses.every((status) => status === 204),
+      `telemetry: beacon answers ${beaconResponses}`
+    );
+    check(report.external.length === 0, `telemetry: requests to another origin: ${report.external.join(' | ')}`);
+    report.result = 'pass';
+  } catch (error) {
+    report.error = error.message;
+  }
+  await context.close();
+  await wired.stop();
+  await new Promise((resolve) => sink.close(resolve));
+  // The envelopes are scrubbed; keep them as evidence without the raw text.
+  report.envelopes = report.envelopes.map(({ raw, ...rest }) => rest);
+  return report;
+}
+
 // ───────────────────────── main ─────────────────────────
 
 rmSync(out, { recursive: true, force: true });
@@ -1458,12 +1673,29 @@ const version = browser.version();
 const reports = [];
 let fallback = null;
 let recovery = null;
+let rapidSubmit = null;
+let telemetry = null;
+const extra = (name) => !only || only.split(',').includes(name);
 try {
   for (const [viewportName, modeName] of selected) {
     console.log(`▶ ${viewportName}-${modeName}`);
     const report = await runConfig(browser, origin, viewportName, modeName);
     console.log(`${report.result === 'pass' ? '✔' : '✘'} ${report.config}${report.error ? ` — ${report.error}` : ''}`);
     reports.push(report);
+  }
+  if (extra('rapid-submit')) {
+    console.log('▶ rapid-submit');
+    rapidSubmit = await rapidSubmitScenario(browser, origin);
+    console.log(
+      `${rapidSubmit.result === 'pass' ? '✔' : '✘'} rapid-submit${rapidSubmit.error ? ` — ${rapidSubmit.error}` : ''}`
+    );
+  }
+  if (extra('telemetry')) {
+    console.log('▶ telemetry');
+    telemetry = await telemetryScenario(browser, origin);
+    console.log(
+      `${telemetry.result === 'pass' ? '✔' : '✘'} telemetry${telemetry.error ? ` — ${telemetry.error}` : ''}`
+    );
   }
   if (!only) {
     console.log('▶ http-fallback');
@@ -1514,11 +1746,13 @@ const summary = {
   },
   httpFallback: fallback,
   credentialRecovery: recovery,
+  rapidSubmit,
+  telemetry,
   // Share tokens are credentials to a public page; keep them out of evidence.
   reports: JSON.parse(JSON.stringify(reports).replace(/share=[\w-]+/g, 'share=…')),
 };
 writeFileSync(join(out, 'walkthrough.json'), JSON.stringify(summary, null, 2) + '\n');
 console.log(`\n${summary.passed}/${summary.runs} runs passed · ${JSON.stringify(summary.totals)}`);
 console.log(`evidence: ${out} (${readdirSync(out).length} files)`);
-const extras = [fallback, recovery].filter(Boolean);
-if (failed.length || reports.length === 0 || extras.some((e) => e.result !== 'pass')) process.exit(1);
+const extras = [fallback, recovery, rapidSubmit, telemetry].filter(Boolean);
+if (failed.length || reports.length + extras.length === 0 || extras.some((e) => e.result !== 'pass')) process.exit(1);

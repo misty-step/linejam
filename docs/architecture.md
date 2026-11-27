@@ -22,9 +22,10 @@ MCP ─────┘   (src/worker.ts)     └─ ArchiveDO (one, SQLite)
 | `src/room.ts`       | `RoomDO`: members, presence, host succession, games, lines, reading circle, WebSockets, alarms |
 | `src/archive.ts`    | `ArchiveDO`: completed poems, participants, favorites, share links, retention, legacy import   |
 | `src/measure.ts`    | Anonymous measurement: an allow-listed structured log line                                     |
+| `src/telemetry.ts`  | Error capture: scrubbing, release identity, Sentry Envelope forwarding, the beacon allow-list  |
 | `web/`              | The browser UI: `static/` (HTML, CSS) and `src/` (TypeScript, bundled by esbuild)              |
 | `cli/`              | The CLI and the MCP server over one small HTTP client                                          |
-| `scripts/build.mjs` | Checksum gate and generation of everything in `dist/public`                                    |
+| `scripts/build.mjs` | Checksum gate, everything in `dist/public`, and the release identity in `src/generated`        |
 | `e2e/`              | The headed two-player walkthrough                                                              |
 
 ## Rooms

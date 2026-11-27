@@ -10,7 +10,8 @@ system and needs its own explicit authority.
 | `GUEST_TOKEN_SECRET`   | secret | Signs guest credentials. At least 32 characters. Without it the Worker answers `503`.      |
 | `LINEJAM_ADMIN_KEY`    | secret | Enables `POST /api/admin/import`. Unset (or under 32 characters) means the route is `401`. |
 | `RETENTION_GC_ENABLED` | var    | `"1"` lets the daily sweep delete eligible poems. Production ships `"0"`: report only.     |
-| `LINEJAM_ENVIRONMENT`  | var    | Reported by `/api/health`.                                                                 |
+| `LINEJAM_ENVIRONMENT`  | var    | Reported by `/api/health` and tagged on every Sentry event.                                |
+| `SENTRY_DSN`           | secret | Sentry project `linejam`. Bound: errors are forwarded. Unbound: forwarding is a no-op.     |
 
 Bind secrets with `wrangler secret put <NAME> --env production`. Keep
 `GUEST_TOKEN_SECRET` at its existing production value: it is what makes guest
@@ -24,9 +25,14 @@ pnpm deploy:production   # wrangler deploy --env production
 ```
 
 `wrangler` runs `scripts/build.mjs` first; a folio checksum mismatch stops the
-deploy. After activation, read back `GET https://linejam.mistystep.io/api/health`
-(`{"status":"ok","environment":"production"}`) and walk a real player entry
-(`PRODUCT.md` `[V-4]`). `.github/workflows/health-monitor.yml` polls the same
+deploy. The build also bakes the release identity (git `HEAD`, or
+`LINEJAM_RELEASE`) into the Worker; deploy from a clean checkout so it is not
+marked `-dirty`. After activation, read back
+`GET https://linejam.mistystep.io/api/health`
+(`{"status":"ok","environment":"production","release":"<deployed commit>","sentryConfigured":true}`)
+and walk a real player entry (`PRODUCT.md` `[V-4]`). `sentryConfigured` stays
+`false` until an operator binds `SENTRY_DSN` with
+`wrangler secret put SENTRY_DSN --env production` (a secret change). `.github/workflows/health-monitor.yml` polls the same
 route.
 
 ## The legacy data object
@@ -77,3 +83,15 @@ The Worker logs anonymous events (`game_created`, `game_joined`,
 bounded fields. No names, credentials, ids, room codes, poem text or URLs are
 ever logged. There is no third-party analytics or error SDK in the browser;
 the UI makes zero external requests.
+
+## Error capture
+
+`src/telemetry.ts` forwards unhandled Worker and Durable Object exceptions,
+`5xx` refusals and browser error beacons (`POST /api/telemetry/error`) to the
+Sentry project `linejam` as scrubbed Envelope `POST`s tagged `environment`,
+`release` and `kind` (`worker_exception`, `browser_error`,
+`unhandled_rejection`, `csp_violation`). Every capture also logs
+`{"event":"error_captured","kind":…}`; delivery problems log
+`sentry_dsn_invalid` or `sentry_forward_failed`. Production alerts route from
+Sentry to Misty Step's auto-triage pipeline (`PRODUCT.md` `[L1-8.9]`); that
+routing lives in Sentry, not in this repository.
