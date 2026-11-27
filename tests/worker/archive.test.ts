@@ -14,7 +14,10 @@ afterEach(async () => {
 
 /** A guest credential lasts 7 days; a player who comes back months later holds a renewed one. */
 async function renewed(player: Player): Promise<Player> {
-  return { ...player, token: await signGuestToken('local-test-guest-secret-0123456789abcdef', player.guestId, Date.now()) };
+  return {
+    ...player,
+    token: await signGuestToken('local-test-guest-secret-0123456789abcdef', player.guestId, Date.now()),
+  };
 }
 
 const archiveStub = () => bindings.ARCHIVE.get(bindings.ARCHIVE.idFromName('archive'));
@@ -30,7 +33,10 @@ async function finished(count = 2): Promise<{ code: string; players: Player[]; p
 async function publish(player: Player, poemId: string): Promise<ShareAttempt> {
   const attempt = await call<ShareAttempt>('POST', `/api/poems/${poemId}/share`, { token: player.token });
   expect(attempt.status).toBe(201);
-  const confirmed = await call<ShareAttempt>('POST', `/api/poems/${poemId}/share/confirm`, { token: player.token, body: { token: attempt.body.token } });
+  const confirmed = await call<ShareAttempt>('POST', `/api/poems/${poemId}/share/confirm`, {
+    token: player.token,
+    body: { token: attempt.body.token },
+  });
   expect(confirmed.status).toBe(200);
   expect(confirmed.body.active).toBe(true);
   return confirmed.body;
@@ -42,7 +48,11 @@ describe('[L1-4.1] [L1-4.2] private archive', () => {
     const outsider = await guest('Eve');
     const mine = (await call<ArchiveEntry[]>('GET', '/api/poems', { token: players[0]!.token })).body;
     expect(mine.map((p) => p.id).sort()).toEqual([...poemIds].sort());
-    expect(mine[0]).toMatchObject({ favorited: false, shared: false, writers: ['Poet1', 'Poet2'].sort() && mine[0]!.writers });
+    expect(mine[0]).toMatchObject({
+      favorited: false,
+      shared: false,
+      writers: ['Poet1', 'Poet2'].sort() && mine[0]!.writers,
+    });
     expect(mine[0]!.firstLine).toMatch(/r1w1$/);
     expect((await call('GET', '/api/poems', { token: outsider.token })).body).toEqual([]);
 
@@ -53,7 +63,9 @@ describe('[L1-4.1] [L1-4.2] private archive', () => {
       [poemIds[0], false],
     ]);
     // A favorite is personal: the other participant's archive is unchanged.
-    expect((await call<ArchiveEntry[]>('GET', '/api/poems', { token: players[1]!.token })).body.every((p) => !p.favorited)).toBe(true);
+    expect(
+      (await call<ArchiveEntry[]>('GET', '/api/poems', { token: players[1]!.token })).body.every((p) => !p.favorited)
+    ).toBe(true);
   });
 
   it('never authorizes a private read by room code, pen name, poem id or missing credential', async () => {
@@ -97,10 +109,16 @@ describe('[L1-4.3] favorites are private', () => {
     const on = await call('POST', `/api/poems/${id}/favorite`, { token: players[0]!.token, body: { on: true } });
     expect(on.body).toEqual({ poemId: id, favorited: true, hearts: 1 });
     // Setting the same value again is harmless.
-    expect((await call('POST', `/api/poems/${id}/favorite`, { token: players[0]!.token, body: { on: true } })).body.hearts).toBe(1);
-    expect((await call<FavoriteEntry[]>('GET', '/api/favorites', { token: players[0]!.token })).body).toMatchObject([{ id, available: true }]);
+    expect(
+      (await call('POST', `/api/poems/${id}/favorite`, { token: players[0]!.token, body: { on: true } })).body.hearts
+    ).toBe(1);
+    expect((await call<FavoriteEntry[]>('GET', '/api/favorites', { token: players[0]!.token })).body).toMatchObject([
+      { id, available: true },
+    ]);
     expect((await call('GET', `/api/poems/${id}`)).status).toBe(404);
-    expect((await call<PoemView>('GET', `/api/poems/${id}`, { token: players[0]!.token })).body.share.active).toBe(false);
+    expect((await call<PoemView>('GET', `/api/poems/${id}`, { token: players[0]!.token })).body.share.active).toBe(
+      false
+    );
     // Omitting `on` toggles.
     const off = await call('POST', `/api/poems/${id}/favorite`, { token: players[0]!.token });
     expect(off.body).toEqual({ poemId: id, favorited: false, hearts: 0 });
@@ -122,7 +140,10 @@ describe('[L1-4.4]–[L1-4.6] explicit, reversible sharing', () => {
     expect((await call('GET', `/api/poems/${id}?share=${attempt.body.token}`)).status).toBe(404);
     expect((await call('GET', attempt.body.path, { headers: { accept: 'text/html' } })).status).toBe(404);
 
-    const confirmed = await call<ShareAttempt>('POST', `/api/poems/${id}/share/confirm`, { token: players[0]!.token, body: { token: attempt.body.token } });
+    const confirmed = await call<ShareAttempt>('POST', `/api/poems/${id}/share/confirm`, {
+      token: players[0]!.token,
+      body: { token: attempt.body.token },
+    });
     expect(confirmed.body).toMatchObject({ active: true, path: attempt.body.path });
 
     const anyone = await call<PoemView>('GET', `/api/poems/${id}?share=${attempt.body.token}`);
@@ -158,18 +179,33 @@ describe('[L1-4.4]–[L1-4.6] explicit, reversible sharing', () => {
     const { players, poemIds } = await finished(2);
     const id = poemIds[0]!;
     const cancelled = (await call<ShareAttempt>('POST', `/api/poems/${id}/share`, { token: players[0]!.token })).body;
-    expect((await call('POST', `/api/poems/${id}/share/cancel`, { token: players[0]!.token, body: { token: cancelled.token } })).body).toEqual({ cancelled: true });
-    const afterCancel = await call('POST', `/api/poems/${id}/share/confirm`, { token: players[0]!.token, body: { token: cancelled.token } });
+    expect(
+      (
+        await call('POST', `/api/poems/${id}/share/cancel`, {
+          token: players[0]!.token,
+          body: { token: cancelled.token },
+        })
+      ).body
+    ).toEqual({ cancelled: true });
+    const afterCancel = await call('POST', `/api/poems/${id}/share/confirm`, {
+      token: players[0]!.token,
+      body: { token: cancelled.token },
+    });
     expect(afterCancel.status).toBe(409);
     expect((await call('GET', `/api/poems/${id}?share=${cancelled.token}`)).status).toBe(404);
 
     const slow = (await call<ShareAttempt>('POST', `/api/poems/${id}/share`, { token: players[0]!.token })).body;
     vi.setSystemTime(Date.now() + SHARE_PENDING_MS + 1);
-    const late = await call('POST', `/api/poems/${id}/share/confirm`, { token: players[0]!.token, body: { token: slow.token } });
+    const late = await call('POST', `/api/poems/${id}/share/confirm`, {
+      token: players[0]!.token,
+      body: { token: slow.token },
+    });
     expect(late.status).toBe(409);
     expect(late.body.error.code).toBe('share_inactive');
     expect((await call('GET', `/api/poems/${id}?share=${slow.token}`)).status).toBe(404);
-    expect((await call<PoemView>('GET', `/api/poems/${id}`, { token: players[0]!.token })).body.share.active).toBe(false);
+    expect((await call<PoemView>('GET', `/api/poems/${id}`, { token: players[0]!.token })).body.share.active).toBe(
+      false
+    );
   });
 
   it('does not let a late or stale completion override or cancel a newer one', async () => {
@@ -179,18 +215,30 @@ describe('[L1-4.4]–[L1-4.6] explicit, reversible sharing', () => {
     await new Promise((resolve) => setTimeout(resolve, 5));
     const newer = (await call<ShareAttempt>('POST', `/api/poems/${id}/share`, { token: players[0]!.token })).body;
     // The older attempt completes late: refused while a newer attempt exists.
-    const stale = await call('POST', `/api/poems/${id}/share/confirm`, { token: players[0]!.token, body: { token: older.token } });
+    const stale = await call('POST', `/api/poems/${id}/share/confirm`, {
+      token: players[0]!.token,
+      body: { token: older.token },
+    });
     expect(stale.status).toBe(409);
     expect(stale.body.error.code).toBe('share_stale');
-    expect((await call('POST', `/api/poems/${id}/share/confirm`, { token: players[0]!.token, body: { token: newer.token } })).status).toBe(200);
+    expect(
+      (await call('POST', `/api/poems/${id}/share/confirm`, { token: players[0]!.token, body: { token: newer.token } }))
+        .status
+    ).toBe(200);
     // A stale cancel of the older attempt changes nothing.
-    expect((await call('POST', `/api/poems/${id}/share/cancel`, { token: players[0]!.token, body: { token: older.token } })).body).toEqual({ cancelled: false });
+    expect(
+      (await call('POST', `/api/poems/${id}/share/cancel`, { token: players[0]!.token, body: { token: older.token } }))
+        .body
+    ).toEqual({ cancelled: false });
     expect((await call('GET', `/api/poems/${id}?share=${newer.token}`)).status).toBe(200);
     expect((await call('GET', `/api/poems/${id}?share=${older.token}`)).status).toBe(404);
     // Another participant cannot confirm someone else's attempt.
     await call('DELETE', `/api/poems/${id}/share`, { token: players[0]!.token });
     const mine = (await call<ShareAttempt>('POST', `/api/poems/${id}/share`, { token: players[0]!.token })).body;
-    expect((await call('POST', `/api/poems/${id}/share/confirm`, { token: players[1]!.token, body: { token: mine.token } })).status).toBe(404);
+    expect(
+      (await call('POST', `/api/poems/${id}/share/confirm`, { token: players[1]!.token, body: { token: mine.token } }))
+        .status
+    ).toBe(404);
   });
 
   it('offers sharing only for a completed, revealed poem', async () => {
@@ -204,20 +252,30 @@ describe('[L1-4.4]–[L1-4.6] explicit, reversible sharing', () => {
     expect((await call('POST', `/api/poems/${hidden}/share`, { token: players[0]!.token })).status).toBe(201);
   });
 
-  it("lets a reader favorite a public poem, and hides its text again once revoked", async () => {
+  it('lets a reader favorite a public poem, and hides its text again once revoked', async () => {
     const { players, poemIds } = await finished(2);
     const id = poemIds[0]!;
     const share = await publish(players[0]!, id);
     const reader = await guest('Reader');
-    expect((await call('POST', `/api/poems/${id}/favorite`, { token: reader.token, body: { on: true } })).status).toBe(404);
-    const hearted = await call('POST', `/api/poems/${id}/favorite`, { token: reader.token, body: { on: true, share: share.token } });
+    expect((await call('POST', `/api/poems/${id}/favorite`, { token: reader.token, body: { on: true } })).status).toBe(
+      404
+    );
+    const hearted = await call('POST', `/api/poems/${id}/favorite`, {
+      token: reader.token,
+      body: { on: true, share: share.token },
+    });
     expect(hearted.status).toBe(200);
-    expect((await call<FavoriteEntry[]>('GET', '/api/favorites', { token: reader.token })).body[0]).toMatchObject({ id, available: true });
+    expect((await call<FavoriteEntry[]>('GET', '/api/favorites', { token: reader.token })).body[0]).toMatchObject({
+      id,
+      available: true,
+    });
     await call('DELETE', `/api/poems/${id}/share`, { token: players[0]!.token });
     const hidden = (await call<FavoriteEntry[]>('GET', '/api/favorites', { token: reader.token })).body;
     expect(hidden).toMatchObject([{ id, available: false, firstLine: null }]);
     expect(JSON.stringify(hidden)).not.toMatch(/Poet\dr\d/);
-    expect((await call('POST', `/api/poems/${id}/favorite`, { token: reader.token, body: { on: false } })).body.favorited).toBe(false);
+    expect(
+      (await call('POST', `/api/poems/${id}/favorite`, { token: reader.token, body: { on: false } })).body.favorited
+    ).toBe(false);
     expect((await call('GET', '/api/favorites', { token: reader.token })).body).toEqual([]);
   });
 });
@@ -232,10 +290,14 @@ describe('[L1-4.8] full-session recap sharing', () => {
     const done = await revealAll(code, players);
     const poemId = done.game!.circle!.poems[0]!.id;
 
-    const attempt = (await call<ShareAttempt>('POST', `/api/recaps/${gameId}/share`, { token: players[0]!.token })).body;
+    const attempt = (await call<ShareAttempt>('POST', `/api/recaps/${gameId}/share`, { token: players[0]!.token }))
+      .body;
     expect(attempt.path).toBe(`/recap/${gameId}?share=${attempt.token}`);
     expect((await call('GET', `/api/recaps/${gameId}?share=${attempt.token}`)).status).toBe(404);
-    await call('POST', `/api/recaps/${gameId}/share/confirm`, { token: players[0]!.token, body: { token: attempt.token } });
+    await call('POST', `/api/recaps/${gameId}/share/confirm`, {
+      token: players[0]!.token,
+      body: { token: attempt.token },
+    });
     const recap = await call<RecapView>('GET', `/api/recaps/${gameId}?share=${attempt.token}`);
     expect(recap.status).toBe(200);
     expect(recap.body.poems).toHaveLength(2);
@@ -297,7 +359,11 @@ describe('[L1-4.9] bounded retention', () => {
       }
     });
     expect(report).toEqual({ eligible: 2, deleted: 0, dryRun: true });
-    expect((await call<ArchiveEntry[]>('GET', '/api/poems', { token: (await renewed(players[0]!)).token })).body.map((p) => p.id).sort()).toEqual([...poemIds].sort());
+    expect(
+      (await call<ArchiveEntry[]>('GET', '/api/poems', { token: (await renewed(players[0]!)).token })).body
+        .map((p) => p.id)
+        .sort()
+    ).toEqual([...poemIds].sort());
   });
 
   it('runs the sweep from the daily alarm', async () => {
@@ -316,7 +382,10 @@ describe('[L1-4.9] bounded retention', () => {
     await call('POST', `/api/rooms/${code}/end`, { token: players[0]!.token });
     const room = bindings.ROOM.get(bindings.ROOM.idFromName(code));
     const count = () =>
-      runInDurableObject(room, (_instance, ctx) => ctx.storage.sql.exec('SELECT COUNT(*) AS n FROM lines').one().n as number);
+      runInDurableObject(
+        room,
+        (_instance, ctx) => ctx.storage.sql.exec('SELECT COUNT(*) AS n FROM lines').one().n as number
+      );
     expect(await count()).toBe(2);
     vi.setSystemTime(Date.now() + ABANDONED_RETENTION_MS + DAY);
     await runDurableObjectAlarm(room);
@@ -341,20 +410,36 @@ describe('[L1-5.4] legacy data is imported, never invented or reset', () => {
             ord: 0,
             readerName: 'Sol',
             revealedAt: 1_760_000_100_000,
-            lines: Array.from({ length: 9 }, (_, idx) => ({ idx, text: `legacy line ${idx + 1}`, authorName: idx % 2 ? 'Sol' : 'Wren' })),
+            lines: Array.from({ length: 9 }, (_, idx) => ({
+              idx,
+              text: `legacy line ${idx + 1}`,
+              authorName: idx % 2 ? 'Sol' : 'Wren',
+            })),
           },
         ],
       },
     ],
     favorites: [{ guestId, poemId: 'legacypoem1', createdAt: 1_760_000_200_000 }],
-    shares: [{ kind: 'poem', targetId: 'legacypoem1', token: 'legacy-slug-abc123', createdBy: guestId, activatedAt: 1_760_000_300_000 }],
+    shares: [
+      {
+        kind: 'poem',
+        targetId: 'legacypoem1',
+        token: 'legacy-slug-abc123',
+        createdBy: guestId,
+        activatedAt: 1_760_000_300_000,
+      },
+    ],
   });
 
   it('refuses the import route without the operator key', async () => {
     const player = await guest('Wren');
     expect((await call('POST', '/api/admin/import', { body: batch(player.guestId) })).status).toBe(401);
-    expect((await call('POST', '/api/admin/import', { token: player.token, body: batch(player.guestId) })).status).toBe(401);
-    expect((await call('POST', '/api/admin/import', { token: 'wrong-key', body: batch(player.guestId) })).status).toBe(401);
+    expect((await call('POST', '/api/admin/import', { token: player.token, body: batch(player.guestId) })).status).toBe(
+      401
+    );
+    expect((await call('POST', '/api/admin/import', { token: 'wrong-key', body: batch(player.guestId) })).status).toBe(
+      401
+    );
   });
 
   it('honors imported poems, favorites and published links under their original identifiers, idempotently', async () => {
@@ -369,7 +454,9 @@ describe('[L1-5.4] legacy data is imported, never invented or reset', () => {
     const published = await call<PoemView>('GET', '/api/poems/legacypoem1?share=legacy-slug-abc123');
     expect(published.status).toBe(200);
     expect(published.body.lines[8]).toEqual({ text: 'legacy line 9', by: 'Wren' });
-    expect((await call('GET', '/poem/legacypoem1?share=legacy-slug-abc123', { headers: { accept: 'text/html' } })).status).toBe(200);
+    expect(
+      (await call('GET', '/poem/legacypoem1?share=legacy-slug-abc123', { headers: { accept: 'text/html' } })).status
+    ).toBe(200);
     expect((await call('GET', '/api/poems/legacypoem1')).status).toBe(404);
     // Revocable like any other link.
     expect((await call('DELETE', '/api/poems/legacypoem1/share', { token: player.token })).status).toBe(200);

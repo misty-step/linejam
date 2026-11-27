@@ -9,23 +9,20 @@ Linejam is a phone-first party game where two to eight people pass poems around,
 Phaedrus's family and friends can make something funny and surprising together, with no account setup getting in the way of a party.
 
 Nine rounds use 1, 2, 3, 4, 5, 4, 3, 2, 1 words. A room can host repeated games.
-A pen name and avatar identify someone to the room, not to an account system.
+A pen name and emblem identify someone to the room, not to an account system.
 
-This is the reference specification for observable behavior. `live` means
-implemented in the current product, not independently verified in every
-production deployment. `next` and `later` are reserved for owner-approved work;
-none is asserted here. Priorities, open questions and decisions in flight belong
-to Powder, not this document. Architecture and technical decisions belong in
-[architecture](docs/ARCHITECTURE.md) and repository ADRs; product identity belongs
-in [DESIGN.md](DESIGN.md). [README.md](README.md) owns the application,
-documentation and marketing links.
+[PRODUCT.md](PRODUCT.md) is the Active Folio: the present-tense statement of
+what Linejam is and must do, with stable requirement IDs. This document keeps
+the detailed observable acceptance for its journeys; where the two differ,
+`PRODUCT.md` wins. Visual identity belongs to [DESIGN.md](DESIGN.md) and the
+locked files in `folio/assets/`. Architecture belongs in
+[docs/architecture.md](docs/architecture.md); priorities, open questions and
+decisions in flight belong to Powder, not this document.
 
-The four stable story IDs describe end-to-end journeys. Their numbered criteria
-preserve the existing automated walk checkpoints; the detailed acceptance below
-also defines the product and needs the corresponding focused checks. A walk
-receipt is evidence for its observed checkpoints, not certification of every
-sentence here. [Testing](docs/testing.md) owns verification procedures and gaps;
-the [feature map](features/README.md) locates implementations.
+`live` means implemented in the current product and verified locally by
+`pnpm verify` ([testing](docs/testing.md)); it is not a claim about any
+production deployment. The three stable story IDs describe end-to-end
+journeys. The [feature map](features/README.md) locates implementations.
 
 ## Capability: Guest party
 
@@ -44,11 +41,11 @@ Criteria:
 
 Detailed acceptance:
 
-- Home offers starting a game and joining a room. Creation requires a nonblank
-  pen name and offers a choice of illustrated avatar. A fresh entry attempt
-  starts with an avatar selection; players can change it before submitting.
-  Names are trimmed, and the room roster shows each player's chosen name and
-  avatar, marking the host separately. A new room begins in its lobby.
+- Home offers starting a room and joining one. Entry requires a nonblank pen
+  name and offers the eight cast emblems. A fresh entry starts with a random
+  emblem selected; players can change it before submitting. Names are trimmed,
+  and the room roster shows each player's chosen name and emblem, marking the
+  host separately. A new room begins in its lobby.
 - An invitation has a four-character code, a copy-code action, a shareable join
   link and a scannable QR code. Following the link prefills the join code, not
   the person's pen name. Typed codes are uppercased and stripped of non-letter/
@@ -58,8 +55,6 @@ Detailed acceptance:
   error rather than a phantom seat; capacity is eight. Rejoining with the same
   verified identity reuses the seat instead of duplicating it. A different
   browser session is a different guest, even if it uses the same pen name.
-  Retired historical invitations do not admit new players; retained poems remain
-  available under their existing access rules.
 - The lobby shows the roster and player count out of eight. The host can start
   the first game with at least two eligible, present players. With one player
   the start control explains that another is needed; non-hosts wait for the
@@ -150,7 +145,7 @@ Detailed acceptance:
   animation or a different poem. Other room members see it after reveal.
   The order marks reading now, up next and read, and supports replaying poems.
   The assigned reader has reveal authority; if absent, a present host or eligible
-  participant can step in. Retained game participants can reveal in a closed
+  participant can step in. Participants can read their completed poems in the
   archive without depending on live presence. Repeating reveal is harmless.
 - After all poems are revealed, the session recap offers replay, play again,
   back to lobby and exit. Current members can start another game from completion
@@ -166,36 +161,25 @@ Detailed acceptance:
   transitions announce the next reader. Phone layouts keep the composer,
   primary actions and scrollable content reachable with a virtual keyboard or
   enlarged text. Color mode can follow the system or an explicit light/dark
-  choice. Reduced motion suppresses unnecessary ceremony motion and haptics.
+  choice. Reduced motion removes movement; nothing depends on it.
 - Sound is available for deliberate activation and confirmed results, not hover,
   typing, disabled controls or repeated held-key events. It waits for a trusted
-  interaction rather than playing on page load. Muting suppresses future sound
-  and ceremony haptics; the explicit preference persists and synchronizes with
-  same-origin tabs. Reduced motion does not itself mute sound. Sound and visual
+  interaction rather than playing on page load. Muting suppresses future sound;
+  the explicit preference persists and synchronizes with same-origin tabs. Reduced motion does not itself mute sound. Sound and visual
   celebration never substitute for visible success or error feedback.
 
 No generated player lines, extra modes, competitive player rankings or fabricated
 replacement lines for an absent writer. A completed browser journey and a
 reconnected seat are separate observations, not implied by a lobby screenshot.
 
-#### Abandonment sweep health
+#### Abandoned games
 
-As the operator, I want unattended-game cleanup failures and absent runs to
-reach the existing owned alert intake, without stopping people from playing.
-
-- The existing minute-by-minute sweep closes unattended games atomically per
-  bounded page, preserving partial-line privacy and active participants.
-- One native Sentry check-in covers an entire sweep: it starts before the first
-  page, succeeds only after every continuation page commits, and fails if any
-  page fails. An interrupted run must never report success.
-- Sentry detects a failed, timed-out, or missed production sweep and routes the
-  incident through the existing scheduled-job alert and canonical owned intake.
-  A normal successful sweep recovers the monitor.
-- Reporting contains only the monitor identity, environment, source release,
-  generated check-in identity, status and elapsed time; no player or game data.
-- Disabled or unavailable telemetry must not prevent cleanup or gameplay.
-  Nonproduction runs must not seed a production monitor environment.
-- Retention remains unchanged; this story does not authorize enabling deletion.
+- A game the host ends, or a writing game nobody touches for seven days, is
+  abandoned: it never enters the archive, a recap or any share surface.
+- Its partial lines are deleted seven days after it ended. A room nobody has
+  touched for ninety days is removed, releasing its code.
+- Cleanup runs from the room's own alarm, needs no external scheduler, and
+  never blocks play.
 
 ## Capability: Keep and share
 
@@ -216,11 +200,10 @@ Criteria:
 Detailed acceptance:
 
 - The archive lists completed poems the current person contributed to. It has
-  loading, empty and recovery states, an emphasized first poem, poem-shape
-  previews, dates, collaborator information and personal favorite controls.
-  Favorites sort first, then newest poems within each group. Displayed counts
-  describe the returned archive window, not a promise of unlimited lifetime
-  history. Recent partial or abandoned sessions must not masquerade as poems.
+  loading, empty and recovery states, each poem's first line, date, writers and
+  a personal favorite control. Favorites sort first, then newest poems within
+  each group. The list is a bounded window, not a promise of unlimited lifetime
+  history. Partial or abandoned sessions must not masquerade as poems.
 - Opening an owned completed poem shows its full text and per-line bylines.
   A line keeps the pen name used when written, even if its author chooses
   another name in a later room. Public and archive bylines do not disclose
@@ -255,54 +238,33 @@ Detailed acceptance:
   poems are revealed. It publishes the complete recap to anyone with its link;
   it does not require enabling each poem's individual share link. Revoking the
   recap does not implicitly revoke an independently published poem, or vice versa.
-  Unlike individual poem sharing, recap publication currently happens before
-  the copy/native-share result; cancelling that sheet does not roll it back.
-- Recent public-poem showcases use only explicitly public completed work, not
-  private archive text. Private completed artifacts become eligible for cleanup
-  after 90 days, abandoned work after seven days. Public or favorited poems
-  remain protected while that protection applies; removing protection starts a
-  30-day grace period. Eligibility is not a guaranteed deletion instant, and
-  account identities are not treated as disposable guest history.
+  Like a poem link, a recap link becomes public only after the copy or native
+  share completes.
+- Private completed poems become eligible for cleanup after 90 days, abandoned
+  work after seven days. Public or favorited poems remain protected while that
+  protection applies; removing protection starts a 30-day grace period.
+  Eligibility is not a guaranteed deletion instant: deletion runs only where
+  an operator has enabled it, and otherwise the sweep only reports.
 
 No hidden unpublished text in spectator responses, metadata, images or previews.
 Knowing a room code, poem identifier or inactive share URL is not permission.
 
 #### Privacy-safe measurement across US-001–003
 
-As the product owner, I want anonymous pageviews, sessions and story outcomes
-so I can steer the product without reading players' private work.
+As the product owner, I want anonymous story outcomes so I can steer the
+product without reading players' private work.
 
-These supporting criteria apply across the three player journeys; they do not
-add another end-to-end story or change their stable numbered walk checkpoints.
-
-- A configured production browser records pageviews and sessions, including
-  guest play without a signed-in account. Events carry `app=linejam`, the
-  environment and source release. Unconfigured browsers send nothing.
-- The existing `game_created` and `game_joined` outcomes measure US-001;
-  `line_submitted` and `game_completed` measure US-002; `artifact_action`
-  measures US-003. Existing supporting funnel/share signals remain available.
-  A retried room/cycle/round/action is counted once per browser runtime.
-- Analytics contains no names, emails, account IDs, guest tokens, room codes,
-  poem text, query strings, fragments, raw private paths or IP/geolocation
-  enrichment. Routes are templates. Browser identifiers are random,
-  host-scoped pseudonyms, not signed-in identities. Autocapture, replay,
-  surveys and automatic exception/performance capture are disabled.
-- SDK exceptions and an unavailable analytics sink never prevent admission,
-  writing, reveal, saving or sharing. A later user action can be captured
-  after the sink recovers; failed actions are not invented or backfilled.
-- Browser automation and nonproduction events are marked synthetic, so they
-  can be excluded from human-usage aggregates. Anonymous browsers are not
-  guaranteed to represent unique people across devices or cleared storage.
-- Admission attempts and failures use bounded reason codes, never the entered
-  invitation or an error message. The funnel distinguishes an attempt from a
-  successful join. Starts include the number of participating writers; a first
-  accepted line records elapsed time since that game started, including reloads.
-  Existing stage/round outcomes permit measuring where players stop progressing.
-- Browser and Worker ingress exceptions carry the serving source release and
-  environment to Sentry with private content removed. An unavailable error sink
-  does not stall a healthy request. Native uptime monitoring covers the health
-  endpoint; each new issue, handled or unhandled, reaches the existing owned
-  alert intake once on first sight rather than notifying for every occurrence.
+- The Worker records bounded, anonymous events as structured log lines:
+  `game_created` and `game_joined` (US-001), `line_submitted` and
+  `game_completed` (US-002), `artifact_action` (US-003), plus `join_rejected`,
+  `game_started` and `game_ended`.
+- An event carries only an allow-list of bounded fields: writer count, round
+  number, a bounded rejection reason, an action name. Never names, emails,
+  account IDs, guest credentials or ids, room codes, poem text, URLs, query
+  strings or location.
+- The browser loads no analytics or error SDK and makes no request to another
+  origin. An unavailable log sink never prevents admission, writing, reveal,
+  saving or sharing.
 
 #### Party-scale recovery
 
@@ -315,110 +277,32 @@ absent host can return as a writer without taking authority back from the
 successor. A ninth person is refused, not given an invisible seat. Browser
 freeze/offline emulation is recovery evidence, not physical-phone qualification.
 
-## Capability: Release administration
+## Retired: release administration (US-004)
 
-### US-004 [live] Prepare a reviewed release when generated notes fail
+The web release feeds this story described — `/changelog`, `/releases` and
+`/releases.xml`, and the footer link to them — are retired
+(`PRODUCT.md` `[L1-5.5]`). Those routes answer `404`. Release history lives in
+[GitHub Releases](https://github.com/misty-step/linejam/releases).
 
-When release-note generation fails, I want an explicitly technical-only candidate
-for review, so that provider availability neither blocks verified changes nor
-gets mistaken for a player outage.
-
-Criteria:
-
-1. IF the release-notes provider fails, THEN THE SYSTEM SHALL prepare a
-   technical-only candidate with an explicit provider-failure status and
-   deterministic technical history, without inventing notes or claiming a
-   deliberate policy skip.
-2. WHEN a technical-only candidate replaces an earlier candidate for the same
-   version, THE SYSTEM SHALL remove stale generated notes from every release
-   projection.
-3. IF release evidence is malformed or generated notes fail grounding or
-   integrity checks, THEN THE SYSTEM SHALL reject the candidate.
-4. WHILE a candidate has not passed the existing review and CI gates, THE
-   SYSTEM SHALL publish neither its tag nor its GitHub Release.
-5. WHERE a release has no public notes, THE SYSTEM SHALL show its status and
-   deterministic technical history, open, on `/changelog`, the site changelog,
-   the feed and the GitHub Release, with consistent status in the release PR.
-6. WHEN note generation fails, THE SYSTEM SHALL expose the failure as release
-   administration evidence without representing it as a player outage.
-
-Detailed acceptance:
-
-- Readers can open `/changelog`, the canonical release history linked from the
-  application footer, without joining a room. `/releases` remains a rendered
-  alias, and `/releases.xml` is the feed. The application shows its current
-  version separately from date-ordered history; historical version numbering
-  is preserved, not silently rewritten to fit the current sequence. Entries
-  offer player-facing notes when available and expandable technical changes
-  with source links. Without public notes, the status and deterministic
-  technical history are shown open on `/changelog`, the site changelog, the
-  feed and the GitHub Release.
-- Public notes are optional enrichment. `model.policy: off` deliberately skips
-  generation without a provider key or provider request; it is not a provider
-  failure and does not prevent a technical-only release.
-- Missing public notes, archived notes, intentionally skipped generation and
-  provider-failed notes are distinct states. A provider-failed entry explicitly
-  says notes are unavailable and offers technical history; it does not reuse
-  polished text from an earlier attempt or invent an explanation from an error.
-- A maintainer reviews a candidate bound to the proposed version and exact
-  source revision. Publication requires the matching reviewed candidate and
-  passing checks; a stale, changed or malformed candidate cannot reuse an
-  unrelated pass. Preparation alone publishes no tag or release. Release
-  publication is not proof that the player application has been deployed.
-- Preparation refuses when the previous release tag is missing, rather than
-  versioning from an invented baseline. A rerun keeps a matching open candidate
-  from the same repository with valid or intentionally skipped notes when its
-  source revision, version, release tag and previous tag match. Fork PRs are
-  ignored, even when they reuse the release branch name; a nonmatching candidate
-  does not suppress preparation.
-- Optional editorial generation failure is visible to release administration,
-  separately from player-service health. Invalid evidence remains a failure,
-  rather than being laundered into a technical-only success. All public history
-  projections agree about note availability for the same release.
-
-No fabricated notes, automatic review bypass, credential rotation or spending
-increase as an error-handling strategy.
-
-#### Native verification
+#### Local verification
 
 As a maintainer, I want one verification command on our own machines, so that
 checking a candidate does not require a hosted CI vendor or production access.
 
-- Fast mode checks source quality and unit behavior; full mode also checks
-  coverage, the Cloudflare backend and the built Worker, including rendered
-  guest gameplay, authorization rejection, party recovery, telemetry failure and
-  recovery, and cleanup in disposable storage.
-- Full verification uses generated local identities and refuses production
-  credentials. It never imports, resets or migrates an existing deployment.
-- A failed command stops verification and returns nonzero. Output identifies
-  the mode, commands and source revision when Git metadata is present. For
-  source archives it reports that absence; the existing caller snapshot owns
-  identity. The caller retains candidate-bound logs and browser evidence,
-  rather than relying on a vendor's job badge.
-- Local verification is not deployment, hosted account acceptance or a live
-  player-usage measurement. Release publication keeps its existing review and
-  integrity requirements.
+- `pnpm verify --fast` checks the build (including the canonical-asset
+  checksum gate), types, formatting and every test. `pnpm verify` also runs the
+  rendered two-player journey in a headed browser against the real local
+  Worker, including authorization rejection and share revocation.
+- Verification uses generated local identities, loopback targets and throwaway
+  storage, and refuses cloud credentials. It never imports, resets or migrates
+  an existing deployment.
+- A failed step stops verification and returns nonzero. Output identifies the
+  mode, each command and the source revision.
+- Local verification is not deployment, and not the live gate on
+  `linejam.mistystep.io`.
 
-#### Native application release
-
-As a maintainer, I want checked changes to reach players without a hosted CI
-bill, while failed releases leave guest identities and accepted poems intact.
-
-- A new trunk revision receives fast checks on our native executor. Full checks
-  also run twice daily even when trunk has not changed; a full failure is owned
-  repair evidence, not permission to hide or discard accepted work.
-- The deployed Worker is the production-configured artifact exercised in
-  isolation, not the local-mode game build. Runtime credentials are not build
-  inputs. Missing or invalid required production bindings refuse service rather
-  than issuing credentials or accepting writes with a development default.
-- Promotion is serialized and cannot replace a newer serving source with an
-  older one. Its source identity, backend readiness and a player entry journey
-  are read back after activation.
-- A failed or interrupted promotion restores the previously serving compatible
-  Worker version and verifies recovery. It never imports, restores or resets
-  player data. An incompatible data migration requires a separate recovery
-  decision, not an automatic rollback across it.
-- Release failure and recovery reach the existing Sentry-owned operator intake.
-  An unavailable reporting sink cannot turn a failed release into success.
-  Skipping an unchanged failed candidate keeps the failed release verdict;
-  restoring the prior Worker is service recovery, not a successful new release.
+Deploying, importing pre-recompile data and enabling retention deletion are
+separate, explicitly authorized operations
+([operations](docs/operations.md)). Existing guest credentials, accepted poems,
+published links and archives are migrated or honored; no player data is
+invented, reset or silently dropped.

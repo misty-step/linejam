@@ -1,12 +1,5 @@
 import { DurableObject } from 'cloudflare:workers';
-import type {
-  ArchiveEntry,
-  FavoriteEntry,
-  PoemLine,
-  PoemView,
-  RecapView,
-  ShareAttempt,
-} from '../shared/types.ts';
+import type { ArchiveEntry, FavoriteEntry, PoemLine, PoemView, RecapView, ShareAttempt } from '../shared/types.ts';
 import type { Env } from './env.ts';
 import { Reject, attempt, attemptAsync, type Result } from './http.ts';
 import { measure } from './measure.ts';
@@ -186,8 +179,11 @@ export class ArchiveDO extends DurableObject<Env> {
       return row !== null && row.kind === kind && row.target_id === targetId && row.status === 'active';
     }
     return (
-      this.one("SELECT 1 AS x FROM shares WHERE kind = ? AND target_id = ? AND status = 'active' AND open = 1", kind, targetId) !==
-      null
+      this.one(
+        "SELECT 1 AS x FROM shares WHERE kind = ? AND target_id = ? AND status = 'active' AND open = 1",
+        kind,
+        targetId
+      ) !== null
     );
   }
 
@@ -322,7 +318,9 @@ export class ArchiveDO extends DurableObject<Env> {
       const participant = game !== null && this.isParticipant(game.id, input.guestId);
       const allowed =
         game !== null &&
-        (input.shareToken ? this.shareAuthorizes('recap', game.id, input.shareToken) : participant || this.shareAuthorizes('recap', game.id, null));
+        (input.shareToken
+          ? this.shareAuthorizes('recap', game.id, input.shareToken)
+          : participant || this.shareAuthorizes('recap', game.id, null));
       if (!game || !allowed) throw new Reject(404, 'recap_not_found', 'Recap not found');
       const poems = this.all<PoemRow>('SELECT * FROM poems WHERE game_id = ? ORDER BY ord', game.id);
       const active = participant ? this.activeShare('recap', game.id) : null;
@@ -359,8 +357,13 @@ export class ArchiveDO extends DurableObject<Env> {
   }): Promise<Result<{ poemId: string; favorited: boolean; hearts: number }>> {
     return attemptAsync(async () => {
       const now = Date.now();
-      const existing = this.one('SELECT 1 AS x FROM favorites WHERE guest_id = ? AND poem_id = ?', input.guestId, input.poemId);
-      const poem = typeof input.poemId === 'string' ? this.one<PoemRow>('SELECT * FROM poems WHERE id = ?', input.poemId) : null;
+      const existing = this.one(
+        'SELECT 1 AS x FROM favorites WHERE guest_id = ? AND poem_id = ?',
+        input.guestId,
+        input.poemId
+      );
+      const poem =
+        typeof input.poemId === 'string' ? this.one<PoemRow>('SELECT * FROM poems WHERE id = ?', input.poemId) : null;
       const want = typeof input.on === 'boolean' ? input.on : existing === null;
       if (!want) {
         if (existing) {
@@ -373,10 +376,16 @@ export class ArchiveDO extends DurableObject<Env> {
       } else {
         const allowed =
           poem !== null &&
-          (this.isParticipant(poem.game_id, input.guestId) || this.shareAuthorizes('poem', poem.id, input.shareToken ?? null));
+          (this.isParticipant(poem.game_id, input.guestId) ||
+            this.shareAuthorizes('poem', poem.id, input.shareToken ?? null));
         if (!poem || !allowed) throw new Reject(404, 'poem_not_found', 'Poem not found');
         if (!existing) {
-          this.sql.exec('INSERT INTO favorites (guest_id, poem_id, created_at) VALUES (?, ?, ?)', input.guestId, poem.id, now);
+          this.sql.exec(
+            'INSERT INTO favorites (guest_id, poem_id, created_at) VALUES (?, ?, ?)',
+            input.guestId,
+            poem.id,
+            now
+          );
           this.sql.exec('UPDATE poems SET unprotected_at = NULL WHERE id = ?', poem.id);
           measure('artifact_action', { action: 'favorite' });
         }
@@ -403,14 +412,16 @@ export class ArchiveDO extends DurableObject<Env> {
       ).map((f) => {
         const poem = this.one<PoemRow>('SELECT * FROM poems WHERE id = ?', f.poem_id);
         const available =
-          poem !== null && (this.isParticipant(poem.game_id, input.guestId) || this.activeShare('poem', poem.id) !== null);
+          poem !== null &&
+          (this.isParticipant(poem.game_id, input.guestId) || this.activeShare('poem', poem.id) !== null);
         return {
           id: f.poem_id,
           favoritedAt: f.created_at,
           available,
           // A favorite on a poem that is private again exposes no text; it can still be removed.
           firstLine: available
-            ? (this.one<{ text: string }>('SELECT text FROM lines WHERE poem_id = ? AND idx = 0', f.poem_id)?.text ?? null)
+            ? (this.one<{ text: string }>('SELECT text FROM lines WHERE poem_id = ? AND idx = 0', f.poem_id)?.text ??
+              null)
             : null,
         };
       })
@@ -433,7 +444,11 @@ export class ArchiveDO extends DurableObject<Env> {
   }
 
   private expirePending(now: number): void {
-    this.sql.exec("UPDATE shares SET status = 'expired', ended_at = ? WHERE status = 'pending' AND expires_at < ?", now, now);
+    this.sql.exec(
+      "UPDATE shares SET status = 'expired', ended_at = ? WHERE status = 'pending' AND expires_at < ?",
+      now,
+      now
+    );
   }
 
   /**
@@ -447,7 +462,12 @@ export class ArchiveDO extends DurableObject<Env> {
       this.expirePending(now);
       const active = this.activeShare(input.kind, targetId);
       if (active && !active.open) {
-        return { token: active.token, path: sharePath(input.kind, targetId, active.token), active: true, expiresAt: null };
+        return {
+          token: active.token,
+          path: sharePath(input.kind, targetId, active.token),
+          active: true,
+          expiresAt: null,
+        };
       }
       const token = shareToken();
       this.sql.exec(
@@ -473,7 +493,10 @@ export class ArchiveDO extends DurableObject<Env> {
       const targetId = this.shareTarget(input.kind, input.id, input.guestId);
       const now = Date.now();
       this.expirePending(now);
-      const row = typeof input.token === 'string' ? this.one<ShareRow>('SELECT * FROM shares WHERE token = ?', input.token) : null;
+      const row =
+        typeof input.token === 'string'
+          ? this.one<ShareRow>('SELECT * FROM shares WHERE token = ?', input.token)
+          : null;
       if (!row || row.kind !== input.kind || row.target_id !== targetId || row.created_by !== input.guestId) {
         throw new Reject(404, 'share_not_found', 'Share link not found');
       }
@@ -500,7 +523,11 @@ export class ArchiveDO extends DurableObject<Env> {
           targetId,
           row.token
         );
-        this.sql.exec("UPDATE shares SET status = 'active', activated_at = ?, expires_at = NULL WHERE token = ?", now, row.token);
+        this.sql.exec(
+          "UPDATE shares SET status = 'active', activated_at = ?, expires_at = NULL WHERE token = ?",
+          now,
+          row.token
+        );
         if (input.kind === 'poem') this.sql.exec('UPDATE poems SET unprotected_at = NULL WHERE id = ?', targetId);
       });
       measure('artifact_action', { action: input.kind === 'poem' ? 'share' : 'recap_share' });
@@ -512,7 +539,10 @@ export class ArchiveDO extends DurableObject<Env> {
   cancelShare(input: { guestId: string; token: unknown }): Result<{ cancelled: boolean }> {
     return attempt(() => {
       const now = Date.now();
-      const row = typeof input.token === 'string' ? this.one<ShareRow>('SELECT * FROM shares WHERE token = ?', input.token) : null;
+      const row =
+        typeof input.token === 'string'
+          ? this.one<ShareRow>('SELECT * FROM shares WHERE token = ?', input.token)
+          : null;
       if (!row || row.created_by !== input.guestId || row.status !== 'pending') return { cancelled: false };
       this.sql.exec("UPDATE shares SET status = 'cancelled', ended_at = ? WHERE token = ?", now, row.token);
       return { cancelled: true };
@@ -525,8 +555,10 @@ export class ArchiveDO extends DurableObject<Env> {
       let targetId: string;
       if (input.kind === 'poem') targetId = this.participantPoem(input.id, input.guestId).id;
       else {
-        const game = typeof input.id === 'string' ? this.one<GameRow>('SELECT * FROM games WHERE id = ?', input.id) : null;
-        if (!game || !this.isParticipant(game.id, input.guestId)) throw new Reject(404, 'recap_not_found', 'Recap not found');
+        const game =
+          typeof input.id === 'string' ? this.one<GameRow>('SELECT * FROM games WHERE id = ?', input.id) : null;
+        if (!game || !this.isParticipant(game.id, input.guestId))
+          throw new Reject(404, 'recap_not_found', 'Recap not found');
         targetId = game.id;
       }
       const now = Date.now();
@@ -585,7 +617,9 @@ export class ArchiveDO extends DurableObject<Env> {
         this.sql.exec("DELETE FROM shares WHERE kind = 'poem' AND target_id = ?", p.id);
         this.sql.exec('DELETE FROM poems WHERE id = ?', p.id);
       }
-      for (const g of this.all<{ id: string }>('SELECT id FROM games WHERE id NOT IN (SELECT DISTINCT game_id FROM poems)')) {
+      for (const g of this.all<{ id: string }>(
+        'SELECT id FROM games WHERE id NOT IN (SELECT DISTINCT game_id FROM poems)'
+      )) {
         this.sql.exec('DELETE FROM participants WHERE game_id = ?', g.id);
         this.sql.exec("DELETE FROM shares WHERE kind = 'recap' AND target_id = ?", g.id);
         this.sql.exec('DELETE FROM games WHERE id = ?', g.id);
@@ -612,7 +646,12 @@ export class ArchiveDO extends DurableObject<Env> {
     this.ctx.storage.transactionSync(() => {
       for (const game of batch.games ?? []) this.insertGame(game);
       for (const f of batch.favorites ?? []) {
-        this.sql.exec('INSERT OR IGNORE INTO favorites (guest_id, poem_id, created_at) VALUES (?, ?, ?)', f.guestId, f.poemId, f.createdAt);
+        this.sql.exec(
+          'INSERT OR IGNORE INTO favorites (guest_id, poem_id, created_at) VALUES (?, ?, ?)',
+          f.guestId,
+          f.poemId,
+          f.createdAt
+        );
       }
       for (const s of batch.shares ?? []) {
         this.sql.exec(

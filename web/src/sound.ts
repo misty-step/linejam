@@ -23,8 +23,15 @@ export function setMuted(muted: boolean): void {
 
 const CUES = {
   tap: [[392, 0, 0.05]],
-  tucked: [[523.25, 0, 0.09], [659.25, 0.08, 0.14]],
-  reveal: [[392, 0, 0.1], [523.25, 0.09, 0.1], [659.25, 0.18, 0.2]],
+  tucked: [
+    [523.25, 0, 0.09],
+    [659.25, 0.08, 0.14],
+  ],
+  reveal: [
+    [392, 0, 0.1],
+    [523.25, 0.09, 0.1],
+    [659.25, 0.18, 0.2],
+  ],
   heart: [[587.33, 0, 0.12]],
 } as const satisfies Record<string, readonly (readonly [number, number, number])[]>;
 

@@ -1,37 +1,31 @@
 ---
 name: linejam-cli
-description: Use Linejam's checked-in CLI or MCP face to create/join a room, inspect game state, submit lines, or browse/favorite poems. Use when scripted gameplay or backend-level acceptance is requested; use a browser for UI claims.
+description: Use Linejam's CLI or MCP server to create/join a room, read state, submit lines, reveal, or browse/favorite poems. Use for scripted play or API-level acceptance; use a browser for UI claims.
 ---
 
 # Linejam CLI / MCP
 
-Both faces call `scripts/lib/linejamClient.ts` and the generated Convex API; they
-do not replace browser acceptance or reimplement game policy.
+Both faces call `cli/client.ts`, which uses the same Worker HTTP API as the
+browser. They do not replace browser acceptance and hold no game rule.
 
 ```bash
-pnpm agent:cli --help
-pnpm agent:cli -- <group> <action> [args]
-pnpm agent:mcp
+export LINEJAM_URL=http://127.0.0.1:8787   # start it with `pnpm dev`
+pnpm cli --help
+pnpm cli room create Ada
+pnpm mcp                                   # stdio MCP server
 ```
-
-Use the CLI for bounded scripted play and JSON receipts. Start the stdio MCP
-server only when the lane explicitly commissions a long-running tool process.
-Use a browser for rendering, accessibility, keyboard, and responsive claims;
-use `play-linejam` only when complete multiplayer UI acceptance is needed.
 
 ## Target and authority
 
-`NEXT_PUBLIC_CONVEX_URL` selects the backend. Confirm it before any write;
-shared-development and other remote targets need explicit operation authority,
-and production needs live production authority. CLI/MCP writes create real
-rooms, lines, and favorites on that deployment; examples are not authorization.
+`LINEJAM_URL` selects the Worker. Confirm it before any write. A local
+`pnpm dev` target is free to use; any remote target needs explicit operation
+authority, and production needs live production authority. CLI/MCP writes
+create real rooms, lines and favorites on that target.
 
-The guest token is a credential. Prefer `LINEJAM_GUEST_TOKEN` over a command-line
-argument, never paste it into chat or evidence, and redact process output before
-retention. Room create/join may mint and print a token to stderr for reuse; do
-not run those commands in a transcript or log sink that is not credential-safe.
-`GUEST_TOKEN_SECRET` must match the target deployment for production-like use.
+The guest token is a credential. Prefer `LINEJAM_GUEST_TOKEN` to a
+command-line argument, never paste it into chat or evidence, and note that
+`room create`, `room join` and `guest mint` print a minted token on **stderr**.
+stdout never contains it.
 
-For the full action list, identity lifecycle, and MCP registration shape, read
-`docs/agent-faces.md`. Convex sync/probe/migration authority is separate and
-lives in `docs/ops/observability-ci.md`.
+Full command list, output contract and MCP tool list:
+`docs/agent-faces.md`.

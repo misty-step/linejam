@@ -1,7 +1,8 @@
 # Security Policy
 
-Linejam is a public repository for a party game that handles guest sessions,
-optional Clerk sign-in, Convex data, Sentry telemetry, and public poem sharing.
+Linejam is a public repository for a party game that handles signed guest
+sessions, private poem archives and explicit public poem sharing, on one
+Cloudflare Worker with Durable Objects.
 
 ## Reporting a Vulnerability
 
@@ -29,11 +30,10 @@ fix is available. There is no bug bounty program.
 In scope:
 
 - Guest-token handling and room/session authorization
-- Clerk and Convex auth alignment
-- Public poem sharing privacy
-- Secret handling in local, DigitalOcean App Platform, Convex, GitHub Actions,
-  and Sentry flows
-- Cross-site scripting, request forgery, or data exposure in app routes
+- Hidden poem text reaching a spectator, another writer or an outsider
+- Public poem sharing privacy, including revoked or unconfirmed links
+- Secret handling in local, Cloudflare and GitHub Actions flows
+- Cross-site scripting, request forgery, or data exposure in Worker routes
 
 Out of scope:
 
@@ -44,13 +44,7 @@ Out of scope:
 
 ## Dependency maintenance
 
-Security overrides in `pnpm-workspace.yaml` use minimum versions and target only
-requests below the fixed release. Never pin an exact replacement. Preserve a
-consumer's major-version contract where needed; newer parent requests must fall
-outside the override selector so the next security fix remains eligible.
-
-Regenerate `pnpm-lock.yaml` with the repository's pinned pnpm, verify a frozen
-install and the dependency audit, then read back Dependabot alerts after merge.
-Keep the repository dependency graph enabled; a patched lockfile alone cannot
-refresh alerts while GitHub dependency analysis is disabled. Never dismiss
-alerts merely to make the count match the locally patched graph.
+The Worker has no runtime dependencies; everything in `package.json` is a
+build or test tool. Regenerate `pnpm-lock.yaml` with pnpm, verify a frozen
+install, then read back Dependabot alerts after merge. Never dismiss alerts
+merely to make the count match.

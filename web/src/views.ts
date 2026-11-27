@@ -121,7 +121,10 @@ function roster(room: RoomView): string {
     )
     .join('');
   // Open seats are blank ruled lines on the sheet (desktop only); the count says the rest.
-  const open = Array.from({ length: Math.max(0, room.capacity - room.members.length) }, (_, i) => `<li class="member is-open" aria-hidden="true" data-key="open${i}"></li>`).join('');
+  const open = Array.from(
+    { length: Math.max(0, room.capacity - room.members.length) },
+    (_, i) => `<li class="member is-open" aria-hidden="true" data-key="open${i}"></li>`
+  ).join('');
   return seats + open;
 }
 
@@ -286,7 +289,9 @@ function reveal(state: State, room: RoomView): string {
   const circle = game.circle!;
   const writer = game.role === 'writer';
   const selected =
-    circle.poems.find((p) => p.id === state.selectedPoem && p.lines) ?? circle.poems.find((p) => p.state === 'reading') ?? null;
+    circle.poems.find((p) => p.id === state.selectedPoem && p.lines) ??
+    circle.poems.find((p) => p.state === 'reading') ??
+    null;
 
   const actions: string[] = [];
   if (circle.nextPoemId) {
@@ -325,7 +330,10 @@ function reveal(state: State, room: RoomView): string {
 
   const recapShare =
     writer && !circle.nextPoemId
-      ? shareControl(state, `recap:${game.id}`, state.shares[`recap:${game.id}`], { share: 'Share recap', disclosure: RECAP_DISCLOSURE })
+      ? shareControl(state, `recap:${game.id}`, state.shares[`recap:${game.id}`], {
+          share: 'Share recap',
+          disclosure: RECAP_DISCLOSURE,
+        })
       : '';
 
   return `<main class="screen reveal" data-key="reveal">
@@ -385,7 +393,8 @@ function poemPage(state: State): string {
   const p = state.poem;
   if (p.status === 'loading') return message('Loading…');
   if (p.status === 'missing' || !p.view) return message('Poem not found', '', HOME);
-  if (p.status === 'error') return message('Poem did not load', '', `<button class="btn btn-secondary" data-action="load-poem">Retry</button>`);
+  if (p.status === 'error')
+    return message('Poem did not load', '', `<button class="btn btn-secondary" data-action="load-poem">Retry</button>`);
   const view = p.view;
   const canHeart = state.guest.status === 'ready';
   return `<main class="screen poem-page" data-key="poem-page"><div class="column">
@@ -410,7 +419,12 @@ function recapPage(state: State): string {
   const r = state.recap;
   if (r.status === 'loading') return message('Loading…');
   if (r.status === 'missing' || !r.view) return message('Recap not found', '', HOME);
-  if (r.status === 'error') return message('Recap did not load', '', `<button class="btn btn-secondary" data-action="load-recap">Retry</button>`);
+  if (r.status === 'error')
+    return message(
+      'Recap did not load',
+      '',
+      `<button class="btn btn-secondary" data-action="load-recap">Retry</button>`
+    );
   const view = r.view;
   return `<main class="screen recap-page" data-key="recap-page"><div class="column">
     <h1 class="title">${esc(view.writers.join(', '))}</h1>
@@ -442,7 +456,10 @@ export function view(state: State): string {
       screen = roomScreen(state);
       break;
     case 'poems':
-      screen = state.guest.status === 'ready' || state.guest.status === 'checking' ? archive(state) : message('No poems yet', '', HOME);
+      screen =
+        state.guest.status === 'ready' || state.guest.status === 'checking'
+          ? archive(state)
+          : message('No poems yet', '', HOME);
       break;
     case 'poem':
       screen = poemPage(state);

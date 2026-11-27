@@ -1,0 +1,4 @@
+{"_id": "p_done_a", "_creationTime": 1757000100001, "roomId": "r1", "gameId": "g_done", "indexInRoom": 0, "createdAt": 1757000100001, "assignedReaderId": "u_sol", "revealedAt": 1757000950000, "publicShareEnabled": true, "publicShareEnabledAt": 1757000990000}
+{"_id": "p_done_b", "_creationTime": 1757000100002, "roomId": "r1", "gameId": "g_done", "indexInRoom": 1, "createdAt": 1757000100002, "assignedReaderId": "u_wren", "revealedAt": 1757000960000}
+{"_id": "p_abandoned", "_creationTime": 1757001000001, "roomId": "r1", "gameId": "g_abandoned", "indexInRoom": 0, "createdAt": 1757001000001}
+{"_id": "p_live", "_creationTime": 1757002000001, "roomId": "r2", "gameId": "g_live", "indexInRoom": 0, "createdAt": 1757002000001}

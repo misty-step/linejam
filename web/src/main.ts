@@ -45,8 +45,10 @@ function parseRoute(): Route {
   const share = searchParams.get('share');
   let match: RegExpExecArray | null;
   if (pathname === '/') return { name: 'landing', code: '' };
-  if (pathname === '/join') return { name: 'landing', code: normalizeCode(searchParams.get('code') ?? '').slice(0, CODE_LENGTH) };
-  if ((match = /^\/room\/([^/]+)$/.exec(pathname))) return { name: 'room', code: normalizeCode(decodeURIComponent(match[1]!)) };
+  if (pathname === '/join')
+    return { name: 'landing', code: normalizeCode(searchParams.get('code') ?? '').slice(0, CODE_LENGTH) };
+  if ((match = /^\/room\/([^/]+)$/.exec(pathname)))
+    return { name: 'room', code: normalizeCode(decodeURIComponent(match[1]!)) };
   if (pathname === '/poems') return { name: 'poems' };
   if ((match = /^\/poem\/([^/]+)$/.exec(pathname))) return { name: 'poem', id: decodeURIComponent(match[1]!), share };
   if ((match = /^\/recap\/([^/]+)$/.exec(pathname))) return { name: 'recap', id: decodeURIComponent(match[1]!), share };
@@ -100,7 +102,9 @@ function render(): void {
   syncReading();
   morph(root, view(state));
   document.title =
-    state.route.name === 'room' && state.room && state.room.phase !== 'closed' ? `${state.room.code} · Linejam` : 'Linejam';
+    state.route.name === 'room' && state.room && state.room.phase !== 'closed'
+      ? `${state.room.code} · Linejam`
+      : 'Linejam';
 }
 
 function flash(key: string, text: string, kind: 'ok' | 'error' = 'ok'): void {
@@ -179,7 +183,8 @@ function syncReading(): void {
     state.selectedPoem = reading;
   }
   if (game.role !== 'writer') return;
-  const shown = circle.poems.find((p) => p.id === state.selectedPoem && p.lines) ?? circle.poems.find((p) => p.id === reading);
+  const shown =
+    circle.poems.find((p) => p.id === state.selectedPoem && p.lines) ?? circle.poems.find((p) => p.id === reading);
   if (shown) void loadShare(shown.id, `/api/poems/${shown.id}`);
   if (!circle.nextPoemId) void loadShare(`recap:${game.id}`, `/api/recaps/${game.id}`);
 }
@@ -282,7 +287,10 @@ async function enterRoom(code: string): Promise<void> {
     });
     link.accept(room);
   } catch (error) {
-    if (error instanceof ApiError && (error.code === 'not_a_member' || error.code === 'room_not_found' || error.code === 'guest_invalid')) {
+    if (
+      error instanceof ApiError &&
+      (error.code === 'not_a_member' || error.code === 'room_not_found' || error.code === 'guest_invalid')
+    ) {
       if (error.code === 'guest_invalid') state.guest = { status: 'invalid', guestId: null };
       navigate(`/join?code=${code}`, true);
       if (error.code === 'room_not_found') {
@@ -322,7 +330,10 @@ async function loadPoem(): Promise<void> {
   if (state.guest.status === 'checking') await loadGuest();
   try {
     const query = route.share !== null ? `?share=${encodeURIComponent(route.share)}` : '';
-    state.poem = { status: 'ready', view: await api<PoemView>('GET', `/api/poems/${encodeURIComponent(route.id)}${query}`) };
+    state.poem = {
+      status: 'ready',
+      view: await api<PoemView>('GET', `/api/poems/${encodeURIComponent(route.id)}${query}`),
+    };
   } catch (error) {
     state.poem = { status: error instanceof ApiError && error.status === 404 ? 'missing' : 'error', view: null };
   }
@@ -340,7 +351,10 @@ async function loadRecap(): Promise<void> {
   render();
   try {
     const query = route.share !== null ? `?share=${encodeURIComponent(route.share)}` : '';
-    state.recap = { status: 'ready', view: await api<RecapView>('GET', `/api/recaps/${encodeURIComponent(route.id)}${query}`) };
+    state.recap = {
+      status: 'ready',
+      view: await api<RecapView>('GET', `/api/recaps/${encodeURIComponent(route.id)}${query}`),
+    };
   } catch (error) {
     state.recap = { status: error instanceof ApiError && error.status === 404 ? 'missing' : 'error', view: null };
   }
@@ -398,7 +412,11 @@ const SHARE_TIMEOUT_MS = 30_000;
 /** Hand `url` to the native share sheet, or copy it. Resolves only when that really completed. */
 async function deliver(url: string, title: string): Promise<'shared' | 'copied'> {
   const run = async (): Promise<'shared' | 'copied'> => {
-    if (typeof navigator.share === 'function' && navigator.canShare?.({ title, url }) && matchMedia('(pointer: coarse)').matches) {
+    if (
+      typeof navigator.share === 'function' &&
+      navigator.canShare?.({ title, url }) &&
+      matchMedia('(pointer: coarse)').matches
+    ) {
       await navigator.share({ title, url });
       return 'shared';
     }
@@ -442,7 +460,8 @@ async function share(key: string): Promise<void> {
       setShare(key, { active: true, path: attempt.path });
       flash(flashKey, how === 'copied' ? 'Link copied' : 'Shared');
     } catch {
-      if (!attempt.active) await api('POST', `${shareApi(key)}/share/cancel`, { token: attempt.token }).catch(() => undefined);
+      if (!attempt.active)
+        await api('POST', `${shareApi(key)}/share/cancel`, { token: attempt.token }).catch(() => undefined);
       flash(flashKey, 'Not shared. Try again', 'error');
     }
   });
@@ -580,7 +599,12 @@ function currentPoemId(): string | null {
   if (state.route.name === 'poem') return state.poem.view?.id ?? null;
   const circle = state.room?.game?.circle;
   if (!circle) return null;
-  return (circle.poems.find((p) => p.id === state.selectedPoem && p.lines) ?? circle.poems.find((p) => p.state === 'reading'))?.id ?? null;
+  return (
+    (
+      circle.poems.find((p) => p.id === state.selectedPoem && p.lines) ??
+      circle.poems.find((p) => p.state === 'reading')
+    )?.id ?? null
+  );
 }
 
 const THEMES: Theme[] = ['system', 'light', 'dark'];
@@ -699,7 +723,9 @@ const actions: Record<string, (el: HTMLElement) => void | Promise<void>> = {
     const poemId = currentPoemId();
     if (!poemId) return;
     const onPage = state.route.name === 'poem' ? state.poem.view : null;
-    const hearted = onPage ? onPage.favorited : (state.room?.game?.circle?.poems.find((p) => p.id === poemId)?.hearted ?? false);
+    const hearted = onPage
+      ? onPage.favorited
+      : (state.room?.game?.circle?.poems.find((p) => p.id === poemId)?.hearted ?? false);
     await busy('heart', async () => {
       try {
         const shareToken = state.route.name === 'poem' ? state.route.share : null;
@@ -718,7 +744,9 @@ const actions: Record<string, (el: HTMLElement) => void | Promise<void>> = {
     const entry = state.archive.entries.find((p) => p.id === el.dataset.poem);
     if (!entry) return;
     try {
-      const result = await api<{ favorited: boolean }>('POST', `/api/poems/${entry.id}/favorite`, { on: !entry.favorited });
+      const result = await api<{ favorited: boolean }>('POST', `/api/poems/${entry.id}/favorite`, {
+        on: !entry.favorited,
+      });
       entry.favorited = result.favorited;
       // Favorites first, then newest.
       state.archive.entries.sort((a, b) => Number(b.favorited) - Number(a.favorited) || b.completedAt - a.completedAt);
@@ -776,7 +804,11 @@ async function submitLine(): Promise<void> {
   // Pending feedback at once; the acknowledgement only after the server accepts.
   await busy('line', async () => {
     try {
-      await api('POST', `/api/rooms/${room.code}/lines`, { poemId: assignment.poemId, lineIndex: assignment.lineIndex, text: input.value });
+      await api('POST', `/api/rooms/${room.code}/lines`, {
+        poemId: assignment.poemId,
+        lineIndex: assignment.lineIndex,
+        text: input.value,
+      });
       if (key) write(sessionStorage, key, null);
       cue('tucked');
       accept(await api<RoomView>('GET', `/api/rooms/${room.code}`));
@@ -868,7 +900,10 @@ root.addEventListener('keydown', (event) => {
     void submitLine();
     return;
   }
-  if (target.getAttribute('role') === 'radio' && ['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp'].includes(event.key)) {
+  if (
+    target.getAttribute('role') === 'radio' &&
+    ['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp'].includes(event.key)
+  ) {
     event.preventDefault();
     const step = event.key === 'ArrowRight' || event.key === 'ArrowDown' ? 1 : -1;
     const index = EMBLEMS.indexOf(state.emblem);

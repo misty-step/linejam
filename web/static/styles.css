@@ -118,6 +118,8 @@ button {
   top: 0;
   z-index: 10;
   display: flex;
+  /* One line at normal text sizes; at 200% text the actions wrap instead of overflowing. */
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   min-height: 56px;
@@ -323,7 +325,8 @@ label {
 
 .display {
   font-family: var(--font-serif);
-  font-size: clamp(3rem, 16vw, 4.5rem);
+  /* The vw ceiling keeps the wordmark inside a 320px screen at 200% text. */
+  font-size: min(clamp(3rem, 16vw, 4.5rem), 22vw);
   font-weight: 500;
   line-height: 1;
   letter-spacing: -0.025em;
@@ -566,7 +569,7 @@ label {
 
 .code-big {
   padding-left: 0.18em;
-  font-size: clamp(2.5rem, 14vw, 3.25rem);
+  font-size: min(clamp(2.5rem, 14vw, 3.25rem), 15vw);
   font-weight: 500;
   line-height: 1.1;
   letter-spacing: 0.18em;

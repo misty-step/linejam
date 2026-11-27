@@ -70,10 +70,22 @@ describe('[L1-2.3] signed guest credentials', () => {
   it('honors a credential in the pre-recompile format and cookie name', async () => {
     // The legacy app issued base64url(JSON{guestId, issuedAt}).base64url(HMAC-SHA256) in `linejam_guest_token`.
     const issuedAt = Date.now() - 60_000;
-    const payload = btoa(JSON.stringify({ guestId: 'legacy-guest-1', issuedAt })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-    const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(SECRET), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+    const payload = btoa(JSON.stringify({ guestId: 'legacy-guest-1', issuedAt }))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=/g, '');
+    const key = await crypto.subtle.importKey(
+      'raw',
+      new TextEncoder().encode(SECRET),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign']
+    );
     const mac = new Uint8Array(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(payload)));
-    const signature = btoa(String.fromCharCode(...mac)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+    const signature = btoa(String.fromCharCode(...mac))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=/g, '');
     const legacy = `${payload}.${signature}`;
     expect(await verifyGuestToken(SECRET, legacy, Date.now())).toEqual({ guestId: 'legacy-guest-1', issuedAt });
     const me = await call('GET', '/api/guest', { headers: { cookie: `linejam_guest_token=${legacy}` } });
@@ -82,9 +94,15 @@ describe('[L1-2.3] signed guest credentials', () => {
 
   it('refuses cross-origin writes and non-JSON bodies', async () => {
     const { code, players } = await party(2);
-    const cross = await call('POST', `/api/rooms/${code}/start`, { token: players[0]!.token, headers: { origin: 'https://evil.example' } });
+    const cross = await call('POST', `/api/rooms/${code}/start`, {
+      token: players[0]!.token,
+      headers: { origin: 'https://evil.example' },
+    });
     expect(cross.status).toBe(403);
-    const form = await call('POST', `/api/rooms/${code}/start`, { token: players[0]!.token, headers: { 'content-type': 'text/plain' } });
+    const form = await call('POST', `/api/rooms/${code}/start`, {
+      token: players[0]!.token,
+      headers: { 'content-type': 'text/plain' },
+    });
     expect(form.status).toBe(415);
     expect((await state(code, players[0]!)).body.phase).toBe('lobby');
   });
@@ -93,7 +111,11 @@ describe('[L1-2.3] signed guest credentials', () => {
 describe('[L1-4.10] anonymous measurement', () => {
   it('emits only bounded fields: no names, ids, codes, text or URLs', () => {
     expect(measurement('game_started', { writers: 4 })).toEqual({ app: 'linejam', event: 'game_started', writers: 4 });
-    expect(measurement('join_rejected', { reason: 'room_full' })).toEqual({ app: 'linejam', event: 'join_rejected', reason: 'room_full' });
+    expect(measurement('join_rejected', { reason: 'room_full' })).toEqual({
+      app: 'linejam',
+      event: 'join_rejected',
+      reason: 'room_full',
+    });
     // An unexpected reason is bucketed, never passed through.
     expect(measurement('join_rejected', { reason: 'ABCD is full for Ada' }).reason).toBe('other');
     const leaked = { penName: 'Ada', code: 'ABCD', guestId: 'g', text: 'poem' } as never;

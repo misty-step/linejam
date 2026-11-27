@@ -4,7 +4,19 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ROUND_WORDS } from '../../shared/rules.ts';
 import type { RoomView } from '../../shared/types.ts';
 import { GRACE_MS, LEASE_MS } from '../../src/room.ts';
-import { ORIGIN, bindings, call, guest, party, playGame, playRound, revealAll, start, state, type Player } from './helpers.ts';
+import {
+  ORIGIN,
+  bindings,
+  call,
+  guest,
+  party,
+  playGame,
+  playRound,
+  revealAll,
+  start,
+  state,
+  type Player,
+} from './helpers.ts';
 
 afterEach(() => {
   vi.useRealTimers();
@@ -21,7 +33,9 @@ async function advance(code: string, ms: number): Promise<void> {
 async function socket(code: string, player: Player): Promise<{ ws: WebSocket; messages: RoomView[] }> {
   const worker = (exports as unknown as { default: { fetch(request: Request): Promise<Response> } }).default;
   const response = await worker.fetch(
-    new Request(`${ORIGIN}/api/rooms/${code}/ws`, { headers: { upgrade: 'websocket', authorization: `Bearer ${player.token}` } })
+    new Request(`${ORIGIN}/api/rooms/${code}/ws`, {
+      headers: { upgrade: 'websocket', authorization: `Bearer ${player.token}` },
+    })
   );
   expect(response.status).toBe(101);
   const ws = response.webSocket!;
@@ -46,7 +60,10 @@ describe('[L1-2.1] entry', () => {
     const emblem = await call('POST', '/api/rooms', { token: host.token, body: { penName: 'Ada', emblem: 'dragon' } });
     expect(emblem.status).toBe(422);
     expect(emblem.body.error.code).toBe('invalid_emblem');
-    const created = await call<RoomView>('POST', '/api/rooms', { token: host.token, body: { penName: '  Ada   Lovelace ', emblem: 'orrery' } });
+    const created = await call<RoomView>('POST', '/api/rooms', {
+      token: host.token,
+      body: { penName: '  Ada   Lovelace ', emblem: 'orrery' },
+    });
     expect(created.status).toBe(201);
     expect(created.body.you).toMatchObject({ penName: 'Ada Lovelace', emblem: 'orrery', isHost: true });
     expect(created.body.phase).toBe('lobby');
@@ -76,7 +93,10 @@ describe('[L1-2.9] capacity and seats', () => {
     const { code, players } = await party(8);
     expect((await state(code, players[0]!)).body.members).toHaveLength(8);
     const ninth = await guest('Ninth');
-    const refused = await call('POST', `/api/rooms/${code}/join`, { token: ninth.token, body: { penName: 'Ninth', emblem: 'arch' } });
+    const refused = await call('POST', `/api/rooms/${code}/join`, {
+      token: ninth.token,
+      body: { penName: 'Ninth', emblem: 'arch' },
+    });
     expect(refused.status).toBe(409);
     expect(refused.body.error).toEqual({ code: 'room_full', message: 'Room is full' });
     expect((await state(code, ninth)).status).toBe(403);
@@ -93,7 +113,10 @@ describe('[L1-2.9] capacity and seats', () => {
   it('treats a different session with the same pen name as a different guest', async () => {
     const { code } = await party(1);
     const twin = await guest('Poet1');
-    const joined = await call<RoomView>('POST', `/api/rooms/${code}/join`, { token: twin.token, body: { penName: 'Poet1', emblem: 'loom' } });
+    const joined = await call<RoomView>('POST', `/api/rooms/${code}/join`, {
+      token: twin.token,
+      body: { penName: 'Poet1', emblem: 'loom' },
+    });
     expect(joined.body.members).toHaveLength(2);
     expect(joined.body.you.isHost).toBe(false);
   });
@@ -109,7 +132,10 @@ describe('[L1-2.10] [L1-2.11] starting', () => {
     expect(refused.body).toMatchObject({ error: { code: 'need_players', message: 'Need 2 players' } });
 
     const friend = await guest('Bea');
-    const joined = await call<RoomView>('POST', `/api/rooms/${code}/join`, { token: friend.token, body: { penName: 'Bea', emblem: 'arch' } });
+    const joined = await call<RoomView>('POST', `/api/rooms/${code}/join`, {
+      token: friend.token,
+      body: { penName: 'Bea', emblem: 'arch' },
+    });
     expect(joined.body.startBlocker).toBe('not_host');
     expect((await start(code, friend)).status).toBe(403);
     expect((await state(code, players[0]!)).body.startBlocker).toBeNull();
@@ -134,7 +160,10 @@ describe('[L1-2.12] late arrivals are spectators', () => {
     await playRound(code, players, 0);
 
     const late = await guest('Late');
-    const joined = await call<RoomView>('POST', `/api/rooms/${code}/join`, { token: late.token, body: { penName: 'Late', emblem: 'vesper' } });
+    const joined = await call<RoomView>('POST', `/api/rooms/${code}/join`, {
+      token: late.token,
+      body: { penName: 'Late', emblem: 'vesper' },
+    });
     expect(joined.status).toBe(200);
     expect(joined.body.game).toMatchObject({ role: 'spectator', assignment: null, circle: null });
     expect(joined.body.game!.writers).toHaveLength(2);
@@ -143,7 +172,10 @@ describe('[L1-2.12] late arrivals are spectators', () => {
     const assignment = await call('GET', `/api/rooms/${code}/assignment`, { token: late.token });
     expect(assignment.body.assignment).toBeNull();
     const target = (await state(code, players[0]!)).body.game!.assignment!;
-    const submit = await call('POST', `/api/rooms/${code}/lines`, { token: late.token, body: { poemId: target.poemId, lineIndex: 1, text: 'sneak in' } });
+    const submit = await call('POST', `/api/rooms/${code}/lines`, {
+      token: late.token,
+      body: { poemId: target.poemId, lineIndex: 1, text: 'sneak in' },
+    });
     expect(submit.status).toBe(403);
     expect(submit.body.error.code).toBe('not_a_writer');
 
@@ -156,13 +188,18 @@ describe('[L1-2.12] late arrivals are spectators', () => {
     expect(reading.phase).toBe('reading');
     expect(reading.game!.circle!.canReveal).toBe(false);
     expect(reading.game!.circle!.poems.every((p) => p.lines === null)).toBe(true);
-    const reveal = await call('POST', `/api/rooms/${code}/reveal`, { token: late.token, body: { poemId: reading.game!.circle!.nextPoemId } });
+    const reveal = await call('POST', `/api/rooms/${code}/reveal`, {
+      token: late.token,
+      body: { poemId: reading.game!.circle!.nextPoemId },
+    });
     expect(reveal.status).toBe(403);
     // No archive, no private read, no heart, no share for a spectator.
     expect((await call('GET', '/api/poems', { token: late.token })).body).toEqual([]);
     const poemId = reading.game!.circle!.poems[0]!.id;
     expect((await call('GET', `/api/poems/${poemId}`, { token: late.token })).status).toBe(404);
-    expect((await call('POST', `/api/poems/${poemId}/favorite`, { token: late.token, body: { on: true } })).status).toBe(404);
+    expect(
+      (await call('POST', `/api/poems/${poemId}/favorite`, { token: late.token, body: { on: true } })).status
+    ).toBe(404);
     expect((await call('POST', `/api/poems/${poemId}/share`, { token: late.token })).status).toBe(404);
 
     // After reveal, the room (spectators included) sees exactly the revealed poem.
@@ -280,7 +317,10 @@ describe('[L1-5.2] real-time over hibernating WebSockets, with an HTTP fallback'
     const vb = b.messages.at(-1)!;
     expect(va.phase).toBe('writing');
     expect(va.game!.assignment!.poemId).not.toBe(vb.game!.assignment!.poemId);
-    await call('POST', `/api/rooms/${code}/lines`, { token: host.token, body: { poemId: va.game!.assignment!.poemId, lineIndex: 0, text: 'secret' } });
+    await call('POST', `/api/rooms/${code}/lines`, {
+      token: host.token,
+      body: { poemId: va.game!.assignment!.poemId, lineIndex: 0, text: 'secret' },
+    });
     await settle();
     const pushed = b.messages.at(-1)!;
     expect(pushed.game!.writers.find((w) => !w.isYou)!.submitted).toBe(true);
@@ -309,11 +349,15 @@ describe('[L1-5.2] real-time over hibernating WebSockets, with an HTTP fallback'
     const outsider = await guest('Eve');
     const worker = (exports as unknown as { default: { fetch(request: Request): Promise<Response> } }).default;
     const refused = await worker.fetch(
-      new Request(`${ORIGIN}/api/rooms/${code}/ws`, { headers: { upgrade: 'websocket', authorization: `Bearer ${outsider.token}` } })
+      new Request(`${ORIGIN}/api/rooms/${code}/ws`, {
+        headers: { upgrade: 'websocket', authorization: `Bearer ${outsider.token}` },
+      })
     );
     expect(refused.status).toBe(403);
     const a = await socket(code, players[0]!);
-    const pong = new Promise<string>((resolve) => a.ws.addEventListener('message', (e) => e.data === 'pong' && resolve('pong')));
+    const pong = new Promise<string>((resolve) =>
+      a.ws.addEventListener('message', (e) => e.data === 'pong' && resolve('pong'))
+    );
     a.ws.send('ping');
     expect(await pong).toBe('pong');
     a.ws.close(1000, 'done');
@@ -344,14 +388,21 @@ describe('[L1-3.5] [L1-3.7] reading circle', () => {
 
     // Out of order is refused.
     const views = await Promise.all(players.map((p) => state(code, p)));
-    const readerOf = (poemId: string) => players[views.findIndex((v) => v.body.game!.circle!.poems.find((p) => p.id === poemId)!.readerIsYou)]!;
+    const readerOf = (poemId: string) =>
+      players[views.findIndex((v) => v.body.game!.circle!.poems.find((p) => p.id === poemId)!.readerIsYou)]!;
     const second = circle.poems[1]!;
-    const early = await call('POST', `/api/rooms/${code}/reveal`, { token: readerOf(second.id).token, body: { poemId: second.id } });
+    const early = await call('POST', `/api/rooms/${code}/reveal`, {
+      token: readerOf(second.id).token,
+      body: { poemId: second.id },
+    });
     expect(early.status).toBe(409);
     expect(early.body.error.code).toBe('not_next');
 
     const first = circle.poems[0]!;
-    const one = await call<RoomView>('POST', `/api/rooms/${code}/reveal`, { token: readerOf(first.id).token, body: { poemId: first.id } });
+    const one = await call<RoomView>('POST', `/api/rooms/${code}/reveal`, {
+      token: readerOf(first.id).token,
+      body: { poemId: first.id },
+    });
     expect(one.status).toBe(200);
     expect(one.body.game!.circle!.poems.map((p) => p.state)).toEqual(['reading', 'next', 'waiting']);
     const lines = one.body.game!.circle!.poems[0]!.lines!;
@@ -360,7 +411,10 @@ describe('[L1-3.5] [L1-3.7] reading circle', () => {
     // Write-time bylines on every line; the text is each writer's own.
     for (const l of lines) expect(l.text.startsWith(`${l.by}r`)).toBe(true);
 
-    const repeat = await call<RoomView>('POST', `/api/rooms/${code}/reveal`, { token: readerOf(first.id).token, body: { poemId: first.id } });
+    const repeat = await call<RoomView>('POST', `/api/rooms/${code}/reveal`, {
+      token: readerOf(first.id).token,
+      body: { poemId: first.id },
+    });
     expect(repeat.status).toBe(200);
     expect(repeat.body.game!.circle!.poems.map((p) => p.state)).toEqual(['reading', 'next', 'waiting']);
 
@@ -401,7 +455,11 @@ describe('[L1-3.5] [L1-3.7] reading circle', () => {
     await call('POST', `/api/poems/${p1.id}/favorite`, { token: players[1]!.token, body: { on: true } });
     let view = (await state(code, players[0]!)).body;
     expect(view.game!.circle!.mostHeartedPoemId).toBe(p1.id);
-    expect(view.game!.circle!.poems.map((p) => [p.hearts, p.hearted])).toEqual([[0, false], [1, false], [1, true]]);
+    expect(view.game!.circle!.poems.map((p) => [p.hearts, p.hearted])).toEqual([
+      [0, false],
+      [1, false],
+      [1, true],
+    ]);
     await call('POST', `/api/poems/${p2.id}/favorite`, { token: players[1]!.token, body: { on: true } });
     view = (await state(code, players[0]!)).body;
     expect(view.game!.circle!.mostHeartedPoemId).toBe(p2.id);
@@ -419,7 +477,10 @@ describe('[L1-2.15] [L1-3.8] ending, replaying and closing', () => {
     const ended = await call<RoomView>('POST', `/api/rooms/${code}/end`, { token: players[0]!.token });
     expect(ended.status).toBe(200);
     expect(ended.body).toMatchObject({ phase: 'lobby', game: null });
-    const late = await call('POST', `/api/rooms/${code}/lines`, { token: players[1]!.token, body: { poemId: assignment.poemId, lineIndex: 1, text: 'too late' } });
+    const late = await call('POST', `/api/rooms/${code}/lines`, {
+      token: players[1]!.token,
+      body: { poemId: assignment.poemId, lineIndex: 1, text: 'too late' },
+    });
     expect(late.status).toBe(409);
     expect(late.body.error.code).toBe('game_ended');
     for (const p of players) expect((await call('GET', '/api/poems', { token: p.token })).body).toEqual([]);
@@ -458,7 +519,10 @@ describe('[L1-2.15] [L1-3.8] ending, replaying and closing', () => {
     expect((await call('POST', `/api/rooms/${code}/close`, { token: players[1]!.token })).status).toBe(403);
     expect((await call('POST', `/api/rooms/${code}/close`, { token: players[0]!.token })).status).toBe(200);
     const arrival = await guest('New');
-    const refused = await call('POST', `/api/rooms/${code}/join`, { token: arrival.token, body: { penName: 'New', emblem: 'arch' } });
+    const refused = await call('POST', `/api/rooms/${code}/join`, {
+      token: arrival.token,
+      body: { penName: 'New', emblem: 'arch' },
+    });
     expect(refused.status).toBe(410);
     expect(refused.body.error).toEqual({ code: 'room_closed', message: 'Room is closed' });
     expect((await state(code, players[1]!)).body.phase).toBe('closed');

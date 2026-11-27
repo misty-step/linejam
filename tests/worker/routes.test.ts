@@ -25,16 +25,19 @@ describe('[L1-5.5] retired release feeds', () => {
 });
 
 describe('[L1-5.2] the Worker serves the UI directly', () => {
-  it.each(['/', '/join?code=ABCD', '/room/ABCD', '/poems', '/poem/p_x', '/recap/g_x', '/account'])('%s is a page', async (path) => {
-    const response = await raw(path, 'text/html');
-    expect(response.status).toBe(200);
-    expect(response.headers.get('content-type')).toContain('text/html');
-    const csp = response.headers.get('content-security-policy')!;
-    expect(csp).toContain("default-src 'self'");
-    expect(csp).toContain("script-src 'self'");
-    expect(csp).not.toContain('unsafe-inline');
-    expect(response.headers.get('x-content-type-options')).toBe('nosniff');
-  });
+  it.each(['/', '/join?code=ABCD', '/room/ABCD', '/poems', '/poem/p_x', '/recap/g_x', '/account'])(
+    '%s is a page',
+    async (path) => {
+      const response = await raw(path, 'text/html');
+      expect(response.status).toBe(200);
+      expect(response.headers.get('content-type')).toContain('text/html');
+      const csp = response.headers.get('content-security-policy')!;
+      expect(csp).toContain("default-src 'self'");
+      expect(csp).toContain("script-src 'self'");
+      expect(csp).not.toContain('unsafe-inline');
+      expect(response.headers.get('x-content-type-options')).toBe('nosniff');
+    }
+  );
 
   it('answers unknown paths and unknown API routes with 404', async () => {
     expect((await raw('/nope', 'text/html')).status).toBe(404);
@@ -74,7 +77,8 @@ describe('[D1-2] canonical assets are served byte-exact', () => {
 
   it('self-hosts the three OFL families as woff2 with font-display: swap', async () => {
     const css = await (await raw('/fonts.css')).text();
-    for (const family of ['Newsreader', 'Plus Jakarta Sans', 'IBM Plex Mono']) expect(css).toContain(`font-family: '${family}'`);
+    for (const family of ['Newsreader', 'Plus Jakarta Sans', 'IBM Plex Mono'])
+      expect(css).toContain(`font-family: '${family}'`);
     expect(css).not.toMatch(/https?:\/\//);
     expect(css).not.toMatch(/Inter|DynaPuff|Nunito/);
     expect(css.match(/font-display: swap/g)!.length).toBe(css.match(/@font-face/g)!.length);

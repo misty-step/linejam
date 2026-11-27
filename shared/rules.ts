@@ -11,16 +11,7 @@ export const MAX_PEN_NAME_CHARS = 40;
 export const CODE_ALPHABET = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
 export const CODE_LENGTH = 4;
 
-export const EMBLEMS = [
-  'loom',
-  'vesper',
-  'prism',
-  'clover',
-  'orrery',
-  'arch',
-  'pinwheel',
-  'lattice',
-] as const;
+export const EMBLEMS = ['loom', 'vesper', 'prism', 'clover', 'orrery', 'arch', 'pinwheel', 'lattice'] as const;
 export type Emblem = (typeof EMBLEMS)[number];
 
 export function isEmblem(value: unknown): value is Emblem {
@@ -56,9 +47,7 @@ export function normalizePenName(input: string): string {
   return input.trim().replace(/\s+/g, ' ');
 }
 
-export type LineProblem =
-  | { code: 'line_too_long'; message: string }
-  | { code: 'wrong_word_count'; message: string };
+export type LineProblem = { code: 'line_too_long'; message: string } | { code: 'wrong_word_count'; message: string };
 
 /** The single line-acceptance rule. `round` is 0-based. */
 export function checkLine(text: string, round: number): LineProblem | null {

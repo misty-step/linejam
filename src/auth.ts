@@ -20,9 +20,9 @@ function b64url(bytes: Uint8Array): string {
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 }
 
-function fromB64url(text: string): Uint8Array {
+function fromB64url(text: string): Uint8Array<ArrayBuffer> {
   const binary = atob(text.replace(/-/g, '+').replace(/_/g, '/'));
-  const bytes = new Uint8Array(binary.length);
+  const bytes = new Uint8Array(new ArrayBuffer(binary.length));
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
   return bytes;
 }
@@ -35,13 +35,10 @@ export function requireSecret(secret: string | undefined): string {
 }
 
 async function key(secret: string): Promise<CryptoKey> {
-  return crypto.subtle.importKey(
-    'raw',
-    new TextEncoder().encode(secret),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign', 'verify']
-  );
+  return crypto.subtle.importKey('raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, [
+    'sign',
+    'verify',
+  ]);
 }
 
 export async function signGuestToken(secret: string, guestId: string, issuedAt: number): Promise<string> {
@@ -55,7 +52,7 @@ export async function verifyGuestToken(secret: string, token: string, now: numbe
   const parts = token.split('.');
   if (parts.length !== 2) throw invalid;
   const [payload, signature] = parts as [string, string];
-  let sigBytes: Uint8Array;
+  let sigBytes: Uint8Array<ArrayBuffer>;
   let parsed: unknown;
   try {
     sigBytes = fromB64url(signature);

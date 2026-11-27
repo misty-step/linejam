@@ -91,7 +91,11 @@ export async function playRound(code: string, writers: Player[], round: number):
     const assignment = view.game!.assignment!;
     const reply = await call('POST', `/api/rooms/${code}/lines`, {
       token: writer.token,
-      body: { poemId: assignment.poemId, lineIndex: assignment.lineIndex, text: line(lineTag(writer, round), ROUND_WORDS[round]!) },
+      body: {
+        poemId: assignment.poemId,
+        lineIndex: assignment.lineIndex,
+        text: line(lineTag(writer, round), ROUND_WORDS[round]!),
+      },
     });
     if (reply.status !== 200) throw new Error(`submit failed r${round}: ${reply.status} ${JSON.stringify(reply.body)}`);
   }
@@ -115,7 +119,9 @@ export async function revealAll(code: string, players: Player[]): Promise<RoomVi
     const views = await Promise.all(players.map((p) => state(code, p)));
     const circle = views[0]!.body.game!.circle!;
     if (!circle.nextPoemId) return views[0]!.body;
-    const readerIndex = views.findIndex((v) => v.body.game!.circle!.poems.find((p) => p.id === circle.nextPoemId)!.readerIsYou);
+    const readerIndex = views.findIndex(
+      (v) => v.body.game!.circle!.poems.find((p) => p.id === circle.nextPoemId)!.readerIsYou
+    );
     const reply = await call('POST', `/api/rooms/${code}/reveal`, {
       token: players[readerIndex]!.token,
       body: { poemId: circle.nextPoemId },

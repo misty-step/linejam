@@ -1,0 +1,27 @@
+name: Production Health Monitor
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/5 * * * *'
+
+concurrency:
+  group: production-health-monitor
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  poll:
+    name: Poll /api/health
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      LINEJAM_HEALTH_URL: https://linejam.mistystep.io/api/health
+    steps:
+      - name: Require HTTP 200 with status ok
+        run: |
+          set -euo pipefail
+          body="$(curl --fail --silent --show-error --max-time 10 "$LINEJAM_HEALTH_URL")"
+          test "$(printf '%s' "$body" | jq -r .status)" = "ok"

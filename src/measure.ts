@@ -19,7 +19,14 @@ type Fields = {
   action?: 'favorite' | 'unfavorite' | 'share' | 'revoke' | 'recap_share' | 'recap_revoke';
 };
 
-const REASONS = new Set(['room_not_found', 'room_closed', 'room_full', 'pen_name_required', 'invalid_emblem', 'invalid_code']);
+const REASONS = new Set([
+  'room_not_found',
+  'room_closed',
+  'room_full',
+  'pen_name_required',
+  'invalid_emblem',
+  'invalid_code',
+]);
 
 export function measurement(event: MeasureEvent, fields: Fields = {}): Record<string, string | number> {
   const out: Record<string, string | number> = { app: 'linejam', event };

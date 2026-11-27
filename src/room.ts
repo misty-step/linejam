@@ -330,7 +330,10 @@ export class RoomDO extends DurableObject<Env> {
       times.push(now + ARCHIVE_RETRY_MS);
     }
     for (const g of this.all<GameRow>("SELECT * FROM games WHERE status = 'ended'")) {
-      const hasLines = this.one('SELECT 1 AS x FROM lines l JOIN poems p ON p.id = l.poem_id WHERE p.game_id = ? LIMIT 1', g.id);
+      const hasLines = this.one(
+        'SELECT 1 AS x FROM lines l JOIN poems p ON p.id = l.poem_id WHERE p.game_id = ? LIMIT 1',
+        g.id
+      );
       if (hasLines) times.push((g.ended_at ?? now) + ABANDONED_RETENTION_MS);
     }
     if (game?.status === 'writing') times.push(room.last_activity_at + ABANDONED_RETENTION_MS);
@@ -461,7 +464,8 @@ export class RoomDO extends DurableObject<Env> {
     const previous =
       game.round === 0
         ? null
-        : (this.one<LineRow>('SELECT * FROM lines WHERE poem_id = ? AND idx = ?', poem.id, game.round - 1)?.text ?? null);
+        : (this.one<LineRow>('SELECT * FROM lines WHERE poem_id = ? AND idx = ?', poem.id, game.round - 1)?.text ??
+          null);
     const mine = this.one<LineRow>('SELECT * FROM lines WHERE poem_id = ? AND idx = ?', poem.id, game.round);
     return {
       poemId: poem.id,
@@ -472,7 +476,12 @@ export class RoomDO extends DurableObject<Env> {
     };
   }
 
-  private mayReveal(poem: PoemRow, me: WriterRow | null, writers: WriterRow[], presence: Map<string, Presence>): boolean {
+  private mayReveal(
+    poem: PoemRow,
+    me: WriterRow | null,
+    writers: WriterRow[],
+    presence: Map<string, Presence>
+  ): boolean {
     if (!me) return false;
     const reader = writers[poem.reader_seat]!;
     if (reader.guest_id === me.guest_id) return true;
@@ -512,10 +521,7 @@ export class RoomDO extends DurableObject<Env> {
         readerName: reader.pen_name,
         readerIsYou: reader.guest_id === guestId,
         state: (p.id === current?.id ? 'reading' : isRevealed ? 'read' : p.id === next?.id ? 'next' : 'waiting') as
-          | 'read'
-          | 'reading'
-          | 'next'
-          | 'waiting',
+          'read' | 'reading' | 'next' | 'waiting',
         // Hidden text never leaves this object: lines exist in a view only after reveal.
         lines: isRevealed
           ? this.all<LineRow>('SELECT * FROM lines WHERE poem_id = ? ORDER BY idx', p.id).map((l) => ({
@@ -654,7 +660,11 @@ export class RoomDO extends DurableObject<Env> {
         this.writersOf(game.id).some((w) => w.guest_id === input.guestId);
       if (writing) {
         // A frozen writer keeps their place in the game; nothing is fabricated for them.
-        this.sql.exec('UPDATE members SET left_at = ?, lease_until = 0, dropped_at = 0 WHERE guest_id = ?', now, input.guestId);
+        this.sql.exec(
+          'UPDATE members SET left_at = ?, lease_until = 0, dropped_at = 0 WHERE guest_id = ?',
+          now,
+          input.guestId
+        );
       } else {
         this.sql.exec('DELETE FROM members WHERE guest_id = ?', input.guestId);
       }
@@ -722,7 +732,9 @@ export class RoomDO extends DurableObject<Env> {
     });
   }
 
-  assignment(input: { guestId: string }): Result<{ phase: Phase; round: number | null; assignment: AssignmentView | null }> {
+  assignment(input: {
+    guestId: string;
+  }): Result<{ phase: Phase; round: number | null; assignment: AssignmentView | null }> {
     return attempt(() => {
       this.room();
       this.member(input.guestId);
@@ -738,12 +750,22 @@ export class RoomDO extends DurableObject<Env> {
     });
   }
 
-  async submit(input: { guestId: string; poemId: unknown; lineIndex: unknown; text: unknown }): Promise<Result<SubmitResult>> {
+  async submit(input: {
+    guestId: string;
+    poemId: unknown;
+    lineIndex: unknown;
+    text: unknown;
+  }): Promise<Result<SubmitResult>> {
     return attemptAsync(async () => {
       this.openRoom();
       this.member(input.guestId);
       const { poemId, lineIndex, text } = input;
-      if (typeof poemId !== 'string' || typeof lineIndex !== 'number' || !Number.isInteger(lineIndex) || typeof text !== 'string') {
+      if (
+        typeof poemId !== 'string' ||
+        typeof lineIndex !== 'number' ||
+        !Number.isInteger(lineIndex) ||
+        typeof text !== 'string'
+      ) {
         throw new Reject(400, 'bad_request', 'Expected poemId, lineIndex and text');
       }
       const now = Date.now();
@@ -898,7 +920,8 @@ export class RoomDO extends DurableObject<Env> {
       this.requireHost(room, input.guestId);
       const now = Date.now();
       const game = this.currentGame();
-      if (!game || game.status !== 'complete') throw new Reject(409, 'not_complete', 'The reading circle is not finished');
+      if (!game || game.status !== 'complete')
+        throw new Reject(409, 'not_complete', 'The reading circle is not finished');
       this.sql.exec('UPDATE games SET dismissed = 1 WHERE id = ?', game.id);
       this.sql.exec('DELETE FROM members WHERE left_at IS NOT NULL');
       this.commit(now);
@@ -988,7 +1011,12 @@ export class RoomDO extends DurableObject<Env> {
     if (!attachment) return;
     const now = Date.now();
     if (this.socketCount(attachment.guestId, ws) === 0) {
-      this.sql.exec('UPDATE members SET dropped_at = ?, lease_until = MIN(lease_until, ?) WHERE guest_id = ?', now, now, attachment.guestId);
+      this.sql.exec(
+        'UPDATE members SET dropped_at = ?, lease_until = MIN(lease_until, ?) WHERE guest_id = ?',
+        now,
+        now,
+        attachment.guestId
+      );
     }
     this.settlePresence(now, ws, false);
   }

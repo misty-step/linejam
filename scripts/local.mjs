@@ -55,7 +55,16 @@ export async function startLocalWorker({ port, quiet = true } = {}) {
   const persist = mkdtempSync(join(tmpdir(), 'linejam-local-'));
   const child = spawn(
     join(root, 'node_modules/.bin/wrangler'),
-    ['dev', '--ip', '127.0.0.1', '--port', String(port), '--persist-to', persist, '--show-interactive-dev-session=false'],
+    [
+      'dev',
+      '--ip',
+      '127.0.0.1',
+      '--port',
+      String(port),
+      '--persist-to',
+      persist,
+      '--show-interactive-dev-session=false',
+    ],
     { cwd: root, env: localEnv(), stdio: ['ignore', 'pipe', 'pipe'] }
   );
   let log = '';

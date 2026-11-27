@@ -1,46 +1,53 @@
 # Linejam
 
-For every change, load the existing repo skill `verify-linejam`; keep `features/README.md` as the shared navigation map. Retain actual proof in card top-level artifacts and PR How to review. New Hermes profiles enable project skills with `hermes skills trust` after reviewing the checkout.
+For every change, load the repo skill `verify-linejam`; keep
+`features/README.md` as the shared navigation map. Retain actual proof in card
+top-level artifacts and PR How to review.
 
 Shared standard: [Constitution](https://foundations.mistystep.io/) and [Way of working](https://foundations.mistystep.io/way-of-working).
 New code follows the [Misty Step Stack standard](https://foundations.mistystep.io/way-of-working).
 
 Run `project-context linejam` before starting work on this project.
-Use `SPEC.md` for observable behavior, `project.md` for the product brief, and
-`DESIGN.md` for identity and interaction. Powder owns priorities, open questions
-and decisions in flight; historical issues are context, not an automatic queue.
+`PRODUCT.md` is the Active Folio: what Linejam is and must do. `DESIGN.md` and
+the checksum-locked `folio/assets/` own the visual identity. `SPEC.md` keeps
+detailed observable acceptance. Powder owns priorities, open questions and
+decisions in flight; historical issues are context, not an automatic queue.
 
 ## Authority
 
 - State the goal, files/systems in scope, and live authority before mutation.
 - Preserve user work: inspect `git status`, never overwrite unrelated changes,
   and never use destructive Git commands.
-- Work from the operator's current request. Check current code and overlapping
-  work before implementation. Kanban owns work in flight, GitHub owns PRs, CI and
-  inbound issues, and Overmind owns health. Powder owns priority, not a second queue
-  in this repository.
+- Never edit `PRODUCT.md`, `DESIGN.md` or `folio/assets/**` as part of an
+  implementation change. They change only through a Folio change, which also
+  updates `folio/assets/checksums.json`.
 - Base branch: `master`. Commits and PR titles use Conventional Commits.
 
 ## Sources of truth
 
-| Concern                                       | Source                                                              |
-| --------------------------------------------- | ------------------------------------------------------------------- |
-| Behavior and architecture                     | `SPEC.md`, `project.md`, `DESIGN.md`, `docs/ARCHITECTURE.md`        |
-| Data/API                                      | `convex/schema.ts`, `convex/_generated/api.d.ts`                    |
-| Assignment rules                              | `convex/lib/assignmentMatrix.ts`, `convex/lib/gameRules.ts`         |
-| Tests and QA                                  | `docs/testing.md`, `vitest.config.ts`, Playwright configs           |
-| Isolated runtime and multiplayer verification | `docs/local-development.md`, `.agents/skills/play-linejam/SKILL.md` |
-| Foundation checks and story walks             | `.agents/skills/verify-linejam/SKILL.md`, `features/`               |
-| CI and live-operation authority               | `docs/ops/observability-ci.md`, `scripts/ci/dagger-call.sh`         |
-| Production operations                         | `docs/deployment.md`                                                |
-| Data retention                                | `docs/ops/data-retention.md`, `convex/lib/retentionPolicy.ts`       |
-| Convex environment contract                   | `config/convex-env-manifest.json`                                   |
-| Schema migration sequencing                   | `docs/convex-migrations.md`                                         |
-| DigitalOcean topology contract                | `config/digitalocean-apps.json`, `pnpm ops:do-drift`                |
-| Agent CLI/MCP                                 | `.agents/skills/linejam-cli/SKILL.md`, `docs/agent-faces.md`        |
+| Concern                          | Source                                                         |
+| -------------------------------- | -------------------------------------------------------------- |
+| Product rules                    | `PRODUCT.md`, then `SPEC.md` for detail                        |
+| Visual identity                  | `DESIGN.md`, `folio/assets/` (`checksums.json`, `tokens.json`) |
+| Game rules in code               | `shared/rules.ts` — the only definition, used by every face    |
+| Room state and real time         | `src/room.ts` (`RoomDO`)                                       |
+| Archive, sharing, retention      | `src/archive.ts` (`ArchiveDO`)                                 |
+| Routes, identity, headers        | `src/worker.ts`, `src/auth.ts`                                 |
+| Deployment contract              | `wrangler.jsonc`, `docs/operations.md`                         |
+| Architecture                     | `docs/architecture.md`                                         |
+| Tests and acceptance             | `docs/testing.md`, `vitest.config.ts`, `e2e/walkthrough.mjs`   |
+| CLI / MCP                        | `docs/agent-faces.md`, `.agents/skills/linejam-cli/SKILL.md`   |
+| Foundation checks and story walk | `.agents/skills/verify-linejam/SKILL.md`, `features/`          |
 
-The live stack is declared in `package.json`; do not copy dependency versions
-or test counts into agent prose.
+The live stack is declared in `package.json` and `wrangler.jsonc`; do not copy
+dependency versions or test counts into agent prose.
+
+## One runtime
+
+Linejam is one Cloudflare Worker with Durable Objects (SQLite). Do not add a
+second runtime, framework server, external database, analytics or error SDK,
+or any request to another origin from the browser. The generated files in
+`dist/public` and `web/src/generated` come only from `scripts/build.mjs`.
 
 ## Authority boundaries
 
@@ -48,55 +55,40 @@ or test counts into agent prose.
   local actions. External writes need task or operator authority.
 - Start long-running processes only when commissioned, with a named shutdown
   and monitoring owner.
-- Bounded shared-development work uses the fail-closed
-  `pnpm convex:sync:shared-dev` flow in `docs/ops/observability-ci.md`, not a bare
-  deploy. Read-only function probes and scoped dev migrations follow the same
-  target, redaction, and postcondition rules.
-- Production deploys, data writes, environment changes, smoke triggers, merges,
-  and provider mutations require explicit authority for that operation. A
-  configured target or safety flag does not grant authority. Keep production
-  guards enabled.
-- Never expose credentials or value-bearing environment listings.
-  `docs/ops/observability-ci.md` owns bounded, values-free environment readback;
-  `docs/deployment.md` owns release operations.
+- Production deploys, secret changes, the legacy data import, enabling
+  retention deletion, and removing the sealed `LinejamBackend` class each need
+  explicit authority for that operation (`docs/operations.md`). A configured
+  target or flag does not grant it.
+- Never expose credentials or value-bearing environment listings. A guest
+  token is a credential, including CLI output on stderr.
 
 ## Domain invariants
 
-- `GUEST_TOKEN_SECRET` must match the web and target Convex deployment. Guest
-  tokens are credentials, including CLI create/join output on stderr.
-- Production rolling deploys bind `NEXT_DEPLOYMENT_ID` to the source commit
-  and reuse one stable 32-byte base64 `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY`.
-  Never rotate that key as part of a normal release.
-- Convex scheduler/database verification uses `setupConvexTest()`. Keep
-  database work bounded and avoid per-record query/write loops.
-- Preserve retention and migration sequencing contracts in
-  `docs/ops/data-retention.md` and `docs/convex-migrations.md`.
+- `GUEST_TOKEN_SECRET` signs every guest credential. Keep its production value
+  stable; rotating it logs every guest out of their seats and archive.
+- An accepted line is immutable; retries return the stored line.
+- Hidden poem text never leaves `RoomDO`: views carry lines only after reveal,
+  and a writer's assignment carries only the immediately preceding line.
+- A poem is private until a share link is confirmed, and private again when it
+  is revoked. An identifier alone never authorizes a read.
+- The `LinejamBackend` export and its `linejam-backend-v1` migration tag stay
+  until an operator decides otherwise: removing them deletes pre-recompile
+  player data on the next deploy.
 
 ## Acceptance and evidence
 
-Use change-scoped acceptance in `docs/testing.md`; documentation-only work
-does not require an application suite merely to prove prose. The pre-push
-policy in `CONTRIBUTING.md` remains in force, and the hosted
-`.github/workflows/ci.yml` merge gate is authoritative. Full Dagger/browser
-acceptance needs the relevant environment and operation authority.
-
-When coverage runs, all four metrics must have nonzero totals and pass
-`coverage:check`; `0/0 Unknown%` is failure in every checkout location.
+Done means verified on the real running path: `pnpm verify` (which ends with
+the headed two-player walkthrough against live `wrangler dev`), not tests or a
+green CI run alone. Documentation-only work does not require an application
+suite merely to prove prose.
 
 CLI/MCP behavior is not proof of the rendered player experience.
-`docs/agent-faces.md` separates those surfaces; use `play-linejam` for
-commissioned complete multiplayer browser verification, not every UI edit.
-Only observed completion, room closure, fresh-session rejection, session
-cleanup, and inspected run-local artifacts can support its pass receipt.
 
 Before handoff, adversarially review the diff for stale claims, authority
-ambiguity, accidental scope, secret exposure, and safety regressions. Keep
-raw or sensitive run output in approved retained artifact storage, not
-repository fixtures. Share sanitized, revision-specific conclusions and
-links in Kanban or the PR. Record exact commands, exercised surfaces, and
-unverified risk. Review, merge, deploy, monitor, and production verification
-are distinct operations, each requiring its own authorized scope.
-Run `upkeep where <task-kind>` before dispatching.
+ambiguity, accidental scope, secret exposure, and safety regressions. Record
+exact commands, exercised surfaces, and unverified risk. Review, merge, deploy,
+monitor, and production verification are distinct operations, each requiring
+its own authorized scope. Run `upkeep where <task-kind>` before dispatching.
 
 ## No fallbacks
 

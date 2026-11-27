@@ -1,6 +1,14 @@
 import { CODE_ALPHABET, CODE_LENGTH, isRoomCode, normalizeCode } from '../shared/rules.ts';
 import type { ShareKind } from './archive.ts';
-import { guestCookie, presentedToken, requireGuest, requireSecret, shouldRenew, signGuestToken, verifyGuestToken } from './auth.ts';
+import {
+  guestCookie,
+  presentedToken,
+  requireGuest,
+  requireSecret,
+  shouldRenew,
+  signGuestToken,
+  verifyGuestToken,
+} from './auth.ts';
 import type { Env } from './env.ts';
 import { Reject, failure, json, randomInt, unwrap, type Result } from './http.ts';
 
@@ -18,7 +26,15 @@ const SECURITY_HEADERS: Record<string, string> = {
 };
 
 /** Client-rendered pages. Anything else that is not an asset or an API route is a 404. */
-const PAGES = [/^\/$/, /^\/join$/, /^\/room\/[^/]+$/, /^\/poems$/, /^\/poem\/[^/]+$/, /^\/recap\/[^/]+$/, /^\/account$/];
+const PAGES = [
+  /^\/$/,
+  /^\/join$/,
+  /^\/room\/[^/]+$/,
+  /^\/poems$/,
+  /^\/poem\/[^/]+$/,
+  /^\/recap\/[^/]+$/,
+  /^\/account$/,
+];
 
 function secured(response: Response): Response {
   if (response.status === 101) return response;
@@ -110,7 +126,10 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     }
     const headers: Record<string, string> = {};
     if (shouldRenew(identity, now) && !request.headers.get('authorization')) {
-      headers['set-cookie'] = guestCookie(request, await signGuestToken(requireSecret(env.GUEST_TOKEN_SECRET), identity.guestId, now));
+      headers['set-cookie'] = guestCookie(
+        request,
+        await signGuestToken(requireSecret(env.GUEST_TOKEN_SECRET), identity.guestId, now)
+      );
     }
     return json({ status: 'ready', guestId: identity.guestId }, 200, headers);
   }
@@ -176,7 +195,9 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
         case 'start':
           return send(await stub.start({ guestId }));
         case 'lines':
-          return send(await stub.submit({ guestId, poemId: input.poemId, lineIndex: input.lineIndex, text: input.text }));
+          return send(
+            await stub.submit({ guestId, poemId: input.poemId, lineIndex: input.lineIndex, text: input.text })
+          );
         case 'reveal':
           return send(await stub.reveal({ guestId, poemId: input.poemId }));
         case 'end':
@@ -280,9 +301,10 @@ export default {
         }
         return secured(response);
       }
-      console.error(JSON.stringify({ app: 'linejam', event: 'unhandled_error', name: (error as Error)?.name ?? 'Error' }));
+      console.error(
+        JSON.stringify({ app: 'linejam', event: 'unhandled_error', name: (error as Error)?.name ?? 'Error' })
+      );
       return secured(json({ error: { code: 'internal', message: 'Something went wrong. Try again' } }, 500));
     }
   },
 } satisfies ExportedHandler<Env>;
-

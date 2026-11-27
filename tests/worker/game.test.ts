@@ -7,7 +7,10 @@ describe('[L1-2.6] room codes', () => {
   it('issues 4-character codes from the Parlor alphabet only', async () => {
     const host = await guest('Ada');
     for (let i = 0; i < 40; i++) {
-      const created = await call<RoomView>('POST', '/api/rooms', { token: host.token, body: { penName: 'Ada', emblem: 'loom' } });
+      const created = await call<RoomView>('POST', '/api/rooms', {
+        token: host.token,
+        body: { penName: 'Ada', emblem: 'loom' },
+      });
       expect(created.status).toBe(201);
       expect(created.body.code).toHaveLength(4);
       for (const ch of created.body.code) expect(CODE_ALPHABET).toContain(ch);
@@ -19,7 +22,10 @@ describe('[L1-2.6] room codes', () => {
     const { code, players } = await party(1);
     const friend = await guest('Bea');
     const typed = `${code.slice(0, 2).toLowerCase()}-${code.slice(2).toLowerCase()}`;
-    const joined = await call<RoomView>('POST', `/api/rooms/${typed}/join`, { token: friend.token, body: { penName: 'Bea', emblem: 'arch' } });
+    const joined = await call<RoomView>('POST', `/api/rooms/${typed}/join`, {
+      token: friend.token,
+      body: { penName: 'Bea', emblem: 'arch' },
+    });
     expect(joined.status).toBe(200);
     expect(joined.body.code).toBe(code);
     expect((await state(code, players[0]!)).body.members).toHaveLength(2);
@@ -27,10 +33,16 @@ describe('[L1-2.6] room codes', () => {
 
   it('answers an unknown code with a visible error and no phantom seat', async () => {
     const friend = await guest('Bea');
-    const joined = await call('POST', '/api/rooms/ZZZZ/join', { token: friend.token, body: { penName: 'Bea', emblem: 'arch' } });
+    const joined = await call('POST', '/api/rooms/ZZZZ/join', {
+      token: friend.token,
+      body: { penName: 'Bea', emblem: 'arch' },
+    });
     expect(joined.status).toBe(404);
     expect(joined.body.error).toEqual({ code: 'room_not_found', message: 'Room code not found' });
-    expect((await call('POST', '/api/rooms/AB0O/join', { token: friend.token, body: { penName: 'Bea', emblem: 'arch' } })).status).toBe(404);
+    expect(
+      (await call('POST', '/api/rooms/AB0O/join', { token: friend.token, body: { penName: 'Bea', emblem: 'arch' } }))
+        .status
+    ).toBe(404);
   });
 });
 
@@ -70,32 +82,38 @@ describe('[L1-1] nine-round pass-the-poem loop', () => {
     for (const poems of seen) for (let r = 1; r < poems.length; r++) expect(poems[r]).not.toBe(poems[r - 1]);
   });
 
-  it.each([2, 3, 5, 8])('assigns every round as a permutation for %i writers and puts every writer on every poem', async (count) => {
-    const { code, players } = await party(count);
-    await start(code, players[0]!);
-    const byPoem = new Map<string, Set<string>>();
-    for (let round = 0; round < ROUND_WORDS.length; round++) {
-      const poems = new Set<string>();
-      for (const player of players) {
-        const assignment = (await state(code, player)).body.game!.assignment!;
-        poems.add(assignment.poemId);
-        byPoem.set(assignment.poemId, (byPoem.get(assignment.poemId) ?? new Set()).add(player.name));
+  it.each([2, 3, 5, 8])(
+    'assigns every round as a permutation for %i writers and puts every writer on every poem',
+    async (count) => {
+      const { code, players } = await party(count);
+      await start(code, players[0]!);
+      const byPoem = new Map<string, Set<string>>();
+      for (let round = 0; round < ROUND_WORDS.length; round++) {
+        const poems = new Set<string>();
+        for (const player of players) {
+          const assignment = (await state(code, player)).body.game!.assignment!;
+          poems.add(assignment.poemId);
+          byPoem.set(assignment.poemId, (byPoem.get(assignment.poemId) ?? new Set()).add(player.name));
+        }
+        expect(poems.size).toBe(count);
+        await playRound(code, players, round);
       }
-      expect(poems.size).toBe(count);
-      await playRound(code, players, round);
+      expect(byPoem.size).toBe(count);
+      for (const writers of byPoem.values()) expect(writers.size).toBe(count);
     }
-    expect(byPoem.size).toBe(count);
-    for (const writers of byPoem.values()) expect(writers.size).toBe(count);
-  });
+  );
 
   it('counts words by whitespace, keeps punctuation attached and collapses pasted whitespace', async () => {
     const { code, players } = await party(2);
     await start(code, players[0]!);
     await playRound(code, players, 0);
-    const [a] = players as [typeof players[0] & {}];
+    const [a] = players as [(typeof players)[0] & {}];
     const assignment = (await state(code, a)).body.game!.assignment!;
     const submit = (text: string) =>
-      call('POST', `/api/rooms/${code}/lines`, { token: a.token, body: { poemId: assignment.poemId, lineIndex: 1, text } });
+      call('POST', `/api/rooms/${code}/lines`, {
+        token: a.token,
+        body: { poemId: assignment.poemId, lineIndex: 1, text },
+      });
 
     const over = await submit('one two three');
     expect(over.status).toBe(422);
@@ -134,16 +152,25 @@ describe('[L1-1] nine-round pass-the-poem loop', () => {
     const mine = (await state(code, a)).body.game!.assignment!;
     const theirs = (await state(code, b)).body.game!.assignment!;
 
-    const other = await call('POST', `/api/rooms/${code}/lines`, { token: a.token, body: { poemId: theirs.poemId, lineIndex: 0, text: 'steal' } });
+    const other = await call('POST', `/api/rooms/${code}/lines`, {
+      token: a.token,
+      body: { poemId: theirs.poemId, lineIndex: 0, text: 'steal' },
+    });
     expect(other.status).toBe(403);
     expect(other.body.error.code).toBe('not_your_assignment');
 
-    const future = await call('POST', `/api/rooms/${code}/lines`, { token: a.token, body: { poemId: mine.poemId, lineIndex: 1, text: 'too soon' } });
+    const future = await call('POST', `/api/rooms/${code}/lines`, {
+      token: a.token,
+      body: { poemId: mine.poemId, lineIndex: 1, text: 'too soon' },
+    });
     expect(future.status).toBe(409);
     expect(future.body.error.code).toBe('future_round');
 
     const outsider = await guest('Eve');
-    const stranger = await call('POST', `/api/rooms/${code}/lines`, { token: outsider.token, body: { poemId: mine.poemId, lineIndex: 0, text: 'hello' } });
+    const stranger = await call('POST', `/api/rooms/${code}/lines`, {
+      token: outsider.token,
+      body: { poemId: mine.poemId, lineIndex: 0, text: 'hello' },
+    });
     expect(stranger.status).toBe(403);
     expect(stranger.body.error.code).toBe('not_a_member');
   });
@@ -153,13 +180,22 @@ describe('[L1-1] nine-round pass-the-poem loop', () => {
     await start(code, players[0]!);
     const a = players[0]!;
     const assignment = (await state(code, a)).body.game!.assignment!;
-    const first = await call('POST', `/api/rooms/${code}/lines`, { token: a.token, body: { poemId: assignment.poemId, lineIndex: 0, text: 'ember' } });
+    const first = await call('POST', `/api/rooms/${code}/lines`, {
+      token: a.token,
+      body: { poemId: assignment.poemId, lineIndex: 0, text: 'ember' },
+    });
     expect(first.body).toMatchObject({ text: 'ember', created: true });
-    const retry = await call('POST', `/api/rooms/${code}/lines`, { token: a.token, body: { poemId: assignment.poemId, lineIndex: 0, text: 'ember' } });
+    const retry = await call('POST', `/api/rooms/${code}/lines`, {
+      token: a.token,
+      body: { poemId: assignment.poemId, lineIndex: 0, text: 'ember' },
+    });
     expect(retry.status).toBe(200);
     expect(retry.body).toMatchObject({ text: 'ember', created: false });
     // A stale client with different text settles against the stored text.
-    const stale = await call('POST', `/api/rooms/${code}/lines`, { token: a.token, body: { poemId: assignment.poemId, lineIndex: 0, text: 'different' } });
+    const stale = await call('POST', `/api/rooms/${code}/lines`, {
+      token: a.token,
+      body: { poemId: assignment.poemId, lineIndex: 0, text: 'different' },
+    });
     expect(stale.status).toBe(200);
     expect(stale.body).toMatchObject({ text: 'ember', created: false });
     expect((await state(code, a)).body.game!.assignment!.submitted).toBe('ember');
@@ -176,9 +212,15 @@ describe('[L1-1] nine-round pass-the-poem loop', () => {
     const first = await call('POST', `/api/rooms/${code}/lines`, { token: a.token, body });
     expect(first.body).toMatchObject({ text: 'fin', created: true });
     // Retry while the round is still open…
-    expect((await call('POST', `/api/rooms/${code}/lines`, { token: a.token, body })).body).toMatchObject({ text: 'fin', created: false });
+    expect((await call('POST', `/api/rooms/${code}/lines`, { token: a.token, body })).body).toMatchObject({
+      text: 'fin',
+      created: false,
+    });
     const lastB = (await state(code, b)).body.game!.assignment!;
-    const done = await call('POST', `/api/rooms/${code}/lines`, { token: b.token, body: { poemId: lastB.poemId, lineIndex: 8, text: 'end' } });
+    const done = await call('POST', `/api/rooms/${code}/lines`, {
+      token: b.token,
+      body: { poemId: lastB.poemId, lineIndex: 8, text: 'end' },
+    });
     expect(done.body.created).toBe(true);
     expect((await state(code, a)).body.phase).toBe('reading');
     // …and again after the game completed, with the same and with different text.
@@ -203,7 +245,10 @@ describe('[L1-1] nine-round pass-the-poem loop', () => {
     const [a, b, c] = players as [(typeof players)[0], (typeof players)[0], (typeof players)[0]];
     for (const p of [a, b]) {
       const assignment = (await state(code, p)).body.game!.assignment!;
-      await call('POST', `/api/rooms/${code}/lines`, { token: p.token, body: { poemId: assignment.poemId, lineIndex: 0, text: line(lineTag(p, 0), 1) } });
+      await call('POST', `/api/rooms/${code}/lines`, {
+        token: p.token,
+        body: { poemId: assignment.poemId, lineIndex: 0, text: line(lineTag(p, 0), 1) },
+      });
     }
     const waiting = (await state(code, a)).body;
     expect(waiting.game!.round).toBe(0);
@@ -213,7 +258,10 @@ describe('[L1-1] nine-round pass-the-poem loop', () => {
     // Writers are listed in seat order, not by submission speed.
     expect(waiting.game!.writers.map((w) => w.seat)).toEqual([0, 1, 2]);
     const assignment = (await state(code, c)).body.game!.assignment!;
-    await call('POST', `/api/rooms/${code}/lines`, { token: c.token, body: { poemId: assignment.poemId, lineIndex: 0, text: 'third' } });
+    await call('POST', `/api/rooms/${code}/lines`, {
+      token: c.token,
+      body: { poemId: assignment.poemId, lineIndex: 0, text: 'third' },
+    });
     expect((await state(code, a)).body.game!.round).toBe(1);
   });
 });

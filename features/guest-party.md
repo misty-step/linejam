@@ -1,12 +1,11 @@
-# Guest party
+# Guest party (US-001)
 
-Stories: US-001
-Source: app/api/guest/**, app/host/**, app/join/**, app/room/[code]/**, app/providers.tsx, convex/rooms.ts, convex/schema.ts, convex/lib/auth.ts, convex/lib/room.ts, convex/lib/parlor.ts, lib/guestSession.ts, lib/auth.ts, middleware.ts, components/Lobby.tsx
+Entry, identity, rooms, invitations, presence, host succession, scripted players.
 
-Acceptance: [SPEC.md — US-001](../SPEC.md#us-001-live-start-and-join-a-room-without-an-account).
-
-## Driving it
-
-The web guest-session route issues the signed HTTP-only cookie and in-memory bearer; Convex verifies the guest before room creation or admission. `qa/walk --stories "US-001"` exercises a real isolated web/backend guest journey. The existing local QA and browser auth tests provide additional bounded checks, but do not stand in for the story receipt.
-
-Local isolated QA does not certify a hosted Clerk outage or production deployment.
+- Rules: `shared/rules.ts` (room codes, emblems, capacity)
+- Identity: `src/auth.ts`, `POST|GET /api/guest` in `src/worker.ts`
+- Room: `src/room.ts` — `create`, `join`, `leave`, `start`, `close`, presence, `ensureHost`, WebSockets
+- UI: `web/src/views.ts` (`landing`, `lobby`), `web/src/qr.ts`, `web/src/net.ts`
+- CLI / MCP: `cli/`
+- Tests: `tests/worker/room.test.ts`, `tests/worker/identity.test.ts`, `tests/faces/cli.test.ts`, `tests/faces/mcp.test.ts`
+- Walkthrough: landing → lobby → join by QR → start (`e2e/walkthrough.mjs`)

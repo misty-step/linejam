@@ -8,69 +8,45 @@ messages.
 ## Setup
 
 ```bash
-node scripts/local/cli.mjs dev
+pnpm install
+pnpm dev
 ```
 
-This runs the real isolated guest game without provider credentials or a host
-dotenv file. Ctrl-C stops the owned stack. See
-[local development](docs/local-development.md) for QA, reset, concurrent projects,
-and readiness evidence.
+This runs the real game on `http://127.0.0.1:8787` — workerd with SQLite
+Durable Objects — without cloud credentials or a dotenv file. The first run
+generates a local-only secret in `.dev.vars`. Ctrl-C stops it.
 
-Hosted-provider integration is a separate, explicitly commissioned lane. Use
-`bash scripts/setup.sh` for that lane and align its web/Convex guest secret;
-ordinary checks never sync code or create provider configuration automatically.
-
-## Starting Work
+## Starting work
 
 Work from a current request and check the affected code before implementation.
-Check existing branches, pull requests, and active sessions for overlap; agree
-on ownership when another contributor is working on the same files. Use a
+Check existing branches, pull requests, and active sessions for overlap. Use a
 focused branch and describe the result and verification evidence in its pull
-request. Powder owns priorities, questions and decisions in flight; Kanban owns
-active work, and GitHub owns PRs, CI and inbound issues. Historical issues are
-context, not an automatic queue or a required intake ceremony.
+request.
 
-Repository docs own version-bound contracts, accepted decisions, and portable
-procedures. Keep fixtures and shipped assets in the repo; retain raw or
-sensitive run output in approved artifact storage and link sanitized,
-revision-specific conclusions from the work item or PR. Release and runtime
-ledgers keep their existing authority. `project.md` owns the product brief;
-`SPEC.md` owns observable behavior and user stories. Update the specification in
-the same PR as a behavior change, and verify its affected acceptance criteria.
+Product behavior starts in [`PRODUCT.md`](PRODUCT.md) and visual changes in
+[`DESIGN.md`](DESIGN.md); both, and `folio/assets/**`, change only through a
+Folio change. Update [`SPEC.md`](SPEC.md) in the same PR as a behavior change.
 
-## Local Checks
-
-Choose focused checks from [docs/testing.md](docs/testing.md). Pure
-documentation or non-runtime configuration needs affected formatting,
-link/command resolution, and relevant schema/importer evidence, not a full
-application run solely to prove prose.
-
-Before pushing behavior changes, run the fast local gate:
+## Checks
 
 ```bash
-pnpm ci:prepush
+pnpm verify --fast   # build, types, formatting, all tests
+pnpm verify          # the same, then the headed two-player browser walkthrough
 ```
 
-The pre-push hook also applies to documentation-only pushes; do not bypass it
-or require a duplicate manual run. Hosted CI's merge gate remains authoritative
-for merge.
+A change is accepted when it is verified on the real running application
+(`pnpm verify`), not by tests alone. See [docs/testing.md](docs/testing.md).
+Pure documentation changes need affected formatting and link resolution, not a
+full application run.
 
-Do not use `--no-verify`, lower coverage, disable tests, or loosen lint rules
-to get green. If browser evidence or smoke coverage is relevant, include the
-artifact link or workflow run in the PR.
+## Rules of the codebase
 
-## Pull Requests
-
-PRs should:
-
-- Target `master`.
-- Use a Conventional Commit title.
-- Describe the behavior or documentation outcome.
-- Name the exact verification commands, workflow runs, and rendered artifacts.
-- Call out residual risk or intentionally unverified paths.
-- Keep secrets out of logs, screenshots, and fixtures.
-
-For UI or game-flow changes, include browser evidence from Playwright,
-`pnpm evidence:guest-flow`, preview smoke, or production smoke as appropriate.
-For security-sensitive changes, reference `SECURITY.md` and keep vulnerability
-details out of public discussion until patched.
+- One runtime: the Worker and its Durable Objects. No framework server, no
+  second backend, no third-party SDK in the browser, no external requests.
+- A rule lives once, in `shared/rules.ts`, and every face uses it.
+- Colors, radii, type stacks and motion come only from
+  `folio/assets/tokens.json`. The stylesheet has no literals for them, and a
+  test enforces that.
+- Copy passes the Delete Test and the Self-Reference Test (`DESIGN.md`
+  `[D1-5]`).
+- No fallbacks that hide a failure. Fail visibly.

@@ -1,0 +1,3 @@
+{"_id": "g_done", "_creationTime": 1757000100000, "roomId": "r1", "status": "COMPLETED", "cycle": 1, "currentRound": 8, "assignmentMatrix": [], "createdAt": 1757000100000, "completedAt": 1757000900000, "completionKind": "normal"}
+{"_id": "g_abandoned", "_creationTime": 1757001000000, "roomId": "r1", "status": "ABANDONED", "cycle": 2, "currentRound": 3, "assignmentMatrix": [], "createdAt": 1757001000000, "completionKind": "abandoned"}
+{"_id": "g_live", "_creationTime": 1757002000000, "roomId": "r2", "status": "IN_PROGRESS", "cycle": 1, "currentRound": 2, "assignmentMatrix": [], "createdAt": 1757002000000}
