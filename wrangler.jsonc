@@ -1,6 +1,7 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "linejam",
+  // The top level is the local Worker (`pnpm dev`, tests). Production is `env.production`.
+  "name": "linejam-local",
   "main": "src/worker.ts",
   "compatibility_date": "2026-11-01",
   "workers_dev": false,

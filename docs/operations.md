@@ -20,7 +20,7 @@ of a normal release.
 ## Deploy
 
 ```sh
-pnpm deploy   # wrangler deploy --env production
+pnpm deploy:production   # wrangler deploy --env production
 ```
 
 `wrangler` runs `scripts/build.mjs` first; a folio checksum mismatch stops the

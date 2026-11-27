@@ -629,7 +629,7 @@ const actions: Record<string, (el: HTMLElement) => void | Promise<void>> = {
     if (state.menuOpen) (root.querySelector('.menu-item') as HTMLElement | null)?.focus();
   },
   async help() {
-    closeMenu(false);
+    closeMenu(true);
     await dialog({
       title: 'How to play',
       body: `<ol class="help"><li><strong>Write</strong> one line each round. You see the line before yours, nothing else.</li><li><strong>Pass</strong> for nine rounds: <span class="mono">1 2 3 4 5 4 3 2 1</span> words.</li><li><strong>Read</strong> the finished poems aloud.</li></ol>`,
@@ -637,7 +637,7 @@ const actions: Record<string, (el: HTMLElement) => void | Promise<void>> = {
     });
   },
   async 'leave-room'() {
-    closeMenu(false);
+    closeMenu(true);
     const confirmed = await dialog({ title: 'Leave room?', body: '', safe: 'Stay', confirm: { label: 'Leave room' } });
     if (!confirmed) return;
     const code = state.room?.code;
@@ -649,7 +649,7 @@ const actions: Record<string, (el: HTMLElement) => void | Promise<void>> = {
     }
   },
   async 'end-game'() {
-    closeMenu(false);
+    closeMenu(true);
     const confirmed = await dialog({
       title: 'End game?',
       body: '<p>Unfinished poems are discarded.</p>',
@@ -659,7 +659,7 @@ const actions: Record<string, (el: HTMLElement) => void | Promise<void>> = {
     if (confirmed) await roomAction('end', 'end');
   },
   async 'close-room'() {
-    closeMenu(false);
+    closeMenu(true);
     const confirmed = await dialog({
       title: 'Close room?',
       body: '<p>The room code stops working.</p>',

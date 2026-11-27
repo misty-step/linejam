@@ -377,7 +377,7 @@ async function runConfig(browser, origin, viewportName, modeName) {
     externalRequests: [],
     requests: 0,
     sockets: 0,
-    frames: { host: [], guest: [] },
+    frames: { host: [], guest: [], spectator: [] },
     audits: [],
     largeText: [],
     steps: [],
@@ -404,8 +404,17 @@ async function runConfig(browser, origin, viewportName, modeName) {
     colorScheme: mode.colorScheme,
     reducedMotion: mode.reducedMotion,
   });
+  // A late arrival: joins mid-game and watches. Nothing hidden may ever reach this context.
+  const spectatorContext = await browser.newContext({
+    viewport,
+    colorScheme: mode.colorScheme,
+    reducedMotion: mode.reducedMotion,
+    hasTouch: viewportName !== 'desktop',
+    isMobile: viewportName !== 'desktop',
+  });
   await watch(hostContext, 'host', ledger, origin);
   await watch(guestContext, 'guest', ledger, origin);
+  await watch(spectatorContext, 'spectator', ledger, origin);
   const readerLedger = {
     ...ledger,
     consoleErrors: [],
@@ -419,6 +428,7 @@ async function runConfig(browser, origin, viewportName, modeName) {
   await watch(readerContext, 'reader', readerLedger, origin);
   const host = await hostContext.newPage();
   const guest = await guestContext.newPage();
+  const spectator = await spectatorContext.newPage();
   const slow = recording;
 
   try {
@@ -788,6 +798,32 @@ async function runConfig(browser, origin, viewportName, modeName) {
         `${config}: guest line refused in round ${round + 1}`
       );
       hidden.push(LINES.host[round], LINES.guest[round]);
+
+      if (round === 3) {
+        // A late arrival joins the running game as a spectator.
+        await spectator.goto(`${origin}/join?code=${code}`);
+        await spectator.locator('#pen-name').fill('Odile');
+        await spectator.locator('[data-form="join"] button[type="submit"]:not([disabled])').click();
+        await spectator.waitForURL(new RegExp(`/room/${code}$`));
+        await spectator.getByRole('heading', { name: 'Spectating' }).waitFor();
+        check(
+          (await spectator.locator('#line-input, [data-form="line"], .previous').count()) === 0,
+          `${config}: a spectator has a composer or a preceding line`
+        );
+        check(
+          (await spectator.locator('.progress .member').count()) === 2,
+          `${config}: the spectator was added to the frozen writers`
+        );
+        await audit(spectator, 'spectating', viewportName, ledger);
+        if (viewportName === 'phone' && modeName === 'light')
+          await shot(spectator, config, 'spectating', ledger.screenshots);
+        // The game goes on without them: the writers are already in the next round.
+        await host.locator('.round[aria-label="Round 5 of 9"]').waitFor();
+      }
+      if (round >= 3) {
+        const seen = await spectator.locator('#app').innerText();
+        for (const line of hidden) check(!seen.includes(line), `${config}: the spectator can see "${line}"`);
+      }
     }
     step(
       'nine rounds written 1-2-3-4-5-4-3-2-1; each round showed only the immediately preceding line; waiting had no timer'
@@ -811,7 +847,17 @@ async function runConfig(browser, origin, viewportName, modeName) {
         }
       }
     }
-    check(ledger.sockets >= 2, `${config}: expected live WebSockets for both players`);
+    check(ledger.sockets >= 3, `${config}: expected live WebSockets for both players and the spectator`);
+    // Nothing a writer wrote ever reached the spectator's socket while it was hidden.
+    check(ledger.frames.spectator.length > 0, `${config}: the spectator received no live updates`);
+    for (const payload of ledger.frames.spectator) {
+      for (const line of [...LINES.host, ...LINES.guest]) {
+        check(!payload.includes(JSON.stringify(line)), `${config}: a spectator socket frame carried "${line}"`);
+      }
+      if (payload !== 'pong') {
+        check(JSON.parse(payload).state.game?.assignment == null, `${config}: a spectator was given an assignment`);
+      }
+    }
 
     // ── Reading circle ──
     await host.locator('.rail').waitFor();
@@ -829,6 +875,13 @@ async function runConfig(browser, origin, viewportName, modeName) {
         `${config}: unrevealed poem text reached a client`
       );
     }
+    // The spectator sees the reading order, no poem text and no reveal control.
+    await spectator.locator('.rail').waitFor();
+    check(
+      (await spectator.locator('.poem .verse').count()) === 0 &&
+        (await spectator.locator('[data-action="reveal"]').count()) === 0,
+      `${config}: the spectator has poem text or a reveal control before reveal`
+    );
     // The assigned reader has the control; the other player is told who reads.
     const firstReader = (await host.locator('[data-action="reveal"]').count()) === 1 ? 'host' : 'guest';
     const listener = firstReader === 'host' ? 'guest' : 'host';
@@ -860,6 +913,18 @@ async function runConfig(browser, origin, viewportName, modeName) {
         `${config}: no "up next" entry after first reveal`
       );
     }
+    // After reveal the room sees the poem, spectators included — with no heart, share or reveal controls.
+    await spectator.locator('.poem .verse').nth(8).waitFor();
+    check(
+      (await spectator
+        .locator('[data-action="heart"], [data-action="share"], [data-action="reveal"], [data-action="play-again"]')
+        .count()) === 0,
+      `${config}: the spectator has artifact or reveal controls`
+    );
+    const stillHidden = JSON.parse(
+      ledger.frames.spectator.filter((f) => f !== 'pong').at(-1)
+    ).state.game.circle.poems.find((p) => p.state === 'next');
+    check(stillHidden.lines === null, `${config}: the unrevealed poem reached the spectator`);
     const poem = await host.locator('.poem .verse').allInnerTexts();
     const bylines = await host.locator('.poem .byline').allInnerTexts();
     const expectedPoem =
@@ -1053,6 +1118,13 @@ async function runConfig(browser, origin, viewportName, modeName) {
     }
     const after = await host.evaluate(async () => (await fetch('/api/poems')).json());
     check(after.length === 2, `${config}: playing again changed the earlier poems`);
+    // The late arrival writes normally in the next game, and has no archive from the one they watched.
+    await spectator.locator('#line-input').waitFor();
+    const watched = await spectator.evaluate(async () => (await fetch('/api/poems')).json());
+    check(
+      Array.isArray(watched) && watched.length === 0,
+      `${config}: the spectator has archive entries from a game they only watched`
+    );
     step('next poem → recap (replay, most hearts) → Play again started game 2; earlier poems intact');
 
     // ── Top bar: persistent Light / Dark / System, room options, focus handling ──
@@ -1099,7 +1171,92 @@ async function runConfig(browser, origin, viewportName, modeName) {
     await dialog.waitFor({ state: 'detached' });
     await host.locator('.round[aria-label="Round 1 of 9"]').waitFor();
     check((await host.locator('#line-input').count()) === 1, `${config}: Escape ended the game`);
-    step('theme toggle persists across reload; End game asks first; Escape is the safe exit');
+    check(
+      await host.evaluate(() => document.activeElement?.id === 'menu-button'),
+      `${config}: focus did not return to the control that opened the dialog`
+    );
+    step('theme toggle persists across reload; End game asks first; Escape is the safe exit and focus returns');
+
+    // ── Your poems: the private archive, private exports ──
+    await guest.locator('#menu-button').click();
+    await guest.locator('.menu a[href="/poems"]').click();
+    await guest.getByRole('heading', { name: 'Your poems' }).waitFor();
+    await guest.locator('.poem-row').nth(1).waitFor();
+    check((await guest.locator('.poem-row').count()) === 2, `${config}: the guest's archive does not list both poems`);
+    check(
+      (await guest.locator('.poem-row .heart[aria-pressed="true"]').count()) === 0,
+      `${config}: the host's heart shows as the guest's favorite`
+    );
+    await audit(guest, 'archive', viewportName, ledger);
+    if (viewportName === 'phone' && modeName === 'light') await shot(guest, config, 'your-poems', ledger.screenshots);
+    await guest.locator('.poem-row-link').first().click();
+    await guest.locator('.poem .verse').nth(8).waitFor();
+    const archived = await guest.locator('.poem .verse').allInnerTexts();
+    await guest.locator('[data-action="copy-text"]').click();
+    await guest.locator('[data-flash="export"]:has-text("Text copied")').waitFor();
+    check(
+      (await guest.evaluate(() => navigator.clipboard.readText())) === archived.join('\n'),
+      `${config}: Copy text did not copy the poem`
+    );
+    const [download] = await Promise.all([
+      guest.waitForEvent('download'),
+      guest.locator('[data-action="save-image"]').click(),
+    ]);
+    check(
+      download.suggestedFilename() === 'linejam-poem.png',
+      `${config}: Save image produced ${download.suggestedFilename()}`
+    );
+    await guest.locator('[data-flash="export"]:has-text("Image saved")').waitFor();
+    // Copying and exporting are private: the poem is still unreadable without a link.
+    const exportedId = new URL(guest.url()).pathname.split('/').pop();
+    check(
+      (await readerContext.request.get(`${origin}/api/poems/${exportedId}`)).status() === 404,
+      `${config}: exporting made the poem public`
+    );
+    await audit(guest, 'poem', viewportName, ledger);
+    // Back to the room: the same seat, mid-game.
+    await guest.goto(`${origin}/room/${code}`);
+    await guest.locator('#line-input').waitFor();
+    step('Your poems: both poems listed privately; Copy text and Save image stay private; the seat is kept');
+
+    // ── End the stalled game, then close the room ──
+    await host.locator('#menu-button').click();
+    await host.locator('.menu [data-action="end-game"]').click();
+    await host.locator('dialog[open]').getByRole('button', { name: 'End game' }).click();
+    for (const page of [host, guest, spectator]) await page.locator('.roster').waitFor();
+    check((await host.locator('.count').innerText()) === '3/8', `${config}: ending the game changed the roster`);
+    const afterEnd = await host.evaluate(async () => (await fetch('/api/poems')).json());
+    check(afterEnd.length === 2, `${config}: an ended game reached the archive`);
+    await host.locator('#menu-button').click();
+    await host.locator('.menu [data-action="close-room"]').click();
+    const closing = host.locator('dialog[open]');
+    check(
+      await closing.getByRole('button', { name: 'Keep open' }).evaluate((el) => el === document.activeElement),
+      `${config}: Close room's safe exit is not focused`
+    );
+    await closing.getByRole('button', { name: 'Close room' }).click();
+    for (const page of [host, guest, spectator]) await page.getByRole('heading', { name: 'Room closed' }).waitFor();
+    // A closed room rejects new arrivals with a visible reason.
+    check(
+      (await readerContext.request.post(`${origin}/api/guest`, { data: {} })).ok(),
+      `${config}: could not mint a guest`
+    );
+    const refusedJoin = await readerContext.request.post(`${origin}/api/rooms/${code}/join`, {
+      data: { penName: 'Late', emblem: 'arch' },
+    });
+    check(
+      refusedJoin.status() === 410 && (await refusedJoin.json()).error.message === 'Room is closed',
+      `${config}: a closed room admitted an arrival`
+    );
+    step('host ended the stalled game (lobby, nothing archived) and closed the room; a new arrival is refused');
+
+    // ── Accounts are optional, and say so ──
+    await reader.goto(origin + '/account');
+    await reader.getByRole('heading', { name: 'Account' }).waitFor();
+    check(
+      (await reader.locator('#app').innerText()).includes('Accounts are not connected'),
+      `${config}: the account page pretends sign-in works`
+    );
 
     // ── Retired routes ──
     for (const path of ['/changelog', '/releases', '/releases.xml']) {
@@ -1109,7 +1266,7 @@ async function runConfig(browser, origin, viewportName, modeName) {
     const gone = await reader.goto(origin + '/changelog');
     check(gone.status() === 404, `${config}: /changelog page answered ${gone.status()}`);
     await reader.getByRole('heading', { name: 'Page not found' }).waitFor();
-    for (const page of [host, guest, reader]) {
+    for (const page of [host, guest, spectator, reader]) {
       check(
         (await page.locator('a[href*="changelog"], a[href*="releases"], footer').count()) === 0,
         `${config}: a footer or release link is present`
@@ -1144,6 +1301,7 @@ async function runConfig(browser, origin, viewportName, modeName) {
   const videos = recording ? { host: await host.video()?.path(), guest: await guest.video()?.path() } : null;
   await hostContext.close();
   await guestContext.close();
+  await spectatorContext.close();
   await readerContext.close();
   if (videos?.host && videos?.guest && ledger.result === 'pass') {
     // Host and Guest side by side, as one playable H.264 file.
@@ -1178,7 +1336,7 @@ async function runConfig(browser, origin, viewportName, modeName) {
     ledger.video = `walkthrough-${viewportName}.mp4`;
   }
   const { frames, ...report } = ledger;
-  report.socketFrames = { host: frames.host.length, guest: frames.guest.length };
+  report.socketFrames = { host: frames.host.length, guest: frames.guest.length, spectator: frames.spectator.length };
   return report;
 }
 
@@ -1237,6 +1395,47 @@ async function fallbackScenario(browser, origin) {
   return report;
 }
 
+/**
+ * [L1-2.3] A browser holding a credential the server refuses is shown
+ * recovery. It is not silently given a new identity.
+ */
+async function recoveryScenario(browser, origin) {
+  const report = { result: 'fail' };
+  const context = await browser.newContext({ viewport: VIEWPORTS.phone });
+  try {
+    await context.addCookies([{ name: 'linejam_guest_token', value: 'bm90LWEtdG9rZW4.forged', url: origin }]);
+    const page = await context.newPage();
+    const errors = [];
+    page.on('pageerror', (error) => errors.push(error.message));
+    page.on('console', (message) => message.type() === 'error' && errors.push(message.text()));
+    await page.goto(origin + '/');
+    await page.locator('.recovery:has-text("Session expired")').waitFor();
+    check(
+      await page.locator('[data-action="create"]').isDisabled(),
+      'recovery: New room is enabled with a refused credential'
+    );
+    check(
+      await page.locator('[data-form="join"] button[type="submit"]').isDisabled(),
+      'recovery: Join is enabled with a refused credential'
+    );
+    const before = (await context.cookies()).find((c) => c.name === 'linejam_guest_token').value;
+    check(before === 'bm90LWEtdG9rZW4.forged', 'recovery: the refused credential was replaced without asking');
+    await page.locator('[data-action="fresh-guest"]').click();
+    await page.locator('[data-action="create"]:not([disabled])').waitFor();
+    check((await page.locator('.recovery').count()) === 0, 'recovery: the notice stayed after starting fresh');
+    await page.locator('#pen-name').fill('Marlowe');
+    await page.locator('[data-action="create"]').click();
+    await page.waitForURL(/\/room\//);
+    await page.locator('.code-big').waitFor();
+    check(errors.length === 0, `recovery: errors ${errors.join(' | ')}`);
+    report.result = 'pass';
+  } catch (error) {
+    report.error = error.message;
+  }
+  await context.close();
+  return report;
+}
+
 // ───────────────────────── main ─────────────────────────
 
 rmSync(out, { recursive: true, force: true });
@@ -1258,6 +1457,7 @@ const browser = await chromium.launch({ channel: 'chrome', headless: false, args
 const version = browser.version();
 const reports = [];
 let fallback = null;
+let recovery = null;
 try {
   for (const [viewportName, modeName] of selected) {
     console.log(`▶ ${viewportName}-${modeName}`);
@@ -1270,6 +1470,11 @@ try {
     fallback = await fallbackScenario(browser, origin);
     console.log(
       `${fallback.result === 'pass' ? '✔' : '✘'} http-fallback${fallback.error ? ` — ${fallback.error}` : ''}`
+    );
+    console.log('▶ credential-recovery');
+    recovery = await recoveryScenario(browser, origin);
+    console.log(
+      `${recovery.result === 'pass' ? '✔' : '✘'} credential-recovery${recovery.error ? ` — ${recovery.error}` : ''}`
     );
   }
 } finally {
@@ -1308,10 +1513,12 @@ const summary = {
     maxOverflowAt200PercentTextPx: Math.max(0, ...reports.flatMap((r) => r.largeText.map((a) => a.overflowAt200))),
   },
   httpFallback: fallback,
+  credentialRecovery: recovery,
   // Share tokens are credentials to a public page; keep them out of evidence.
   reports: JSON.parse(JSON.stringify(reports).replace(/share=[\w-]+/g, 'share=…')),
 };
 writeFileSync(join(out, 'walkthrough.json'), JSON.stringify(summary, null, 2) + '\n');
 console.log(`\n${summary.passed}/${summary.runs} runs passed · ${JSON.stringify(summary.totals)}`);
 console.log(`evidence: ${out} (${readdirSync(out).length} files)`);
-if (failed.length || reports.length === 0 || (fallback && fallback.result !== 'pass')) process.exit(1);
+const extras = [fallback, recovery].filter(Boolean);
+if (failed.length || reports.length === 0 || extras.some((e) => e.result !== 'pass')) process.exit(1);

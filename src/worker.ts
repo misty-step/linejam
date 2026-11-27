@@ -295,10 +295,6 @@ export default {
     } catch (error) {
       if (error instanceof Reject) {
         const response = failure(error);
-        // A refused credential is cleared so the browser can recover on purpose.
-        if (error.code === 'guest_invalid' && !request.headers.get('authorization')) {
-          response.headers.set('x-linejam-guest', 'invalid');
-        }
         return secured(response);
       }
       console.error(

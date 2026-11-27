@@ -23,7 +23,7 @@
     "verify": "node scripts/verify.mjs",
     "cli": "node cli/linejam.ts",
     "mcp": "node cli/mcp.ts",
-    "deploy": "wrangler deploy --env production"
+    "deploy:production": "wrangler deploy --env production"
   },
   "devDependencies": {
     "@cloudflare/vitest-plugin": "^1.9.2",
