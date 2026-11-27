@@ -1,0 +1,27 @@
+# CLI and MCP faces against a live local wrangler dev (workerd + SQLite DOs)
+# commit 68b1b6480eec24e25500ee8a052f5ca248134ffe · command: pnpm exec vitest run --project faces --reporter verbose · exit 0
+
+ ✓ |faces| tests/faces/import.test.ts > [L1-5.4] legacy export → archive import > converts only completed games, with write-time bylines and published links 2ms
+ ✓ |faces| tests/faces/mcp.test.ts > [L1-6.4] MCP: initialization, discovery, calls > initializes and lists tools without touching the game 88ms
+ ✓ |faces| tests/faces/cli.test.ts > [L1-6] CLI parity > prints help without a target or an identity 75ms
+ ✓ |faces| tests/faces/mcp.test.ts > [L1-6.4] MCP: initialization, discovery, calls > answers malformed requests with protocol errors 54ms
+ ✓ |faces| tests/faces/import.test.ts > [L1-5.4] legacy export → archive import > imports through the operator route; the legacy guest then finds their archive and the published link works 614ms
+ ✓ |faces| tests/faces/import.test.ts > [L1-5.4] legacy export → archive import > plans without writing in --dry-run 23ms
+ ✓ |faces| tests/faces/design.test.ts > [L1-1] shared rules > counts whitespace-separated words and normalizes pasted whitespace 2ms
+ ✓ |faces| tests/faces/design.test.ts > [L1-1] shared rules > normalizes typed room codes and refuses 0, 1, O and I 1ms
+ ✓ |faces| tests/faces/design.test.ts > [L1-1] shared rules > builds the 9-round pass-the-poem matrix for 2 to 8 writers 11ms
+ ✓ |faces| tests/faces/design.test.ts > [D1-1] [D1-2.5] [D1-6] the stylesheet uses tokens only > contains no color literal: every color is a token 0ms
+ ✓ |faces| tests/faces/design.test.ts > [D1-1] [D1-2.5] [D1-6] the stylesheet uses tokens only > uses only the token radii, type stacks and motion durations 1ms
+ ✓ |faces| tests/faces/design.test.ts > [D1-1] [D1-2.5] [D1-6] the stylesheet uses tokens only > animates only transform, opacity and color 1ms
+ ✓ |faces| tests/faces/design.test.ts > [D1-1] [D1-2.5] [D1-6] the stylesheet uses tokens only > has none of the banned devices 3ms
+ ✓ |faces| tests/faces/design.test.ts > [D1-1] [D1-2.5] [D1-6] the stylesheet uses tokens only > keeps theme-color in step with the token canvas colors 0ms
+ ✓ |faces| tests/faces/design.test.ts > [L1-7.2] [D1-5] zero narrator copy > uses the canonical labels 1ms
+ ✓ |faces| tests/faces/design.test.ts > [L1-7.2] [D1-5] zero narrator copy > has none of the forbidden patterns, no sign-in clutter and no emoji 1ms
+ ✓ |faces| tests/faces/design.test.ts > [L1-5] one runtime > has no trace of the retired stack 1ms
+ ✓ |faces| tests/faces/mcp.test.ts > [L1-6.4] MCP: initialization, discovery, calls > mints guests explicitly and plays a full game with the same rules as the browser 751ms
+ ✓ |faces| tests/faces/cli.test.ts > [L1-6] CLI parity > plays a whole two-player game through the same HTTP API as the browser 4533ms
+ ✓ |faces| tests/faces/cli.test.ts > [L1-6] CLI parity > reports a rejected join as a structured failure: stderr, empty stdout, nonzero exit 107ms
+ ✓ |faces| tests/faces/cli.test.ts > [L1-6] CLI parity > keeps `guest mint` output shareable: the credential is on stderr only 73ms
+ ✓ |faces| tests/faces/cli.test.ts > [L1-6] CLI parity > refuses commands that need an identity or arguments, as usage errors 194ms
+ Test Files  4 passed (4)
+      Tests  22 passed (22)

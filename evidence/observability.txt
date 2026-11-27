@@ -1,0 +1,39 @@
+# [L1-8] Production observability — local real-path evidence at commit 68b1b6480eec24e25500ee8a052f5ca248134ffe
+# Ran in a disposable sandbox on loopback with zero cloud credentials. Not a deploy; not the live gate.
+
+## /api/health (wrangler dev)
+without DSN: {"status": "ok", "environment": "local", "release": "68b1b6480eec24e25500ee8a052f5ca248134ffe", "sentryConfigured": false}
+with loopback SENTRY_DSN: {"status": "ok", "environment": "local", "release": "68b1b6480eec24e25500ee8a052f5ca248134ffe", "sentryConfigured": true}
+
+## Walkthrough scenario `telemetry` (headed Chrome, e2e/walkthrough.mjs; result: pass)
+beacons sent by the browser (same origin, no cookie): 3
+requests to another origin: 0
+envelope /api/7/envelope/ tags={"kind": "browser_error", "environment": "local", "release": "68b1b6480eec24e25500ee8a052f5ca248134ffe", "route": "/poem/:id"} type='TypeError' value='Uncaught TypeError: probe room [code] failed for [email]'
+envelope /api/7/envelope/ tags={"kind": "csp_violation", "environment": "local", "release": "68b1b6480eec24e25500ee8a052f5ca248134ffe", "route": "/poem/:id", "directive": "img-src", "blocked": "https://cdn.example.test"} type='SecurityPolicyViolation' value='img-src blocked https://cdn.example.test'
+envelope /api/7/envelope/ tags={"kind": "unhandled_rejection", "environment": "local", "release": "68b1b6480eec24e25500ee8a052f5ca248134ffe", "route": "/poem/:id"} type='Error' value='probe rejection /poem/:id'
+
+## Worker 5xx forwarded (wrangler dev with an unusable guest secret + loopback DSN)
+GET /api/health → 503 {"error":{"code":"service_unconfigured","message":"Guest credentials are not configured"}}
+sink /api/9/envelope/ auth "Sentry sentry_version=7, sentry_key=…, sentry_client=linejam-worker/1.0"
+event tags {"kind":"worker_exception","environment":"local","release":"68b1b6480eec24e25500ee8a052f5ca248134ffe","route":"/api/health","method":"GET","status":"503"}
+exception "Reject:service_unconfigured": "Guest credentials are not configured"
+
+## Story runs (headed Chrome 1440x900 and 390x844; videos in the run evidence)
+worker http://127.0.0.1:8801; health {"status":"ok","environment":"local","release":"68b1b6480eec24e25500ee8a052f5ca248134ffe","sentryConfigured":true}
+[L1-8.3] beacon answered 204
+[L1-8.4] sink received envelope at /api/9/envelope/: tags {"kind":"browser_error","environment":"local","release":"68b1b6480eec24e25500ee8a052f5ca248134ffe","route":"/poem/:id"} value "Uncaught Error: evidence probe on a shared poem"
+[L1-8.6] envelope contains share slug: false; contains poem id: false
+ledger {"viewport":{"width":1440,"height":900},"consoleErrors":[],"unexpectedPageErrors":[],"badResponses":[],"externalRequests":[],"failedRequests":[],"envelopes":1}
+worker http://127.0.0.1:8811; health {"status":"ok","environment":"local","release":"68b1b6480eec24e25500ee8a052f5ca248134ffe","sentryConfigured":true}
+[L1-8.3] beacon answered 204
+[L1-8.4] sink received envelope at /api/9/envelope/: tags {"kind":"browser_error","environment":"local","release":"68b1b6480eec24e25500ee8a052f5ca248134ffe","route":"/poem/:id"} value "Uncaught Error: evidence probe on a shared poem"
+[L1-8.6] envelope contains share slug: false; contains poem id: false
+ledger {"viewport":{"width":390,"height":844},"consoleErrors":[],"unexpectedPageErrors":[],"badResponses":[],"externalRequests":[],"failedRequests":[],"envelopes":1}
+
+## [L1-3.10] walkthrough scenario `rapid-submit` (result: pass)
+held round-1 state reads: 2; in flight at the round-2 Enter: 1; round-2 line POSTed 11 ms after Enter
+The same scenario against the pre-change client fails: 'Enter on the round-2 line was dropped while round 1 was settling'.
+
+## Not covered here
+- [L1-8.9] Sentry alert routing to the auto-triage pipeline lives in Sentry, outside this repository.
+- Production SENTRY_DSN binding (a secret change) and the [V-4] live gate need an authorized post-merge deploy.

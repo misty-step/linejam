@@ -1,9 +1,9 @@
 {
   "target": "local wrangler dev (workerd + SQLite Durable Objects)",
   "browser": "Google Chrome 151.0.7922.108 (headed)",
-  "commit": "0b28b2de857136a3a7defcaa747e480ffb52dd4c",
+  "commit": "68b1b6480eec24e25500ee8a052f5ca248134ffe",
   "dirty": false,
-  "ranAt": "2026-11-27T03:25:22.141Z",
+  "ranAt": "2026-11-27T07:16:35.815Z",
   "runs": 9,
   "passed": 9,
   "totals": {
@@ -26,6 +26,182 @@
   },
   "credentialRecovery": {
     "result": "pass"
+  },
+  "rapidSubmit": {
+    "result": "pass",
+    "heldReads": 2,
+    "inFlightAtEnter": 1,
+    "round2SentMs": 11,
+    "errors": []
+  },
+  "telemetry": {
+    "result": "pass",
+    "beacons": [
+      {
+        "body": {
+          "kind": "browser_error",
+          "type": "TypeError",
+          "message": "Uncaught TypeError: probe room K7QM failed for ada@example.com",
+          "stack": "TypeError: probe room K7QM failed for ada@example.com\n    at eval (eval at evaluate (:370:30), <anonymous>:3:15)",
+          "route": "/poem/:id"
+        },
+        "cookie": false
+      },
+      {
+        "body": {
+          "kind": "csp_violation",
+          "type": "SecurityPolicyViolation",
+          "message": "img-src blocked https://cdn.example.test",
+          "directive": "img-src",
+          "blocked": "https://cdn.example.test",
+          "route": "/poem/:id"
+        },
+        "cookie": false
+      },
+      {
+        "body": {
+          "kind": "unhandled_rejection",
+          "type": "Error",
+          "message": "probe rejection /poem/p_0123456789abcdef01234567?share=leak",
+          "stack": "Error: probe rejection /poem/p_0123456789abcdef01234567?share=leak\n    at eval (eval at evaluate (:370:30), <anonymous>:5:22)\n    at UtilityScript.evaluate (<anonymous>:372:16)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)",
+          "route": "/poem/:id"
+        },
+        "cookie": false
+      }
+    ],
+    "envelopes": [
+      {
+        "path": "/api/7/envelope/",
+        "auth": "Sentry sentry_version=7, sentry_key=…, sentry_client=linejam-worker/1.0",
+        "event": {
+          "event_id": "710423957652435faf0dac48a8a076b1",
+          "timestamp": 1795763792.906,
+          "platform": "javascript",
+          "level": "error",
+          "logger": "browser",
+          "environment": "local",
+          "release": "68b1b6480eec24e25500ee8a052f5ca248134ffe",
+          "transaction": "/poem/:id",
+          "tags": {
+            "kind": "browser_error",
+            "environment": "local",
+            "release": "68b1b6480eec24e25500ee8a052f5ca248134ffe",
+            "route": "/poem/:id"
+          },
+          "exception": {
+            "values": [
+              {
+                "type": "TypeError",
+                "value": "Uncaught TypeError: probe room [code] failed for [email]",
+                "stacktrace": {
+                  "frames": [
+                    {
+                      "function": "eval",
+                      "filename": "eval at evaluate (:370:30), <anonymous>",
+                      "lineno": 3,
+                      "colno": 15
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "path": "/api/7/envelope/",
+        "auth": "Sentry sentry_version=7, sentry_key=…, sentry_client=linejam-worker/1.0",
+        "event": {
+          "event_id": "511c98042d6a498da3737332c65bd2de",
+          "timestamp": 1795763792.909,
+          "platform": "javascript",
+          "level": "error",
+          "logger": "browser",
+          "environment": "local",
+          "release": "68b1b6480eec24e25500ee8a052f5ca248134ffe",
+          "transaction": "/poem/:id",
+          "tags": {
+            "kind": "csp_violation",
+            "environment": "local",
+            "release": "68b1b6480eec24e25500ee8a052f5ca248134ffe",
+            "route": "/poem/:id",
+            "directive": "img-src",
+            "blocked": "https://cdn.example.test"
+          },
+          "exception": {
+            "values": [
+              {
+                "type": "SecurityPolicyViolation",
+                "value": "img-src blocked https://cdn.example.test"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "path": "/api/7/envelope/",
+        "auth": "Sentry sentry_version=7, sentry_key=…, sentry_client=linejam-worker/1.0",
+        "event": {
+          "event_id": "67fb0e24c1b444b3a25669abd4a99cfa",
+          "timestamp": 1795763792.91,
+          "platform": "javascript",
+          "level": "error",
+          "logger": "browser",
+          "environment": "local",
+          "release": "68b1b6480eec24e25500ee8a052f5ca248134ffe",
+          "transaction": "/poem/:id",
+          "tags": {
+            "kind": "unhandled_rejection",
+            "environment": "local",
+            "release": "68b1b6480eec24e25500ee8a052f5ca248134ffe",
+            "route": "/poem/:id"
+          },
+          "exception": {
+            "values": [
+              {
+                "type": "Error",
+                "value": "probe rejection /poem/:id",
+                "stacktrace": {
+                  "frames": [
+                    {
+                      "function": "UtilityScript.<anonymous>",
+                      "filename": "<anonymous>",
+                      "lineno": 1,
+                      "colno": 44
+                    },
+                    {
+                      "function": "UtilityScript.evaluate",
+                      "filename": "<anonymous>",
+                      "lineno": 372,
+                      "colno": 16
+                    },
+                    {
+                      "function": "eval",
+                      "filename": "eval at evaluate (:370:30), <anonymous>",
+                      "lineno": 5,
+                      "colno": 22
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      }
+    ],
+    "external": [],
+    "health": {
+      "status": "ok",
+      "environment": "local",
+      "release": "68b1b6480eec24e25500ee8a052f5ca248134ffe",
+      "sentryConfigured": true
+    },
+    "plainHealth": {
+      "status": "ok",
+      "environment": "local",
+      "release": "68b1b6480eec24e25500ee8a052f5ca248134ffe",
+      "sentryConfigured": false
+    }
   },
   "reports": [
     {
@@ -104,7 +280,7 @@
           "screen": "reveal",
           "overflow": 0,
           "minTarget": 44,
-          "targets": 9,
+          "targets": 8,
           "fonts": [
             "Newsreader",
             "IBM Plex Mono",
@@ -221,7 +397,7 @@
         "host started the game with 2 players",
         "round 2: over-count refused with \"Use 2 words\" (client and server); draft survived refresh",
         "nine rounds written 1-2-3-4-5-4-3-2-1; each round showed only the immediately preceding line; waiting had no timer",
-        "reading circle: guest revealed poem 1 — nine lines together with bylines; rail shows reading now / up next",
+        "reading circle: host revealed poem 1 — nine lines together with bylines; rail shows reading now / up next",
         "heart toggled: personal, counted for the room, and not a publication",
         "share: disclosure shown, link published on copy, opened by a signed-out reader",
         "revoke: the shared link now answers 404 and shows nothing",
@@ -260,7 +436,7 @@
         "size": 25,
         "family": "Newsreader",
         "align": "left",
-        "opacity": "0.969958"
+        "opacity": "0.944882"
       },
       "result": "pass",
       "video": "walkthrough-desktop.mp4",
@@ -498,7 +674,7 @@
         "size": 25,
         "family": "Newsreader",
         "align": "left",
-        "opacity": "0.72755"
+        "opacity": "0.55885"
       },
       "result": "pass",
       "socketFrames": {
@@ -974,7 +1150,7 @@
         "size": 21,
         "family": "Newsreader",
         "align": "left",
-        "opacity": "0.726892"
+        "opacity": "0.558433"
       },
       "result": "pass",
       "video": "walkthrough-phone.mp4",
@@ -1212,7 +1388,7 @@
         "size": 21,
         "family": "Newsreader",
         "align": "left",
-        "opacity": "0.559279"
+        "opacity": "0.835877"
       },
       "result": "pass",
       "socketFrames": {
@@ -1297,7 +1473,7 @@
           "screen": "reveal",
           "overflow": 0,
           "minTarget": 44,
-          "targets": 8,
+          "targets": 9,
           "fonts": [
             "Newsreader",
             "IBM Plex Mono",
@@ -1414,7 +1590,7 @@
         "host started the game with 2 players",
         "round 2: over-count refused with \"Use 2 words\" (client and server); draft survived refresh",
         "nine rounds written 1-2-3-4-5-4-3-2-1; each round showed only the immediately preceding line; waiting had no timer",
-        "reading circle: host revealed poem 1 — nine lines together with bylines; rail shows reading now / up next",
+        "reading circle: guest revealed poem 1 — nine lines together with bylines; rail shows reading now / up next",
         "heart toggled: personal, counted for the room, and not a publication",
         "share: disclosure shown, link published on copy, opened by a signed-out reader",
         "revoke: the shared link now answers 404 and shows nothing",
@@ -1447,7 +1623,7 @@
         "size": 21,
         "family": "Newsreader",
         "align": "left",
-        "opacity": "0.2784"
+        "opacity": "0.278275"
       },
       "result": "pass",
       "socketFrames": {
@@ -1670,7 +1846,7 @@
         "size": 21,
         "family": "Newsreader",
         "align": "left",
-        "opacity": "0.55885"
+        "opacity": "0.558507"
       },
       "result": "pass",
       "socketFrames": {
@@ -1743,7 +1919,7 @@
           "screen": "reveal",
           "overflow": 0,
           "minTarget": 44,
-          "targets": 8,
+          "targets": 9,
           "fonts": [
             "Newsreader",
             "IBM Plex Mono",
@@ -1860,7 +2036,7 @@
         "host started the game with 2 players",
         "round 2: over-count refused with \"Use 2 words\" (client and server); draft survived refresh",
         "nine rounds written 1-2-3-4-5-4-3-2-1; each round showed only the immediately preceding line; waiting had no timer",
-        "reading circle: host revealed poem 1 — nine lines together with bylines; rail shows reading now / up next",
+        "reading circle: guest revealed poem 1 — nine lines together with bylines; rail shows reading now / up next",
         "heart toggled: personal, counted for the room, and not a publication",
         "share: disclosure shown, link published on copy, opened by a signed-out reader",
         "revoke: the shared link now answers 404 and shows nothing",
@@ -1893,7 +2069,7 @@
         "size": 21,
         "family": "Newsreader",
         "align": "left",
-        "opacity": "0.315525"
+        "opacity": "0.558544"
       },
       "result": "pass",
       "socketFrames": {
@@ -2116,7 +2292,7 @@
         "size": 21,
         "family": "Newsreader",
         "align": "left",
-        "opacity": "0.278175"
+        "opacity": "0.278267"
       },
       "result": "pass",
       "socketFrames": {
